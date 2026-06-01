@@ -28,7 +28,7 @@ export const Colors = {
   muted: '#9A95A2',
 
   // ── Lines ───────────────────────────────────────────────────────
-  line: '#24212A',
+  line: '#C8BAB3',
   lineSoft: '#ECE2DC',
   hair: 'rgba(36,33,42,0.08)',
 

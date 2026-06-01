@@ -1,15 +1,22 @@
-import { useState } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
 import { AppBar } from '@/components/ui/AppBar';
 import { Button } from '@/components/ui/Button';
 import { Colors, Fonts } from '@/constants/colors';
+import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const OTP_LENGTH = 5;
 
 export default function OTPScreen() {
   const [otp, setOtp] = useState('');
+  const [seconds, setSeconds] = useState(48);
+
+  useEffect(() => {
+    if (seconds <= 0) return;
+    const t = setInterval(() => setSeconds(s => s - 1), 1000);
+    return () => clearInterval(t);
+  }, [seconds]);
 
   const handleChange = (text: string) => {
     const digits = text.replace(/\D/g, '').slice(0, OTP_LENGTH);
@@ -49,9 +56,18 @@ export default function OTPScreen() {
           autoFocus
         />
 
-        <Text style={styles.resend}>
-          ارسال مجدد در <Text style={styles.timer}>۰۰:۴۸</Text>
-        </Text>
+        {seconds > 0 ? (
+          <Text style={styles.resend}>
+            ارسال مجدد در{' '}
+            <Text style={styles.timer}>
+              {`${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`}
+            </Text>
+          </Text>
+        ) : (
+          <Text style={[styles.resend, styles.resendActive]} onPress={() => setSeconds(48)}>
+            ارسال مجدد کد
+          </Text>
+        )}
 
         <View style={styles.btnWrap}>
           <Button
@@ -77,6 +93,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     marginTop: 32,
+    writingDirection: "ltr"
   },
   box: {
     width: 48,
@@ -111,5 +128,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.regular,
   },
   timer: { fontFamily: Fonts.bold, color: Colors.ink },
+  resendActive: { color: Colors.accent, fontFamily: Fonts.bold },
   btnWrap: { position: 'absolute', bottom: 32, left: 20, right: 20 },
 });

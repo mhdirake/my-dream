@@ -1,5 +1,7 @@
 // Discover tab — Swipe + Daily Suggestions
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Search, Bell, X, Gift, Heart, MessageCircle, Sparkles } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
@@ -10,19 +12,19 @@ import { Colors, Fonts } from '@/constants/colors';
 type Mode = 'swipe' | 'daily' | 'ai';
 
 const MODES: { id: Mode; label: string }[] = [
-  { id: 'swipe',  label: 'Swipe' },
-  { id: 'daily',  label: 'پیشنهاد روزانه' },
-  { id: 'ai',     label: 'AI Match ✦' },
+  { id: 'swipe', label: 'Swipe'         },
+  { id: 'daily', label: 'پیشنهاد روزانه' },
+  { id: 'ai',    label: 'AI Match'      },
 ];
 
 const SAMPLE_PROFILES = [
-  { id: 1, name: 'سارا', age: 26, city: 'تهران', goal: 'ازدواج', compat: 86, tags: ['🎬 فیلم', '☕ قهوه', '📚 کتاب'], verified: true },
+  { id: 1, name: 'سارا', age: 26, city: 'تهران', goal: 'ازدواج', compat: 86, tags: ['فیلم', 'قهوه', 'کتاب'], verified: true },
 ];
 
 const DAILY_PROFILES = [
-  { id: 1, name: 'پریسا', age: 27, city: 'تهران', compat: 86, tags: ['☕ قهوه', '📚 کتاب', '🌿 طبیعت'], note: 'هدف رابطه بسیار نزدیک' },
-  { id: 2, name: 'یاسمن', age: 30, city: 'کرج',   compat: 74, tags: ['🎬 فیلم', '🐱 گربه'],             note: 'سبک زندگی مشابه' },
-  { id: 3, name: 'مهتاب', age: 25, city: 'تهران', compat: 68, tags: ['🌙 شب‌زنده', '🎮 گیمر'],          note: 'چند تگ مشترک' },
+  { id: 1, name: 'پریسا', age: 27, city: 'تهران', compat: 86, tags: ['قهوه', 'کتاب', 'طبیعت'], note: 'هدف رابطه بسیار نزدیک' },
+  { id: 2, name: 'یاسمن', age: 30, city: 'کرج',   compat: 74, tags: ['فیلم', 'گربه'],           note: 'سبک زندگی مشابه' },
+  { id: 3, name: 'مهتاب', age: 25, city: 'تهران', compat: 68, tags: ['شب‌زنده‌دار', 'گیمر'],    note: 'چند تگ مشترک' },
 ];
 
 function ModeSwitch({ active, onPress }: { active: Mode; onPress: (m: Mode) => void }) {
@@ -50,8 +52,7 @@ function SwipeCard() {
     <View style={styles.swipeCard}>
       {/* Photo placeholder */}
       <View style={styles.cardPhoto}>
-        <Text style={styles.cardPhotoEmoji}>🌸</Text>
-        <Text style={styles.cardPhotoHint}>[ profile photo ]</Text>
+        <View style={styles.cardAvatarPlaceholder} />
       </View>
 
       {/* Top badges */}
@@ -60,16 +61,24 @@ function SwipeCard() {
       </View>
       <View style={styles.cardTopLeft}>
         <View style={styles.compatBadge}>
-          <Text style={styles.compatText}>✦ {p.compat}٪</Text>
+          <Sparkles size={11} color={Colors.purple} strokeWidth={2} />
+          <Text style={styles.compatText}>{p.compat}٪</Text>
         </View>
       </View>
+
+      {/* Bottom gradient overlay */}
+      <LinearGradient
+        colors={['transparent', 'rgba(0,0,0,0.55)']}
+        style={styles.cardGradient}
+        pointerEvents="none"
+      />
 
       {/* Bottom info overlay */}
       <View style={styles.cardBottom}>
         <View style={styles.cardGlass}>
           <View style={styles.cardNameRow}>
             <Text style={styles.cardName}>{p.name}، {p.age}</Text>
-            <Text style={{ color: Colors.trust, fontSize: 14, marginRight: 4 }}>✓</Text>
+            <Badge kind="check" label="" />
           </View>
           <View style={styles.cardMeta}>
             <Text style={styles.cardMetaTxt}>📍 {p.city}</Text>
@@ -93,16 +102,16 @@ function ActionButtons() {
   return (
     <View style={styles.actions}>
       <TouchableOpacity style={styles.actionBtn}>
-        <Text style={styles.actionEmoji}>✕</Text>
+        <X size={22} color={Colors.danger} strokeWidth={2.2} />
       </TouchableOpacity>
       <TouchableOpacity style={[styles.actionBtn, styles.actionGift]}>
-        <Text style={styles.actionEmoji}>🎁</Text>
+        <Gift size={21} color={Colors.goldDeep} strokeWidth={1.8} />
       </TouchableOpacity>
       <TouchableOpacity style={[styles.actionBtn, styles.actionLike]}>
-        <Text style={[styles.actionEmoji, { fontSize: 28 }]}>❤️</Text>
+        <Heart size={28} color="#fff" fill="#fff" strokeWidth={1.8} />
       </TouchableOpacity>
       <TouchableOpacity style={[styles.actionBtn, styles.actionChat]}>
-        <Text style={styles.actionEmoji}>💬</Text>
+        <MessageCircle size={21} color={Colors.trust} strokeWidth={1.8} />
       </TouchableOpacity>
     </View>
   );
@@ -124,10 +133,10 @@ function DailyView() {
       {DAILY_PROFILES.map(p => (
         <Card key={p.id} style={styles.dailyCard}>
           <View style={styles.dailyRow}>
-            {/* Avatar placeholder */}
             <View style={styles.dailyAvatar}>
-              <Text style={{ fontSize: 30 }}>🌸</Text>
+              <View style={styles.dailyAvatarPlaceholder} />
               <View style={styles.dailyCompat}>
+                <Sparkles size={9} color={Colors.purple} strokeWidth={2} />
                 <Text style={styles.dailyCompatTxt}>{p.compat}٪</Text>
               </View>
             </View>
@@ -135,7 +144,8 @@ function DailyView() {
               <Text style={styles.dailyName}>{p.name}، {p.age}</Text>
               <Text style={styles.dailyCity}>{p.city}</Text>
               <View style={styles.dailyNote}>
-                <Text style={styles.dailyNoteTxt}>✦ {p.note}</Text>
+                <Sparkles size={9} color={Colors.purple} strokeWidth={2} />
+                <Text style={styles.dailyNoteTxt}>{p.note}</Text>
               </View>
               <View style={styles.tagRow}>
                 {p.tags.map(t => <Chip key={t} small>{t}</Chip>)}
@@ -155,11 +165,11 @@ function DailyView() {
 function AiView() {
   return (
     <View style={styles.aiEmpty}>
-      <Text style={{ fontSize: 48 }}>✨</Text>
+      <Sparkles size={48} color={Colors.purple} strokeWidth={1.4} />
       <Text style={styles.aiTitle}>AI Match Assistant</Text>
       <Text style={styles.aiSub}>این قابلیت فقط برای کاربران Gold فعال است</Text>
       <View style={[styles.upgradeCard, { marginTop: 24, width: '100%' }]}>
-        <Text style={[styles.upgradeTxt, { color: Colors.gold }]}>⭐ Gold</Text>
+        <Text style={[styles.upgradeTxt, { color: Colors.gold }]}>Gold</Text>
         <Text style={styles.upgradeSub}>دسترسی به هوش مصنوعی برای Match دقیق‌تر</Text>
       </View>
     </View>
@@ -176,11 +186,11 @@ export default function DiscoverScreen() {
         <Text style={styles.headerTitle}>کشف</Text>
         <View style={styles.headerActions}>
           <TouchableOpacity style={styles.iconBtn}>
-            <Text style={styles.iconBtnTxt}>🔍</Text>
+            <Search size={17} color={Colors.ink} strokeWidth={2} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconBtn}>
             <View>
-              <Text style={styles.iconBtnTxt}>🔔</Text>
+              <Bell size={17} color={Colors.ink} strokeWidth={2} />
               <View style={styles.notifDot} />
             </View>
           </TouchableOpacity>
@@ -189,9 +199,9 @@ export default function DiscoverScreen() {
 
       <ModeSwitch active={mode} onPress={setMode} />
 
-      {mode === 'swipe'  && <SwipeView />}
-      {mode === 'daily'  && <DailyView />}
-      {mode === 'ai'     && <AiView />}
+      {mode === 'swipe' && <SwipeView />}
+      {mode === 'daily' && <DailyView />}
+      {mode === 'ai'    && <AiView />}
     </SafeAreaView>
   );
 }
@@ -213,7 +223,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.8)',
     alignItems: 'center', justifyContent: 'center',
   },
-  iconBtnTxt: { fontSize: 17 },
   notifDot: {
     position: 'absolute', top: -2, right: -2,
     width: 8, height: 8, borderRadius: 4,
@@ -249,30 +258,27 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 10,
   },
-  cardPhoto: {
-    ...StyleSheet.absoluteFill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
+  cardPhoto: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
+  cardAvatarPlaceholder: {
+    width: 100, height: 100, borderRadius: 50,
+    backgroundColor: Colors.ph,
   },
-  cardPhotoEmoji: { fontSize: 64 },
-  cardPhotoHint: { fontSize: 11, color: Colors.muted, fontFamily: Fonts.regular },
   cardTopRight: { position: 'absolute', top: 14, right: 14 },
   cardTopLeft: { position: 'absolute', top: 14, left: 14 },
   compatBadge: {
-    backgroundColor: 'rgba(255,255,255,0.7)',
-    borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6,
+    backgroundColor: 'rgba(255,255,255,0.75)',
+    borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
   },
-  compatText: { fontFamily: Fonts.extraBold, fontSize: 13, color: Colors.purple },
+  compatText: { fontFamily: Fonts.extraBold, fontSize: 12, color: Colors.purple },
+  cardGradient: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 220 },
   cardBottom: { position: 'absolute', bottom: 12, left: 12, right: 12 },
   cardGlass: {
     backgroundColor: 'rgba(255,255,255,0.55)',
-    borderRadius: 22,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.7)',
+    borderRadius: 22, padding: 16,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.7)',
   },
-  cardNameRow: { flexDirection: 'row', alignItems: 'center' },
+  cardNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   cardName: { fontSize: 22, fontFamily: Fonts.extraBold, color: Colors.ink, letterSpacing: -0.5 },
   cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
   cardMetaTxt: { fontSize: 12.5, color: Colors.inkSoft, fontFamily: Fonts.regular },
@@ -292,18 +298,17 @@ const styles = StyleSheet.create({
   },
   actionBtn: {
     width: 52, height: 52, borderRadius: 26,
-    backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center',
-    shadowColor: Colors.ink, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2, shadowRadius: 8, elevation: 4,
+    backgroundColor: Colors.dangerSoft, alignItems: 'center', justifyContent: 'center',
+    shadowColor: Colors.danger, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15, shadowRadius: 8, elevation: 4,
   },
-  actionGift: { backgroundColor: Colors.goldSoft },
+  actionGift: { backgroundColor: Colors.goldSoft, shadowColor: Colors.gold },
   actionLike: {
     width: 64, height: 64, borderRadius: 32,
     backgroundColor: Colors.accent,
     shadowColor: Colors.accent, shadowOpacity: 0.5,
   },
-  actionChat: { backgroundColor: Colors.trustSoft },
-  actionEmoji: { fontSize: 22 },
+  actionChat: { backgroundColor: Colors.trustSoft, shadowColor: Colors.trust },
   swipeRemain: {
     textAlign: 'center', marginTop: 14,
     fontSize: 11.5, color: Colors.muted, fontFamily: Fonts.semiBold,
@@ -318,12 +323,17 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.ph2, alignItems: 'center', justifyContent: 'center',
     position: 'relative',
   },
+  dailyAvatarPlaceholder: {
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: Colors.ph,
+  },
   dailyCompat: {
     position: 'absolute', bottom: 5,
     backgroundColor: 'rgba(255,255,255,0.85)',
-    borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2,
+    borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2,
+    flexDirection: 'row', alignItems: 'center', gap: 3,
   },
-  dailyCompatTxt: { fontFamily: Fonts.extraBold, fontSize: 10.5, color: Colors.purple },
+  dailyCompatTxt: { fontFamily: Fonts.extraBold, fontSize: 10, color: Colors.purple },
   dailyInfo: { flex: 1 },
   dailyName: { fontSize: 15, fontFamily: Fonts.bold, color: Colors.ink },
   dailyCity: { fontSize: 11.5, color: Colors.muted, fontFamily: Fonts.regular, marginTop: 1 },
@@ -338,10 +348,7 @@ const styles = StyleSheet.create({
   upgradeSub: { fontSize: 11, color: Colors.muted, fontFamily: Fonts.regular, textAlign: 'center' },
 
   // AI
-  aiEmpty: {
-    flex: 1, alignItems: 'center', justifyContent: 'center',
-    padding: 32,
-  },
+  aiEmpty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
   aiTitle: { fontSize: 18, fontFamily: Fonts.bold, color: Colors.ink, marginTop: 12 },
   aiSub: { fontSize: 12, color: Colors.muted, fontFamily: Fonts.regular, textAlign: 'center', marginTop: 6 },
 });

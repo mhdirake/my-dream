@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text, ViewStyle } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Fonts } from '@/constants/colors';
 
 type Variant = 'accent' | 'primary' | 'outline' | 'ghost' | 'soft' | 'trust' | 'gold' | 'danger';
@@ -26,23 +27,45 @@ const variantStyles: Record<Variant, { bg: string; color: string; border?: strin
 
 export function Button({ children, variant = 'accent', full = true, small, onPress, style, disabled }: ButtonProps) {
   const v = variantStyles[variant];
+  const isAccent = variant === 'accent';
+
+  const containerStyle = [
+    styles.base,
+    !isAccent && { backgroundColor: v.bg, borderColor: v.border || 'transparent', borderWidth: v.border ? 1 : 0 },
+    full && styles.full,
+    small && styles.small,
+    disabled && styles.disabled,
+    style,
+  ];
+
+  const label = (
+    <Text style={[styles.label, { color: v.color }, small && styles.labelSmall]}>
+      {children}
+    </Text>
+  );
+
+  if (isAccent) {
+    return (
+      <Pressable onPress={onPress} disabled={disabled} style={({ pressed }) => [pressed && styles.pressed, disabled && styles.disabled, full && styles.full]}>
+        <LinearGradient
+          colors={Colors.gradColors}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={[styles.base, full && styles.full, small && styles.small, style]}
+        >
+          {label}
+        </LinearGradient>
+      </Pressable>
+    );
+  }
+
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      style={({ pressed }) => [
-        styles.base,
-        { backgroundColor: v.bg, borderColor: v.border || 'transparent', borderWidth: v.border ? 1 : 0 },
-        full && styles.full,
-        small && styles.small,
-        pressed && styles.pressed,
-        disabled && styles.disabled,
-        style,
-      ]}
+      style={({ pressed }) => [containerStyle, pressed && styles.pressed]}
     >
-      <Text style={[styles.label, { color: v.color }, small && styles.labelSmall]}>
-        {children}
-      </Text>
+      {label}
     </Pressable>
   );
 }

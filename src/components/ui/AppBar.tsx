@@ -1,7 +1,8 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { ChevronRight } from 'lucide-react-native';
 import { Colors, Fonts } from '@/constants/colors';
 import { router } from 'expo-router';
+import { Text } from 'react-native';
 
 interface AppBarProps {
   title: string;
@@ -17,7 +18,7 @@ export function AppBar({ title, sub, back, right, dark }: AppBarProps) {
     <View style={[styles.bar, dark && styles.barDark]}>
       {back && (
         <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={8}>
-          <Text style={[styles.backArrow, { color }]}>‹</Text>
+          <ChevronRight size={20} color={color} strokeWidth={2.2} />
         </Pressable>
       )}
       <View style={styles.titleWrap}>
@@ -53,12 +54,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.7)',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  backArrow: {
-    fontSize: 26,
-    lineHeight: 30,
-    fontFamily: Fonts.bold,
-    marginTop: -2,
   },
   titleWrap: { flex: 1 },
   title: { fontSize: 17, letterSpacing: -0.3 },

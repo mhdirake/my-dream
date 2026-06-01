@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Compass, Heart, MessageCircle, Gift, User, type LucideIcon } from 'lucide-react-native';
 import { Colors, Fonts } from '@/constants/colors';
 
 type Tab = 'discover' | 'likes' | 'chat' | 'gifts' | 'me';
@@ -8,12 +9,12 @@ interface TabBarProps {
   onPress: (tab: Tab) => void;
 }
 
-const TABS: { id: Tab; emoji: string; label: string }[] = [
-  { id: 'discover', emoji: '🧭', label: 'کشف' },
-  { id: 'likes',    emoji: '❤️',  label: 'مَچ' },
-  { id: 'chat',     emoji: '💬',  label: 'پیام' },
-  { id: 'gifts',    emoji: '🎁',  label: 'هدیه' },
-  { id: 'me',       emoji: '👤',  label: 'من' },
+const TABS: { id: Tab; icon: LucideIcon; label: string }[] = [
+  { id: 'discover', icon: Compass,       label: 'کشف'  },
+  { id: 'likes',    icon: Heart,         label: 'مَچ'  },
+  { id: 'chat',     icon: MessageCircle, label: 'پیام' },
+  { id: 'gifts',    icon: Gift,          label: 'هدیه' },
+  { id: 'me',       icon: User,          label: 'من'   },
 ];
 
 export function TabBar({ active, onPress }: TabBarProps) {
@@ -24,7 +25,12 @@ export function TabBar({ active, onPress }: TabBarProps) {
         return (
           <Pressable key={t.id} onPress={() => onPress(t.id)} style={styles.item}>
             <View style={[styles.pill, on && styles.pillActive]}>
-              <Text style={styles.emoji}>{t.emoji}</Text>
+              <t.icon
+                size={19}
+                color={on ? '#fff' : Colors.muted}
+                strokeWidth={on ? 2.2 : 1.7}
+                fill={on && t.id === 'likes' ? '#fff' : 'none'}
+              />
             </View>
             <Text style={[styles.label, on && styles.labelActive]}>{t.label}</Text>
           </Pressable>
@@ -72,7 +78,6 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 6,
   },
-  emoji: { fontSize: 18 },
   label: {
     fontSize: 9.5,
     fontFamily: Fonts.semiBold,
