@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Colors, Fonts } from '@/constants/colors';
 import { authApi } from '@/lib/api/auth';
+import { toEnDigits } from '@/lib/toEnDigits';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -16,9 +17,10 @@ export default function PhoneScreen() {
   const handleSend = async () => {
     setError('');
     setLoading(true);
+    const mobile = phone.startsWith('0') ? phone : `0${phone}`;
     try {
-      await authApi.sendOtp(phone);
-      router.push({ pathname: '/onboarding/otp', params: { phone } });
+      const res = await authApi.sendOtp(mobile);
+      router.push({ pathname: '/onboarding/otp', params: { phone: mobile, resend_after: res.resend_after } });
     } catch (e: any) {
       setError(e.message ?? 'خطا در ارسال کد');
     } finally {
@@ -37,16 +39,15 @@ export default function PhoneScreen() {
 
         <View style={styles.phoneRow}>
           <View style={styles.countryCode}>
-            <Text style={styles.countryText}>+۹۸</Text>
+            <Text style={styles.countryText}>+98</Text>
           </View>
           <TextInput
             style={styles.phoneInput}
             value={phone}
-            onChangeText={setPhone}
-            placeholder="۹۱۲ ۳۴۵ ۶۷۸۹"
+            onChangeText={t => setPhone(toEnDigits(t))}
+            placeholder="912 345 6789"
             placeholderTextColor={Colors.muted}
             keyboardType="phone-pad"
-            textAlign="right"
           />
         </View>
 
@@ -75,7 +76,7 @@ const styles = StyleSheet.create({
   content: { padding: 20, gap: 14 },
   headline: { fontSize: 18, fontFamily: Fonts.bold, color: Colors.ink, textAlign: 'right' },
   body: { fontSize: 12, color: Colors.muted, lineHeight: 20, fontFamily: Fonts.regular, textAlign: 'right' },
-  phoneRow: { flexDirection: 'row-reverse', gap: 8 },
+  phoneRow: { flexDirection :'row-reverse', gap: 8 },
   countryCode: {
     width: 64,
     borderWidth: 1.5,
@@ -99,7 +100,7 @@ const styles = StyleSheet.create({
     color: Colors.ink,
     backgroundColor: Colors.surface,
   },
-  note: { marginVertical: 4 },
-  noteText: { writingDirection: 'rtl', fontSize: 11.5, color: '#2C5C8F', fontFamily: Fonts.regular, lineHeight: 18 },
+  note: { marginVertical: 4, flexDirection: "row", textAlign: "right"},
+  noteText: { writingDirection: 'rtl', textAlign: 'right', fontSize: 11.5, color: '#2C5C8F', fontFamily: Fonts.regular, lineHeight: 18 },
   error: { fontSize: 12, color: Colors.danger, textAlign: 'right', fontFamily: Fonts.regular },
 });

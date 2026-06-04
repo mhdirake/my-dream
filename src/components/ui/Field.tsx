@@ -11,9 +11,11 @@ interface FieldProps {
   secureTextEntry?: boolean;
   onChangeText?: (v: string) => void;
   keyboardType?: 'default' | 'phone-pad' | 'email-address' | 'numeric';
+  autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
+  autoCorrect?: boolean;
 }
 
-export function Field({ label, value, placeholder, hint, error, suffix, secureTextEntry, onChangeText, keyboardType }: FieldProps) {
+export function Field({ label, value, placeholder, hint, error, suffix, secureTextEntry, onChangeText, keyboardType, autoCapitalize, autoCorrect }: FieldProps) {
   return (
     <View style={styles.wrap}>
       {label && <Text style={styles.label}>{label}</Text>}
@@ -26,6 +28,8 @@ export function Field({ label, value, placeholder, hint, error, suffix, secureTe
           secureTextEntry={secureTextEntry}
           onChangeText={onChangeText}
           keyboardType={keyboardType}
+          autoCapitalize={autoCapitalize}
+          autoCorrect={autoCorrect}
           textAlign="right"
         />
         {suffix && <Text style={styles.suffix}>{suffix}</Text>}
@@ -39,7 +43,7 @@ export function Field({ label, value, placeholder, hint, error, suffix, secureTe
 
 const styles = StyleSheet.create({
   wrap: { marginBottom: 14 },
-  label: { fontSize: 12, color: Colors.inkSoft, marginBottom: 7, fontFamily: Fonts.semiBold },
+  label: { fontSize: 12, color: Colors.inkSoft, marginBottom: 7, fontFamily: Fonts.semiBold, textAlign: 'right' },
   box: {
     borderWidth: 1.5,
     borderColor: Colors.lineSoft,
@@ -59,6 +63,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.regular,
   },
   suffix: { fontSize: 13, color: Colors.muted, fontFamily: Fonts.regular },
-  hint: { fontSize: 10.5, color: Colors.muted, marginTop: 5, fontFamily: Fonts.regular },
+  hint: { fontSize: 10.5, color: Colors.muted, marginTop: 5, fontFamily: Fonts.regular, textAlign: 'right' },
   hintError: { color: Colors.danger },
 });

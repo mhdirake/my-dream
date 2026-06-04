@@ -1,6 +1,6 @@
-import { Pressable, StyleSheet, Text, ViewStyle } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Fonts } from '@/constants/colors';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Pressable, StyleSheet, Text, ViewStyle } from 'react-native';
 
 type Variant = 'accent' | 'primary' | 'outline' | 'ghost' | 'soft' | 'trust' | 'gold' | 'danger';
 
@@ -89,6 +89,7 @@ const styles = StyleSheet.create({
     fontSize: 14.5,
     letterSpacing: -0.2,
     textAlign: 'center',
+    flex: 1
   },
   labelSmall: { fontSize: 12.5 },
 });

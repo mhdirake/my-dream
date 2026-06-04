@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Heart, Lock, Sparkles, Target, type LucideIcon } from 'lucide-react-native';
 import { useEffect } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -20,10 +20,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 // ── Custom hook: staggered entrance ──────────────────────────────
 function useEnter(delay: number) {
-  const y  = useSharedValue(32);
+  const y = useSharedValue(32);
   const op = useSharedValue(0);
   useEffect(() => {
-    y.value  = withDelay(delay, withSpring(0, { damping: 16, stiffness: 120 }));
+    y.value = withDelay(delay, withSpring(0, { damping: 16, stiffness: 120 }));
     op.value = withDelay(delay, withTiming(1, { duration: 480 }));
   }, []);
   return useAnimatedStyle(() => ({
@@ -74,9 +74,9 @@ function Orb({ color, size, delay, floatY = 16, duration = 4200, top, bottom, le
 
 // ── Hero ─────────────────────────────────────────────────────────
 function Hero() {
-  const logoStyle     = useEnter(80);
+  const logoStyle = useEnter(80);
   const headlineStyle = useEnter(300);
-  const subStyle      = useEnter(500);
+  const subStyle = useEnter(500);
 
   return (
     <View style={styles.hero}>
@@ -89,9 +89,9 @@ function Hero() {
       />
 
       {/* Floating orbs — canvas-design: warm light blooming in dark space */}
-      <Orb color="rgba(217,79,112,0.44)"  size={230} top={-50}  left={-55}   delay={0}   floatY={22} duration={4600} />
-      <Orb color="rgba(108,74,182,0.30)"  size={180} top={70}   right={-45}  delay={180} floatY={15} duration={3800} />
-      <Orb color="rgba(217,79,112,0.18)"  size={110} bottom={90} right={85}  delay={380} floatY={10} duration={5400} />
+      <Orb color="rgba(217,79,112,0.44)" size={230} top={-50} left={-55} delay={0} floatY={22} duration={4600} />
+      <Orb color="rgba(108,74,182,0.30)" size={180} top={70} right={-45} delay={180} floatY={15} duration={3800} />
+      <Orb color="rgba(217,79,112,0.18)" size={110} bottom={90} right={85} delay={380} floatY={10} duration={5400} />
 
       {/* Logo mark */}
       <Animated.View style={[styles.logoRow, logoStyle]}>
@@ -101,13 +101,13 @@ function Hero() {
 
       {/* Headline block */}
       <Animated.View style={[styles.headlineWrap, headlineStyle]}>
-        <Text style={styles.headline}>جایی برای{'\n'}رابطه‌ای واقعی</Text>
+        {/* <Text style={styles.headline}>جایی برای{'\n'}رابطه‌ای واقعی</Text> */}
       </Animated.View>
 
       {/* Sub */}
-      <Animated.Text style={[styles.heroSub, subStyle]}>
+      {/* <Animated.Text style={[styles.heroSub, subStyle]}>
         هدف رابطه‌ات را اول انتخاب کن
-      </Animated.Text>
+      </Animated.Text> */}
 
       {/* Fade to bg */}
       <LinearGradient
@@ -121,9 +121,9 @@ function Hero() {
 
 // ── Feature cards ─────────────────────────────────────────────────
 const FEATURES: { icon: LucideIcon; color: string; bg: string; label: string; sub: string }[] = [
-  { icon: Target,   color: Colors.accent, bg: Colors.accentSoft, label: 'هدف رابطه، اول از همه',  sub: 'از ازدواج تا دوستی و همسفر' },
-  { icon: Lock,     color: Colors.trust,  bg: Colors.trustSoft,  label: 'فضای امن و محرمانه',     sub: 'اطلاعات شما محافظت می‌شه'   },
-  { icon: Sparkles, color: Colors.purple, bg: Colors.purpleSoft, label: 'AI Match هوشمند',         sub: 'پیشنهاد بر اساس ارزش‌هات'   },
+  { icon: Target, color: Colors.accent, bg: Colors.accentSoft, label: 'هدف رابطه، اول از همه', sub: 'از ازدواج تا دوستی و همسفر' },
+  { icon: Lock, color: Colors.trust, bg: Colors.trustSoft, label: 'فضای امن و محرمانه', sub: 'اطلاعات شما محافظت می‌شه' },
+  { icon: Sparkles, color: Colors.purple, bg: Colors.purpleSoft, label: 'AI Match هوشمند', sub: 'پیشنهاد بر اساس ارزش‌هات' },
 ];
 
 function FeatureCard({ icon: Icon, color, bg, label, sub, delay }: {
@@ -181,12 +181,12 @@ export default function WelcomeScreen() {
 
 // ── Styles ────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  root:   { flex: 1, backgroundColor: Colors.bg },
+  root: { flex: 1, backgroundColor: Colors.bg },
   scroll: { flexGrow: 1 },
 
   // Hero
   hero: {
-    height: 448,
+    height: 290,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headline: {
-    fontSize: 42,
+    fontSize: 34,
     fontFamily: Fonts.extraBold,
     color: '#fff',
     textAlign: 'center',
@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
   },
 
   // Body
-  body:     { padding: 24, paddingTop: 16, flex: 1 },
+  body: { padding: 24, paddingTop: 16, flex: 1 },
   features: { gap: 12, marginBottom: 32 },
 
   card: {
@@ -252,12 +252,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cardText: { flex: 1, gap: 4 },
+  cardText: {
+    gap: 4,
+  },
   cardLabel: {
     fontSize: 14,
     fontFamily: Fonts.semiBold,
     color: Colors.ink,
-    textAlign: 'right',
+    textAlign: Platform.OS === "web" ? "right" : 'left',
   },
   cardSub: {
     fontSize: 12,

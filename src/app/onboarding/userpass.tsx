@@ -1,13 +1,64 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
 import { AppBar } from '@/components/ui/AppBar';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Field } from '@/components/ui/Field';
 import { Colors, Fonts } from '@/constants/colors';
+import { authApi } from '@/lib/api/auth';
+import { useAuth } from '@/lib/auth/AuthContext';
+import { registrationStore } from '@/lib/registrationStore';
+import { router } from 'expo-router';
+import { useState } from 'react';
+import { ScrollView, StyleSheet, Text } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function UserPassScreen() {
+  const { saveRegistrationSession } = useAuth();
+  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [passwordConfirm, setPasswordConfirm] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const passwordsMatch = password === passwordConfirm;
+  const canSubmit = username.length >= 3 && password.length >= 8 && passwordsMatch;
+
+  const handleNext = async () => {
+    setError('');
+    if (!passwordsMatch) {
+      setError('رمز عبور و تکرار آن یکسان نیستند');
+      return;
+    }
+    setLoading(true);
+    try {
+      const { registration_token } = registrationStore.get();
+      if (!registration_token) {
+        setError('جلسه منقضی شده. لطفاً از ابتدا شروع کنید.');
+        setLoading(false);
+        return;
+      }
+      registrationStore.set({ username, email, password, password_confirmation: passwordConfirm });
+      const res = await authApi.register({
+        registration_token: registration_token!,
+        username,
+        email: email || undefined,
+        password,
+        password_confirmation: passwordConfirm,
+      });
+      await saveRegistrationSession(
+        res.access_token,
+        res.refresh_token,
+        res.expires_in,
+        res.id_token,
+      );
+      router.replace('/(tabs)/' as any);
+    } catch (e: any) {
+      setError(e.message ?? 'خطا در ثبت‌نام');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.root}>
       <AppBar title="انتخاب نام کاربری" back />
@@ -15,10 +66,39 @@ export default function UserPassScreen() {
         <Text style={styles.headline}>یک قدم آخر</Text>
         <Text style={styles.sub}>Username و Password بساز</Text>
 
-        <Field label="نام کاربری" value="@neda_m" hint="فقط حروف انگلیسی، عدد و _" suffix="✓" />
-        <Field label="ایمیل (اختیاری)" placeholder="example@email.com" keyboardType="email-address" />
-        <Field label="رمز عبور" value="••••••••" secureTextEntry hint="حداقل ۸ کاراکتر، شامل عدد" />
-        <Field label="تکرار رمز عبور" value="••••••••" secureTextEntry />
+        <Field
+          label="نام کاربری"
+          value={username}
+          onChangeText={setUsername}
+          placeholder="neda_m"
+          hint="فقط حروف انگلیسی، عدد و _"
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+        <Field
+          label="ایمیل (اختیاری)"
+          value={email}
+          onChangeText={setEmail}
+          placeholder="example@email.com"
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+        <Field
+          label="رمز عبور"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          hint="حداقل ۸ کاراکتر، شامل عدد"
+        />
+        <Field
+          label="تکرار رمز عبور"
+          value={passwordConfirm}
+          onChangeText={setPasswordConfirm}
+          secureTextEntry
+        />
+
+        {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <Card tint="trust">
           <Text style={styles.noteText}>
@@ -26,9 +106,8 @@ export default function UserPassScreen() {
           </Text>
         </Card>
 
-        <View style={{ height: 16 }} />
-        <Button variant="accent" onPress={() => router.replace('/onboarding/referral')}>
-          ادامه
+        <Button variant="accent" onPress={handleNext} disabled={!canSubmit || loading}>
+          {loading ? 'در حال ثبت‌نام...' : 'ادامه'}
         </Button>
       </ScrollView>
     </SafeAreaView>
@@ -40,5 +119,6 @@ const styles = StyleSheet.create({
   content: { padding: 20, gap: 4 },
   headline: { fontSize: 17, fontFamily: Fonts.bold, color: Colors.ink, textAlign: 'right', marginBottom: 2 },
   sub: { fontSize: 12, color: Colors.muted, fontFamily: Fonts.regular, textAlign: 'right', marginBottom: 14 },
-  noteText: { fontSize: 11.5, color: '#2C5C8F', fontFamily: Fonts.regular, lineHeight: 18 },
+  noteText: { writingDirection: 'rtl', textAlign: 'right', fontSize: 11.5, color: '#2C5C8F', fontFamily: Fonts.regular, lineHeight: 18 },
+  error: { fontSize: 12, color: Colors.danger, textAlign: 'right', fontFamily: Fonts.regular },
 });

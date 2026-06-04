@@ -1,8 +1,7 @@
-import { Pressable, StyleSheet, View } from 'react-native';
-import { ChevronRight } from 'lucide-react-native';
 import { Colors, Fonts } from '@/constants/colors';
 import { router } from 'expo-router';
-import { Text } from 'react-native';
+import { ChevronLeft } from 'lucide-react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 interface AppBarProps {
   title: string;
@@ -16,11 +15,6 @@ export function AppBar({ title, sub, back, right, dark }: AppBarProps) {
   const color = dark ? '#fff' : Colors.ink;
   return (
     <View style={[styles.bar, dark && styles.barDark]}>
-      {back && (
-        <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={8}>
-          <ChevronRight size={20} color={color} strokeWidth={2.2} />
-        </Pressable>
-      )}
       <View style={styles.titleWrap}>
         <Text style={[styles.title, { color, fontFamily: Fonts.extraBold }]} numberOfLines={1}>
           {title}
@@ -31,6 +25,12 @@ export function AppBar({ title, sub, back, right, dark }: AppBarProps) {
           </Text>
         )}
       </View>
+
+      {back && (
+        <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={8}>
+          <ChevronLeft size={20} color={color} strokeWidth={2.2} />
+        </Pressable>
+      )}
       {right && <View style={styles.right}>{right}</View>}
     </View>
   );
@@ -39,7 +39,7 @@ export function AppBar({ title, sub, back, right, dark }: AppBarProps) {
 const styles = StyleSheet.create({
   bar: {
     height: 54,
-    flexDirection: 'row',
+    flexDirection:  'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     gap: 10,
@@ -55,7 +55,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  titleWrap: { flex: 1 },
+  titleWrap: {
+    flex: 1,
+  },
   title: { fontSize: 17, letterSpacing: -0.3 },
   sub: { fontSize: 11.5, marginTop: 1, fontFamily: Fonts.regular },
   right: { flexShrink: 0 },

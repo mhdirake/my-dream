@@ -1,7 +1,23 @@
-import { Tabs } from 'expo-router';
 import { Colors, Fonts } from '@/constants/colors';
+import { useAuth } from '@/lib/auth/AuthContext';
+import { Redirect, Tabs } from 'expo-router';
+import { ActivityIndicator, View } from 'react-native';
 
 export default function TabsLayout() {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.bg }}>
+        <ActivityIndicator color={Colors.accent} />
+      </View>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Redirect href="/onboarding" />;
+  }
+
   return (
     <Tabs
       screenOptions={{
