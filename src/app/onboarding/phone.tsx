@@ -2,6 +2,7 @@ import { AppBar } from '@/components/ui/AppBar';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Colors, Fonts } from '@/constants/colors';
+import { authApi } from '@/lib/api/auth';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -9,6 +10,21 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function PhoneScreen() {
   const [phone, setPhone] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSend = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      await authApi.sendOtp(phone);
+      router.push({ pathname: '/onboarding/otp', params: { phone } });
+    } catch (e: any) {
+      setError(e.message ?? 'خطا در ارسال کد');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.root}>
@@ -34,6 +50,8 @@ export default function PhoneScreen() {
           />
         </View>
 
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+
         <Card tint="trust" style={styles.note}>
           <Text style={styles.noteText}>
             ⓘ ساخت چند اکانت با یک شماره ممکن نیست. شماره verify می‌شود.
@@ -42,10 +60,10 @@ export default function PhoneScreen() {
 
         <Button
           variant="accent"
-          onPress={() => router.push('/onboarding/otp')}
-          disabled={phone.length < 10}
+          onPress={handleSend}
+          disabled={phone.length < 10 || loading}
         >
-          ارسال کد تأیید
+          {loading ? 'در حال ارسال...' : 'ارسال کد تأیید'}
         </Button>
       </ScrollView>
     </SafeAreaView>
@@ -57,7 +75,7 @@ const styles = StyleSheet.create({
   content: { padding: 20, gap: 14 },
   headline: { fontSize: 18, fontFamily: Fonts.bold, color: Colors.ink, textAlign: 'right' },
   body: { fontSize: 12, color: Colors.muted, lineHeight: 20, fontFamily: Fonts.regular, textAlign: 'right' },
-  phoneRow: { flexDirection: 'row-reverse', gap: 8},
+  phoneRow: { flexDirection: 'row-reverse', gap: 8 },
   countryCode: {
     width: 64,
     borderWidth: 1.5,
@@ -82,5 +100,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
   },
   note: { marginVertical: 4 },
-  noteText: { writingDirection: "rtl", fontSize: 11.5, color: '#2C5C8F', fontFamily: Fonts.regular, lineHeight: 18 },
+  noteText: { writingDirection: 'rtl', fontSize: 11.5, color: '#2C5C8F', fontFamily: Fonts.regular, lineHeight: 18 },
+  error: { fontSize: 12, color: Colors.danger, textAlign: 'right', fontFamily: Fonts.regular },
 });
