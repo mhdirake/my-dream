@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
   content: { padding: 20, gap: 14 },
   headline: { fontSize: 18, fontFamily: Fonts.bold, color: Colors.ink, textAlign: 'right' },
   body: { fontSize: 12, color: Colors.muted, lineHeight: 20, fontFamily: Fonts.regular, textAlign: 'right' },
-  phoneRow: { flexDirection :'row-reverse', gap: 8 },
+  phoneRow: { flexDirection: 'row', gap: 8 },
   countryCode: {
     width: 64,
     borderWidth: 1.5,

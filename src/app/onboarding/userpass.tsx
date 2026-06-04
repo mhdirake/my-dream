@@ -3,8 +3,6 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Field } from '@/components/ui/Field';
 import { Colors, Fonts } from '@/constants/colors';
-import { authApi } from '@/lib/api/auth';
-import { useAuth } from '@/lib/auth/AuthContext';
 import { registrationStore } from '@/lib/registrationStore';
 import { router } from 'expo-router';
 import { useState } from 'react';
@@ -12,7 +10,6 @@ import { ScrollView, StyleSheet, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function UserPassScreen() {
-  const { saveRegistrationSession } = useAuth();
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -34,26 +31,10 @@ export default function UserPassScreen() {
       const { registration_token } = registrationStore.get();
       if (!registration_token) {
         setError('جلسه منقضی شده. لطفاً از ابتدا شروع کنید.');
-        setLoading(false);
         return;
       }
       registrationStore.set({ username, email, password, password_confirmation: passwordConfirm });
-      const res = await authApi.register({
-        registration_token: registration_token!,
-        username,
-        email: email || undefined,
-        password,
-        password_confirmation: passwordConfirm,
-      });
-      await saveRegistrationSession(
-        res.access_token,
-        res.refresh_token,
-        res.expires_in,
-        res.id_token,
-      );
-      router.replace('/(tabs)/' as any);
-    } catch (e: any) {
-      setError(e.message ?? 'خطا در ثبت‌نام');
+      router.push('/onboarding/referral' as any);
     } finally {
       setLoading(false);
     }

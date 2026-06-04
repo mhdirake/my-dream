@@ -1,12 +1,11 @@
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
-const KEY = 'kc_session';
+const KEY = 'session';
 
 export type Session = {
   accessToken: string;
   refreshToken: string;
-  idToken: string;
   expiresAt: number; // Unix ms
 };
 

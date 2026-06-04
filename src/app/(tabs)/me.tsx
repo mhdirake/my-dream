@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
 import { Colors, Fonts } from '@/constants/colors';
+import { useAuth } from '@/lib/auth/AuthContext';
 
 const LIFESTYLE_TAGS = ['عاشق قهوه', 'کتاب‌خوان', 'اهل طبیعت', 'فیلم‌باز', 'عاشق گربه'];
 
@@ -42,6 +43,10 @@ function CompletionRing({ value }: { value: number }) {
 }
 
 export default function MeScreen() {
+  const { user, logout } = useAuth();
+
+  const displayName = [user?.first_name, user?.last_name].filter(Boolean).join(' ') || user?.username || '—';
+
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
@@ -61,11 +66,13 @@ export default function MeScreen() {
             </View>
             <View style={styles.profileInfo}>
               <View style={styles.nameRow}>
-                <Text style={styles.name}>ندا م.</Text>
+                <Text style={styles.name}>{displayName}</Text>
                 <Badge kind="ai" label="" />
                 <Badge kind="community" label="" />
               </View>
-              <Text style={styles.sub}>@neda_m · تهران</Text>
+              <Text style={styles.sub}>
+                @{user?.username ?? '—'}{user?.mobile ? ` · ${user.mobile}` : ''}
+              </Text>
               <Text style={styles.goal}>ازدواج</Text>
             </View>
             <CompletionRing value={72} />
@@ -121,7 +128,7 @@ export default function MeScreen() {
         </Card>
 
         {/* Sign out */}
-        <TouchableOpacity style={styles.signOut}>
+        <TouchableOpacity style={styles.signOut} onPress={logout}>
           <Text style={styles.signOutTxt}>خروج از حساب</Text>
         </TouchableOpacity>
 

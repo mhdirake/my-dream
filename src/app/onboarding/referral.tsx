@@ -46,7 +46,6 @@ export default function ReferralScreen() {
         res.access_token,
         res.refresh_token,
         res.expires_in,
-        res.id_token,
       );
       router.replace('/(tabs)/' as any);
     } catch (e: any) {

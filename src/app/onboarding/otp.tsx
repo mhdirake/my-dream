@@ -6,7 +6,7 @@ import { registrationStore } from '@/lib/registrationStore';
 import { toEnDigits } from '@/lib/toEnDigits';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const OTP_LENGTH = 5;
@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
   headline: { fontSize: 18, fontFamily: Fonts.bold, color: Colors.ink, textAlign: 'right' },
   sub: { fontSize: 12, color: Colors.muted, marginTop: 6, fontFamily: Fonts.regular, textAlign: 'right' },
   boxes: {
-    flexDirection: Platform.OS === 'web' ? 'row-reverse' : 'row',
+    flexDirection: 'row',
     justifyContent: 'center',
     gap: 8,
     marginTop: 32,

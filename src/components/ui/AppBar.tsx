@@ -15,6 +15,11 @@ export function AppBar({ title, sub, back, right, dark }: AppBarProps) {
   const color = dark ? '#fff' : Colors.ink;
   return (
     <View style={[styles.bar, dark && styles.barDark]}>
+      {back && (
+        <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={8}>
+          <ChevronLeft size={20} color={color} strokeWidth={2.2} />
+        </Pressable>
+      )}
       <View style={styles.titleWrap}>
         <Text style={[styles.title, { color, fontFamily: Fonts.extraBold }]} numberOfLines={1}>
           {title}
@@ -25,12 +30,6 @@ export function AppBar({ title, sub, back, right, dark }: AppBarProps) {
           </Text>
         )}
       </View>
-
-      {back && (
-        <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={8}>
-          <ChevronLeft size={20} color={color} strokeWidth={2.2} />
-        </Pressable>
-      )}
       {right && <View style={styles.right}>{right}</View>}
     </View>
   );
@@ -58,7 +57,7 @@ const styles = StyleSheet.create({
   titleWrap: {
     flex: 1,
   },
-  title: { fontSize: 17, letterSpacing: -0.3 },
-  sub: { fontSize: 11.5, marginTop: 1, fontFamily: Fonts.regular },
+  title: { fontSize: 17, letterSpacing: -0.3, textAlign: 'right' },
+  sub: { fontSize: 11.5, marginTop: 1, fontFamily: Fonts.regular, textAlign: 'right' },
   right: { flexShrink: 0 },
 });

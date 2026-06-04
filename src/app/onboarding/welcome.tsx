@@ -1,11 +1,10 @@
 import { Button } from '@/components/ui/Button';
 import { Colors, Fonts } from '@/constants/colors';
-import { useAuth } from '@/lib/auth/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Heart, Lock, Sparkles, Target, type LucideIcon } from 'lucide-react-native';
 import { useEffect } from 'react';
-import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -147,7 +146,6 @@ function FeatureCard({ icon: Icon, color, bg, label, sub, delay }: {
 // ── Screen ────────────────────────────────────────────────────────
 export default function WelcomeScreen() {
   const ctaStyle = useEnter(620);
-  const { login } = useAuth();
 
   return (
     <SafeAreaView style={styles.root} edges={[]}>
@@ -165,7 +163,7 @@ export default function WelcomeScreen() {
             <Button variant="accent" onPress={() => router.push('/onboarding/phone')}>
               شروع کنیم
             </Button>
-            <Button variant="ghost" onPress={login}>
+            <Button variant="ghost" onPress={() => router.push('/onboarding/login')}>
               قبلاً حساب دارم
             </Button>
             <Text style={styles.legal}>
@@ -259,7 +257,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: Fonts.semiBold,
     color: Colors.ink,
-    textAlign: Platform.OS === "web" ? "right" : 'left',
+    textAlign: 'right',
   },
   cardSub: {
     fontSize: 12,
