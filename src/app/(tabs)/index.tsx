@@ -1,20 +1,20 @@
 // Discover tab — Swipe + Daily Suggestions
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Search, Bell, X, Gift, Heart, MessageCircle, Sparkles } from 'lucide-react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
 import { Colors, Fonts } from '@/constants/colors';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Bell, Gift, Heart, MessageCircle, Search, Sparkles, X } from 'lucide-react-native';
+import { useState } from 'react';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 type Mode = 'swipe' | 'daily' | 'ai';
 
 const MODES: { id: Mode; label: string }[] = [
-  { id: 'swipe', label: 'Swipe'         },
+  { id: 'swipe', label: 'Swipe' },
   { id: 'daily', label: 'پیشنهاد روزانه' },
-  { id: 'ai',    label: 'AI Match'      },
+  { id: 'ai', label: 'AI Match' },
 ];
 
 const SAMPLE_PROFILES = [
@@ -23,13 +23,13 @@ const SAMPLE_PROFILES = [
 
 const DAILY_PROFILES = [
   { id: 1, name: 'پریسا', age: 27, city: 'تهران', compat: 86, tags: ['قهوه', 'کتاب', 'طبیعت'], note: 'هدف رابطه بسیار نزدیک' },
-  { id: 2, name: 'یاسمن', age: 30, city: 'کرج',   compat: 74, tags: ['فیلم', 'گربه'],           note: 'سبک زندگی مشابه' },
-  { id: 3, name: 'مهتاب', age: 25, city: 'تهران', compat: 68, tags: ['شب‌زنده‌دار', 'گیمر'],    note: 'چند تگ مشترک' },
+  { id: 2, name: 'یاسمن', age: 30, city: 'کرج', compat: 74, tags: ['فیلم', 'گربه'], note: 'سبک زندگی مشابه' },
+  { id: 3, name: 'مهتاب', age: 25, city: 'تهران', compat: 68, tags: ['شب‌زنده‌دار', 'گیمر'], note: 'چند تگ مشترک' },
 ];
 
 function ModeSwitch({ active, onPress }: { active: Mode; onPress: (m: Mode) => void }) {
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.modeScroll}>
+    <ScrollView horizontal contentContainerStyle={styles.modeScroll} style={styles.modeScrollWrapper}>
       {MODES.map(m => {
         const on = m.id === active;
         return (
@@ -201,7 +201,7 @@ export default function DiscoverScreen() {
 
       {mode === 'swipe' && <SwipeView />}
       {mode === 'daily' && <DailyView />}
-      {mode === 'ai'    && <AiView />}
+      {mode === 'ai' && <AiView />}
     </SafeAreaView>
   );
 }
@@ -229,6 +229,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.accent, borderWidth: 1.5, borderColor: '#fff',
   },
 
+  modeScrollWrapper: { flexGrow: 0 },
   modeScroll: { paddingHorizontal: 16, paddingVertical: 8, gap: 7 },
   modeBtn: {
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999,
