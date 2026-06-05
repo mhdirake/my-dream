@@ -252,18 +252,17 @@ const styles = StyleSheet.create({
   },
   cardText: {
     gap: 4,
+    alignItems: "flex-start"
   },
   cardLabel: {
     fontSize: 14,
     fontFamily: Fonts.semiBold,
     color: Colors.ink,
-    textAlign: 'right',
   },
   cardSub: {
     fontSize: 12,
     fontFamily: Fonts.regular,
     color: Colors.muted,
-    textAlign: 'right',
   },
 
   cta: { gap: 10 },

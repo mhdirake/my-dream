@@ -126,10 +126,10 @@ export default function OTPScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
   content: { flex: 1, padding: 20 },
-  headline: { fontSize: 18, fontFamily: Fonts.bold, color: Colors.ink, textAlign: 'right' },
-  sub: { fontSize: 12, color: Colors.muted, marginTop: 6, fontFamily: Fonts.regular, textAlign: 'right' },
+  headline: { fontSize: 18, fontFamily: Fonts.bold, color: Colors.ink },
+  sub: { fontSize: 12, color: Colors.muted, marginTop: 6, fontFamily: Fonts.regular },
   boxes: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     justifyContent: 'center',
     gap: 8,
     marginTop: 32,

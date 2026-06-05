@@ -1,6 +1,5 @@
 import { AppBar } from '@/components/ui/AppBar';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
 import { Colors, Fonts } from '@/constants/colors';
 import { authApi } from '@/lib/api/auth';
 import { toEnDigits } from '@/lib/toEnDigits';
@@ -38,9 +37,6 @@ export default function PhoneScreen() {
         </Text>
 
         <View style={styles.phoneRow}>
-          <View style={styles.countryCode}>
-            <Text style={styles.countryText}>+98</Text>
-          </View>
           <TextInput
             style={styles.phoneInput}
             value={phone}
@@ -49,15 +45,19 @@ export default function PhoneScreen() {
             placeholderTextColor={Colors.muted}
             keyboardType="phone-pad"
           />
+          <View style={styles.countryCode}>
+            <Text style={styles.countryText}>98</Text>
+            <Text style={styles.plus}>+</Text>
+          </View>
         </View>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        <Card tint="trust" style={styles.note}>
+        {/* <Card tint="trust" style={styles.note}>
           <Text style={styles.noteText}>
-            ⓘ ساخت چند اکانت با یک شماره ممکن نیست. شماره verify می‌شود.
+           ساخت چند اکانت با یک شماره امکان پذیر می‌شود.
           </Text>
-        </Card>
+        </Card> */}
 
         <Button
           variant="accent"
@@ -74,8 +74,8 @@ export default function PhoneScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
   content: { padding: 20, gap: 14 },
-  headline: { fontSize: 18, fontFamily: Fonts.bold, color: Colors.ink, textAlign: 'right' },
-  body: { fontSize: 12, color: Colors.muted, lineHeight: 20, fontFamily: Fonts.regular, textAlign: 'right' },
+  headline: { fontSize: 18, fontFamily: Fonts.bold, color: Colors.ink},
+  body: { fontSize: 12, color: Colors.muted, lineHeight: 20, fontFamily: Fonts.regular },
   phoneRow: { flexDirection: 'row', gap: 8 },
   countryCode: {
     width: 64,
@@ -83,11 +83,14 @@ const styles = StyleSheet.create({
     borderColor: Colors.lineSoft,
     borderRadius: 10,
     paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignContent: "center",
+    justifyContent: "center",
     backgroundColor: Colors.surface,
+
   },
   countryText: { fontSize: 14, fontFamily: Fonts.bold, color: Colors.ink },
+  plus: { fontSize: 14, fontFamily: Fonts.bold, color: Colors.ink },
   phoneInput: {
     flex: 1,
     borderWidth: 1.5,
@@ -99,8 +102,9 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.regular,
     color: Colors.ink,
     backgroundColor: Colors.surface,
+    textAlign: "left"
   },
-  note: { marginVertical: 4, flexDirection: "row", textAlign: "right"},
+  note: { marginVertical: 4, flexDirection: "row", textAlign: "right" },
   noteText: { writingDirection: 'rtl', textAlign: 'right', fontSize: 11.5, color: '#2C5C8F', fontFamily: Fonts.regular, lineHeight: 18 },
   error: { fontSize: 12, color: Colors.danger, textAlign: 'right', fontFamily: Fonts.regular },
 });

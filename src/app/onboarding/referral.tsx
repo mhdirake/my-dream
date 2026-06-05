@@ -4,8 +4,8 @@ import { Card } from '@/components/ui/Card';
 import { Field } from '@/components/ui/Field';
 import { Colors, Fonts } from '@/constants/colors';
 import { authApi } from '@/lib/api/auth';
-import { registrationStore } from '@/lib/registrationStore';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { registrationStore } from '@/lib/registrationStore';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -89,7 +89,6 @@ export default function ReferralScreen() {
           autoCorrect={false}
         />
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <Card soft>
           <Text style={styles.rewardTitle}>پاداش‌های معرف</Text>
@@ -105,6 +104,8 @@ export default function ReferralScreen() {
         </Card>
 
         <View style={{ height: 16 }} />
+
+        {error ? <Text style={styles.error}>{error}</Text> : null}
         <Button
           variant="accent"
           onPress={() => doRegister(referrer.replace('@', '') || undefined)}
@@ -133,11 +134,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headline: { fontSize: 16, fontFamily: Fonts.bold, color: Colors.ink, textAlign: 'right' },
-  body: { fontSize: 12, color: Colors.muted, lineHeight: 20, fontFamily: Fonts.regular, textAlign: 'right', marginTop: -4 },
+  headline: { fontSize: 16, fontFamily: Fonts.bold, color: Colors.ink },
+  body: { fontSize: 12, color: Colors.muted, lineHeight: 20, fontFamily: Fonts.regular, marginTop: -4 },
   skip: { fontSize: 12, color: Colors.accent, fontFamily: Fonts.semiBold },
   skipDisabled: { opacity: 0.4 },
-  error: { fontSize: 12, color: Colors.danger, textAlign: 'right', fontFamily: Fonts.regular },
+  error: { fontSize: 12, color: Colors.danger, fontFamily: Fonts.regular },
   rewardTitle: { fontSize: 12, fontFamily: Fonts.bold, color: Colors.ink, marginBottom: 8 },
   rewardRow: {
     flexDirection: 'row',

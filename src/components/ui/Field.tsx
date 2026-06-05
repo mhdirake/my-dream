@@ -1,5 +1,5 @@
-import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { Colors, Fonts } from '@/constants/colors';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
 
 interface FieldProps {
   label?: string;
@@ -30,7 +30,6 @@ export function Field({ label, value, placeholder, hint, error, suffix, secureTe
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
           autoCorrect={autoCorrect}
-          textAlign="right"
         />
         {suffix && <Text style={styles.suffix}>{suffix}</Text>}
       </View>
@@ -43,26 +42,33 @@ export function Field({ label, value, placeholder, hint, error, suffix, secureTe
 
 const styles = StyleSheet.create({
   wrap: { marginBottom: 14 },
-  label: { fontSize: 12, color: Colors.inkSoft, marginBottom: 7, fontFamily: Fonts.semiBold, textAlign: 'right' },
+  label: { fontSize: 12, color: Colors.inkSoft, marginBottom: 7, fontFamily: Fonts.semiBold },
   box: {
-    borderWidth: 1.5,
-    borderColor: Colors.lineSoft,
-    borderRadius: 14,
-    paddingHorizontal: 15,
-    paddingVertical: 13,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.surface,
-    minHeight: 48,
+    // borderWidth: 1.5,
+    // borderColor: Colors.lineSoft,
+    // borderRadius: 14,
+    // paddingHorizontal: 15,
+    // paddingVertical: 13,
+    // flexDirection: 'row',
+    // alignItems: 'center',
+    // backgroundColor: Colors.surface,
+    // minHeight: 48,
   },
   boxError: { borderColor: Colors.danger },
   input: {
     flex: 1,
-    fontSize: 14.5,
-    color: Colors.ink,
+    borderWidth: 1.5,
+    borderColor: Colors.lineSoft,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
     fontFamily: Fonts.regular,
+    color: Colors.ink,
+    backgroundColor: Colors.surface,
+    flexDirection: "row"
   },
   suffix: { fontSize: 13, color: Colors.muted, fontFamily: Fonts.regular },
-  hint: { fontSize: 10.5, color: Colors.muted, marginTop: 5, fontFamily: Fonts.regular, textAlign: 'right' },
+  hint: { fontSize: 10.5, color: Colors.muted, marginTop: 5, fontFamily: Fonts.regular },
   hintError: { color: Colors.danger },
 });

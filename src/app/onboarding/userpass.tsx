@@ -18,7 +18,8 @@ export default function UserPassScreen() {
   const [error, setError] = useState('');
 
   const passwordsMatch = password === passwordConfirm;
-  const canSubmit = username.length >= 3 && password.length >= 8 && passwordsMatch;
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const canSubmit = username.length >= 3 && emailValid && password.length >= 8 && passwordsMatch;
 
   const handleNext = async () => {
     setError('');
@@ -51,13 +52,12 @@ export default function UserPassScreen() {
           label="نام کاربری"
           value={username}
           onChangeText={setUsername}
-          placeholder="neda_m"
           hint="فقط حروف انگلیسی، عدد و _"
           autoCapitalize="none"
           autoCorrect={false}
         />
         <Field
-          label="ایمیل (اختیاری)"
+          label="ایمیل"
           value={email}
           onChangeText={setEmail}
           placeholder="example@email.com"
@@ -83,7 +83,7 @@ export default function UserPassScreen() {
 
         <Card tint="trust">
           <Text style={styles.noteText}>
-            ⓘ شماره موبایلت ذخیره می‌مونه ولی به کسی نشون داده نمی‌شه
+            شماره موبایلت ذخیره می‌مونه ولی به کسی نشون داده نمی‌شه.
           </Text>
         </Card>
 
@@ -98,8 +98,8 @@ export default function UserPassScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
   content: { padding: 20, gap: 4 },
-  headline: { fontSize: 17, fontFamily: Fonts.bold, color: Colors.ink, textAlign: 'right', marginBottom: 2 },
-  sub: { fontSize: 12, color: Colors.muted, fontFamily: Fonts.regular, textAlign: 'right', marginBottom: 14 },
-  noteText: { writingDirection: 'rtl', textAlign: 'right', fontSize: 11.5, color: '#2C5C8F', fontFamily: Fonts.regular, lineHeight: 18 },
-  error: { fontSize: 12, color: Colors.danger, textAlign: 'right', fontFamily: Fonts.regular },
+  headline: { fontSize: 17, fontFamily: Fonts.bold, color: Colors.ink, marginBottom: 2 },
+  sub: { fontSize: 12, color: Colors.muted, fontFamily: Fonts.regular, marginBottom: 14 },
+  noteText: { fontSize: 11.5, color: '#2C5C8F', fontFamily: Fonts.regular, lineHeight: 18 },
+  error: { fontSize: 12, color: Colors.danger, fontFamily: Fonts.regular },
 });

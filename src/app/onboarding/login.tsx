@@ -47,8 +47,8 @@ export default function LoginScreen() {
         <Field
           label="نام کاربری"
           value={username}
-          onChangeText={setUsername}
-          placeholder="neda_m"
+          onChangeText={v => setUsername(v.replace(/[۰-۹]/g, d => String(d.charCodeAt(0) - 1776)))}
+          placeholder=""
           autoCapitalize="none"
           autoCorrect={false}
         />
@@ -76,7 +76,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
   content: { padding: 24, gap: 12 },
-  headline: { fontSize: 20, fontFamily: Fonts.bold, color: Colors.ink, textAlign: 'right' },
-  sub: { fontSize: 13, fontFamily: Fonts.regular, color: Colors.muted, textAlign: 'right', lineHeight: 22 },
-  error: { fontSize: 12, color: Colors.danger, textAlign: 'right', fontFamily: Fonts.regular },
+  headline: { fontSize: 20, fontFamily: Fonts.bold, color: Colors.ink },
+  sub: { fontSize: 13, fontFamily: Fonts.regular, color: Colors.muted, lineHeight: 22 },
+  error: { fontSize: 12, color: Colors.danger, fontFamily: Fonts.regular },
 });
