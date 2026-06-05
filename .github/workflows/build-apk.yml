@@ -24,8 +24,11 @@ jobs:
 
       - run: npm ci
 
-      - name: Build APK via EAS
-        run: eas build --platform android --profile preview --non-interactive
+      - name: Verify EAS auth
+        run: eas whoami
 
-      - name: Print build URL
-        run: echo "APK build submitted to EAS. Check https://expo.dev/accounts/mehdirashid/projects/mobile/builds"
+      - name: Build APK via EAS
+        run: eas build --platform android --profile preview --non-interactive --no-wait
+
+      - name: APK download link
+        run: echo "Build submitted! Download from https://expo.dev/accounts/mehdirashid/projects/mobile/builds"
