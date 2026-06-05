@@ -37,4 +37,6 @@ export const api = {
     request<T>('GET', path, undefined, token),
   put: <T>(path: string, body?: object, token?: string) =>
     request<T>('PUT', path, body, token),
+  patch: <T>(path: string, body?: object, token?: string) =>
+    request<T>('PATCH', path, body, token),
 };

@@ -47,7 +47,7 @@ export default function ReferralScreen() {
         res.refresh_token,
         res.expires_in,
       );
-      router.replace('/(tabs)/' as any);
+      router.replace('/profile-setup/basic-info' as any);
     } catch (e: any) {
       setError(e.message ?? 'خطا در ثبت‌نام');
     } finally {
