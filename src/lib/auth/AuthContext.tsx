@@ -66,10 +66,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         refreshToken,
         expiresAt: Date.now() + expiresIn * 1000,
       };
-      const me = await authApi.me(accessToken);
+      // Save session before calling /api/me so the account is never lost
+      // even if the me() call fails (e.g. timing issue after registration)
       await saveSession(newSession);
       setSession(newSession);
-      setUser(me);
+      try {
+        const me = await authApi.me(accessToken);
+        setUser(me);
+      } catch {
+        // Session is saved; user info will load on next app start
+      }
     },
     [],
   );
