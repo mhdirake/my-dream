@@ -2,6 +2,7 @@ import { AppBar } from '@/components/ui/AppBar';
 import { Button } from '@/components/ui/Button';
 import { Field } from '@/components/ui/Field';
 import { Colors, Fonts } from '@/constants/colors';
+import { onboardingApi } from '@/lib/api/onboarding';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { router } from 'expo-router';
 import { useState } from 'react';
@@ -19,7 +20,21 @@ export default function LoginScreen() {
     setError('');
     setLoading(true);
     try {
-      await loginWithPassword(username.trim(), password);
+      const session = await loginWithPassword(username.trim(), password);
+      try {
+        const status = await onboardingApi.getStatus(session.accessToken);
+        const { flags } = status;
+        if (flags.must_complete_required_profile || flags.force_required_profile_screen) {
+          router.replace('/profile-setup/basic-info' as any);
+          return;
+        }
+        if (flags.must_upload_profile_photo || flags.force_profile_photo_screen || flags.must_replace_profile_photo) {
+          router.replace('/profile-setup/photo' as any);
+          return;
+        }
+      } catch {
+        // اگه onboarding API خطا داد برو تب‌ها
+      }
       router.replace('/(tabs)/' as any);
     } catch (e: any) {
       const status = e?.status;
@@ -42,10 +57,10 @@ export default function LoginScreen() {
       <AppBar title="ورود" back />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.headline}>خوش برگشتی</Text>
-        <Text style={styles.sub}>با نام کاربری و رمز عبورت وارد شو</Text>
+        <Text style={styles.sub}>با شماره موبایل و رمز عبورت وارد شو</Text>
 
         <Field
-          label="نام کاربری"
+          label="شماره موبایل"
           value={username}
           onChangeText={v => setUsername(v.replace(/[۰-۹]/g, d => String(d.charCodeAt(0) - 1776)))}
           placeholder=""

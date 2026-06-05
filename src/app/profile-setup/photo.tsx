@@ -1,11 +1,15 @@
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { SessionExpiredModal } from '@/components/ui/SessionExpiredModal';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
-import { useAuth } from '@/lib/auth/AuthContext';
+import { ApiError } from '@/lib/api/client';
 import { onboardingApi } from '@/lib/api/onboarding';
+import { profileApi } from '@/lib/api/profile';
+import { useAuth } from '@/lib/auth/AuthContext';
 import { router } from 'expo-router';
-import { Camera, CheckCircle, Image as ImageIcon, Upload } from 'lucide-react-native';
-import { useState } from 'react';
+import * as ImagePicker from 'expo-image-picker';
+import { Camera, CheckCircle, Image as ImageIcon } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   Image,
@@ -24,42 +28,85 @@ const GUIDELINES = [
   'بدون محتوای نامناسب',
 ];
 
+const BASE = process.env.EXPO_PUBLIC_API_URL ?? '';
+
 export default function PhotoScreen() {
-  const { session } = useAuth();
-  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const { session, logout } = useAuth();
+  // existingPhotoUrl = عکس فعلی از سرور (برای نمایش)
+  // newPhotoUri = عکس جدید انتخاب‌شده توسط کاربر (برای آپلود)
+  const [existingPhotoUrl, setExistingPhotoUrl] = useState<string | null>(null);
+  const [newPhotoUri, setNewPhotoUri] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+  const [sessionExpired, setSessionExpired] = useState(false);
 
-  const pickImage = () => {
-    Alert.alert(
-      'انتخاب عکس',
-      'برای انتخاب عکس از کتابخانه یا دوربین استفاده کن',
-      [
-        { text: 'لغو', style: 'cancel' },
-        {
-          text: 'ادامه',
-          onPress: () => {
-            setPhotoUri('placeholder');
-          },
-        },
-      ],
-    );
+  const handleTokenExpired = async () => {
+    await logout();
+    setSessionExpired(true);
+  };
+
+  useEffect(() => {
+    if (!session?.accessToken) return;
+    profileApi.getProfile(session.accessToken)
+      .then(p => {
+        const url = p.profile_photo?.urls.medium;
+        if (url) setExistingPhotoUrl(url.startsWith('http') ? url : `${BASE}${url}`);
+      })
+      .catch(() => {});
+  }, [session]);
+
+  const displayUri = newPhotoUri ?? existingPhotoUrl;
+
+  const pickFromGallery = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('دسترسی لازمه', 'برای انتخاب عکس باید دسترسی به گالری رو بدی.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.85,
+    });
+    if (!result.canceled) {
+      setNewPhotoUri(result.assets[0].uri);
+      setError('');
+    }
+  };
+
+  const pickFromCamera = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('دسترسی لازمه', 'برای گرفتن عکس باید دسترسی به دوربین رو بدی.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.85,
+    });
+    if (!result.canceled) {
+      setNewPhotoUri(result.assets[0].uri);
+      setError('');
+    }
   };
 
   const handleNext = async () => {
     if (!session?.accessToken) return;
-    if (!photoUri) {
+    if (!newPhotoUri && !existingPhotoUrl) {
       router.push('/profile-setup/account-ready' as any);
       return;
     }
     setError('');
     setUploading(true);
     try {
-      if (photoUri !== 'placeholder') {
-        await onboardingApi.uploadPhoto(session.accessToken, photoUri);
+      if (newPhotoUri) {
+        await onboardingApi.uploadPhoto(session.accessToken, newPhotoUri);
       }
       router.push('/profile-setup/account-ready' as any);
     } catch (e: any) {
+      if (e instanceof ApiError && e.status === 401) { handleTokenExpired(); return; }
       setError(e.message ?? 'خطا در آپلود عکس');
     } finally {
       setUploading(false);
@@ -68,6 +115,10 @@ export default function PhotoScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
+      <SessionExpiredModal
+        visible={sessionExpired}
+        onLogin={() => router.replace('/onboarding/login' as any)}
+      />
       <Stepper step={3} />
       <ScrollView
         contentContainerStyle={styles.content}
@@ -77,9 +128,9 @@ export default function PhotoScreen() {
         <Text style={styles.sub}>آخرین مورد ضروری. باید چهره واضح داشته باشد.</Text>
 
         <View style={styles.photoArea}>
-          <Pressable onPress={pickImage} style={styles.photoCircle}>
-            {photoUri && photoUri !== 'placeholder' ? (
-              <Image source={{ uri: photoUri }} style={styles.photoImage} />
+          <Pressable onPress={pickFromGallery} style={styles.photoCircle}>
+            {displayUri ? (
+              <Image source={{ uri: displayUri }} style={styles.photoImage} />
             ) : (
               <View style={styles.photoPlaceholder}>
                 <ImageIcon size={36} color={Colors.muted} strokeWidth={1.5} />
@@ -87,20 +138,18 @@ export default function PhotoScreen() {
               </View>
             )}
           </Pressable>
-          {photoUri && (
-            <View style={styles.cameraBtn}>
+          {displayUri && (
+            <Pressable style={styles.cameraBtn} onPress={pickFromCamera}>
               <Camera size={16} color="#fff" strokeWidth={2} />
-            </View>
+            </Pressable>
           )}
         </View>
 
         <View style={styles.actionRow}>
-          <Button variant="outline" onPress={pickImage} full={false} style={styles.actionBtn}>
-            <Upload size={15} color={Colors.ink} strokeWidth={2} />
+          <Button variant="outline" onPress={pickFromGallery} full={false} style={styles.actionBtn}>
             انتخاب از گالری
           </Button>
-          <Button variant="ghost" onPress={pickImage} full={false} style={styles.actionBtn}>
-            <Camera size={15} color={Colors.ink} strokeWidth={2} />
+          <Button variant="ghost" onPress={pickFromCamera} full={false} style={styles.actionBtn}>
             گرفتن عکس
           </Button>
         </View>
@@ -137,7 +186,7 @@ export default function PhotoScreen() {
             full={false}
             style={styles.btnNext}
           >
-            {uploading ? 'در حال آپلود…' : photoUri ? 'آپلود و ادامه' : 'رد کردن'}
+            {uploading ? 'در حال آپلود…' : newPhotoUri ? 'آپلود و ادامه' : existingPhotoUrl ? 'ادامه' : 'رد کردن'}
           </Button>
         </View>
       </View>

@@ -63,7 +63,6 @@ export default function BasicInfoScreen() {
           label="نام"
           value={name}
           onChangeText={setName}
-          placeholder="نام خودت رو بنویس"
           autoCapitalize="words"
         />
 
@@ -188,6 +187,9 @@ const styles = StyleSheet.create({
   dateRow: { flexDirection: 'row', gap: 8, marginBottom: 4 },
   dateField: { flex: 1 },
   dateInput: {
+    flex: 1,
+    writingDirection: "rtl",
+    width: "33%",
     borderWidth: 1.5, borderColor: Colors.lineSoft, borderRadius: 10,
     paddingHorizontal: 10, paddingVertical: 12, fontSize: 14,
     fontFamily: Fonts.regular, color: Colors.ink, backgroundColor: Colors.surface,

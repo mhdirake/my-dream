@@ -1,28 +1,32 @@
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import {
-  Settings, Pencil, Bell, Shield, Star, Coins, Users, ChevronLeft,
-  type LucideIcon,
-} from 'lucide-react-native';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
 import { Colors, Fonts } from '@/constants/colors';
+import { ApiError } from '@/lib/api/client';
+import type { ClientProfile } from '@/lib/api/profile';
+import { profileApi } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { LinearGradient } from 'expo-linear-gradient';
+import {
+  Bell, ChevronLeft, Coins, Pencil, Settings,
+  Shield, Star, User, Users, type LucideIcon,
+} from 'lucide-react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-const LIFESTYLE_TAGS = ['عاشق قهوه', 'کتاب‌خوان', 'اهل طبیعت', 'فیلم‌باز', 'عاشق گربه'];
+const BASE = process.env.EXPO_PUBLIC_API_URL ?? '';
 
 type MenuItem = { icon: LucideIcon; iconColor: string; label: string; sub: string };
 
 const MENU_ITEMS: MenuItem[] = [
-  { icon: Pencil,   iconColor: Colors.purple,   label: 'ویرایش پروفایل',  sub: 'اطلاعات، عکس، Bio'       },
-  { icon: Bell,     iconColor: Colors.trust,    label: 'اعلان‌ها',         sub: 'مدیریت اعلان‌ها'          },
-  { icon: Shield,   iconColor: Colors.ok,       label: 'حریم خصوصی',      sub: 'Safe Mode، Trust Gate'    },
-  { icon: Star,     iconColor: Colors.goldDeep, label: 'اشتراک و ارتقا',  sub: 'Silver · Gold'            },
-  { icon: Coins,    iconColor: Colors.goldDeep, label: 'کیف پول و سکه',   sub: '۴۵۰ سکه موجود'            },
-  { icon: Users,    iconColor: Colors.accent,   label: 'معرفی به دوستان', sub: 'پاداش بگیر'               },
-  { icon: Settings, iconColor: Colors.inkSoft,  label: 'تنظیمات',         sub: 'حساب، امنیت'              },
+  { icon: Pencil,   iconColor: Colors.purple,   label: 'ویرایش پروفایل',  sub: 'اطلاعات، عکس، Bio'    },
+  { icon: Bell,     iconColor: Colors.trust,    label: 'اعلان‌ها',         sub: 'مدیریت اعلان‌ها'       },
+  { icon: Shield,   iconColor: Colors.ok,       label: 'حریم خصوصی',      sub: 'Safe Mode، Trust Gate' },
+  { icon: Star,     iconColor: Colors.goldDeep, label: 'اشتراک و ارتقا',  sub: 'Silver · Gold'         },
+  { icon: Coins,    iconColor: Colors.goldDeep, label: 'کیف پول و سکه',   sub: 'سکه‌های من'             },
+  { icon: Users,    iconColor: Colors.accent,   label: 'معرفی به دوستان', sub: 'پاداش بگیر'            },
+  { icon: Settings, iconColor: Colors.inkSoft,  label: 'تنظیمات',         sub: 'حساب، امنیت'           },
 ];
 
 function CompletionRing({ value }: { value: number }) {
@@ -42,15 +46,37 @@ function CompletionRing({ value }: { value: number }) {
   );
 }
 
-export default function MeScreen() {
-  const { user, logout } = useAuth();
+function absoluteUrl(path: string | null | undefined): string | null {
+  if (!path) return null;
+  if (path.startsWith('http')) return path;
+  return `${BASE.replace(/\/$/, '')}${path.startsWith('/') ? path : `/${path}`}`;
+}
 
-  const displayName = [user?.first_name, user?.last_name].filter(Boolean).join(' ') || user?.username || '—';
+export default function MeScreen() {
+  const { user, session, logout } = useAuth();
+  const [profile, setProfile] = useState<ClientProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [photoError, setPhotoError] = useState(false);
+
+  useEffect(() => {
+    if (!session?.accessToken) return;
+    profileApi.getProfile(session.accessToken)
+      .then(setProfile)
+      .catch(e => { if (e instanceof ApiError && e.status === 401) logout(); })
+      .finally(() => setLoading(false));
+  }, [session]);
+
+  const displayName = [profile?.first_name ?? user?.first_name, profile?.last_name ?? user?.last_name]
+    .filter(Boolean).join(' ') || user?.username || '—';
+
+  const photoUrl = absoluteUrl(profile?.profile_photo?.urls.medium);
+  const completion = profile?.profile_completion_percent ?? 0;
+  const planLabel = profile?.active_subscription?.plan ?? 'Basic';
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        {/* Header */}
+
         <View style={styles.header}>
           <Text style={styles.headerTitle}>من</Text>
           <TouchableOpacity style={styles.iconBtn}>
@@ -58,12 +84,23 @@ export default function MeScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Profile card */}
         <Card style={styles.profileCard}>
           <View style={styles.profileTop}>
-            <View style={styles.avatar}>
-              <Text style={{ fontSize: 38 }}>🌸</Text>
+            <View style={styles.avatarWrap}>
+              {photoUrl && !photoError ? (
+                <Image
+                  source={{ uri: photoUrl }}
+                  style={styles.avatarImg}
+                  resizeMode="cover"
+                  onError={() => setPhotoError(true)}
+                />
+              ) : (
+                <View style={styles.avatarFallback}>
+                  <User size={32} color={Colors.accent} strokeWidth={1.5} />
+                </View>
+              )}
             </View>
+
             <View style={styles.profileInfo}>
               <View style={styles.nameRow}>
                 <Text style={styles.name}>{displayName}</Text>
@@ -71,35 +108,46 @@ export default function MeScreen() {
                 <Badge kind="community" label="" />
               </View>
               <Text style={styles.sub}>
-                @{user?.username ?? '—'}{user?.mobile ? ` · ${user.mobile}` : ''}
+                @{user?.username ?? '—'}
+                {profile?.city ? ` · ${profile.city}` : ''}
               </Text>
-              <Text style={styles.goal}>ازدواج</Text>
+              {profile?.relationship_goal ? (
+                <Text style={styles.goal}>{profile.relationship_goal.label}</Text>
+              ) : null}
             </View>
-            <CompletionRing value={72} />
+
+            {loading ? (
+              <ActivityIndicator size="small" color={Colors.accent} />
+            ) : (
+              <CompletionRing value={completion} />
+            )}
           </View>
 
-          <Text style={styles.bio}>عاشق قهوه، سفرهای کوتاه و گفت‌وگوهای عمیق.</Text>
+          {profile?.bio ? (
+            <Text style={styles.bio}>{profile.bio}</Text>
+          ) : null}
 
-          <View style={styles.tags}>
-            {LIFESTYLE_TAGS.map(t => (
-              <Chip key={t} small>{t}</Chip>
-            ))}
-          </View>
+          {(profile?.lifestyle_tags?.length ?? 0) > 0 ? (
+            <View style={styles.tags}>
+              {profile!.lifestyle_tags.map(t => <Chip key={t.id} small>{t.label}</Chip>)}
+            </View>
+          ) : null}
 
           <View style={styles.subBadge}>
-            <Text style={styles.subBadgeTxt}>Basic · ۷ کشف امروز</Text>
-            <TouchableOpacity>
-              <Text style={styles.upgradeLink}>ارتقا</Text>
-            </TouchableOpacity>
+            <Text style={styles.subBadgeTxt}>{planLabel}</Text>
+            {!profile?.active_subscription ? (
+              <TouchableOpacity>
+                <Text style={styles.upgradeLink}>ارتقا</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         </Card>
 
-        {/* Stats row */}
         <View style={styles.statsRow}>
           {[
-            { n: '۱۲', l: 'لایک دریافتی' },
-            { n: '۳',  l: 'مَچ'           },
-            { n: '۲',  l: 'گفت‌وگو'       },
+            { n: '۰', l: 'لایک دریافتی' },
+            { n: '۰', l: 'مَچ'           },
+            { n: '۰', l: 'گفت‌وگو'       },
           ].map((s, i, arr) => (
             <View key={s.l} style={[styles.statItem, i === arr.length - 1 && styles.statItemLast]}>
               <Text style={styles.statN}>{s.n}</Text>
@@ -108,7 +156,6 @@ export default function MeScreen() {
           ))}
         </View>
 
-        {/* Menu */}
         <Card style={styles.menu}>
           {MENU_ITEMS.map((item, i) => (
             <TouchableOpacity
@@ -127,7 +174,6 @@ export default function MeScreen() {
           ))}
         </Card>
 
-        {/* Sign out */}
         <TouchableOpacity style={styles.signOut} onPress={logout}>
           <Text style={styles.signOutTxt}>خروج از حساب</Text>
         </TouchableOpacity>
@@ -156,11 +202,19 @@ const styles = StyleSheet.create({
 
   profileCard: { gap: 12 },
   profileTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  avatar: {
+
+  avatarWrap: {
     width: 72, height: 72, borderRadius: 36,
-    backgroundColor: Colors.ph2, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: Colors.accent,
+    overflow: 'hidden', borderWidth: 2, borderColor: Colors.accent,
   },
+  avatarImg: { width: '100%', height: '100%' },
+  avatarFallback: {
+    width: '100%', height: '100%',
+    backgroundColor: Colors.ph2,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  avatarInitial: { fontSize: 28, fontFamily: Fonts.extraBold, color: Colors.accent },
+
   profileInfo: { flex: 1, gap: 4 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   name: { fontSize: 17, fontFamily: Fonts.extraBold, color: Colors.ink },
@@ -168,6 +222,7 @@ const styles = StyleSheet.create({
   goal: { fontSize: 12, color: Colors.accent, fontFamily: Fonts.semiBold },
   bio: { fontSize: 13, color: Colors.inkSoft, lineHeight: 20, fontFamily: Fonts.regular },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+
   subBadge: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingTop: 10, borderTopWidth: 1, borderTopColor: Colors.hair,

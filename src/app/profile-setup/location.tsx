@@ -1,9 +1,11 @@
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { SelectModal, type SelectOption } from '@/components/ui/SelectModal';
+import { SessionExpiredModal } from '@/components/ui/SessionExpiredModal';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
-import { useAuth } from '@/lib/auth/AuthContext';
+import { ApiError } from '@/lib/api/client';
 import { locationsApi, onboardingApi } from '@/lib/api/onboarding';
+import { useAuth } from '@/lib/auth/AuthContext';
 import { profileSetupStore } from '@/lib/profileSetupStore';
 import { router } from 'expo-router';
 import { CheckCircle, Shield } from 'lucide-react-native';
@@ -12,7 +14,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function LocationScreen() {
-  const { session } = useAuth();
+  const { session, logout } = useAuth();
   const [provinces, setProvinces] = useState<SelectOption[]>([]);
   const [cities, setCities] = useState<SelectOption[]>([]);
   const [province, setProvince] = useState<SelectOption | null>(null);
@@ -21,6 +23,12 @@ export default function LocationScreen() {
   const [loadingCities, setLoadingCities] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [sessionExpired, setSessionExpired] = useState(false);
+
+  const handleTokenExpired = async () => {
+    await logout();
+    setSessionExpired(true);
+  };
 
   useEffect(() => {
     if (!session?.accessToken) return;
@@ -28,7 +36,10 @@ export default function LocationScreen() {
     locationsApi
       .getProvinces(session.accessToken)
       .then(data => setProvinces(data.map(p => ({ id: p.id, name: p.name }))))
-      .catch(() => {})
+      .catch(e => {
+        if (e instanceof ApiError && e.status === 401) { handleTokenExpired(); return; }
+        setError(e.message ?? 'خطا در بارگذاری استان‌ها');
+      })
       .finally(() => setLoadingProvinces(false));
   }, [session]);
 
@@ -41,7 +52,9 @@ export default function LocationScreen() {
     locationsApi
       .getCities(session.accessToken, p.id)
       .then(data => setCities(data.map(c => ({ id: c.id, name: c.name }))))
-      .catch(() => {})
+      .catch(e => {
+        if (e instanceof ApiError && e.status === 401) { handleTokenExpired(); return; }
+      })
       .finally(() => setLoadingCities(false));
   };
 
@@ -68,6 +81,7 @@ export default function LocationScreen() {
       });
       router.push('/profile-setup/photo' as any);
     } catch (e: any) {
+      if (e instanceof ApiError && e.status === 401) { handleTokenExpired(); return; }
       setError(e.message ?? 'خطا در ذخیره اطلاعات');
     } finally {
       setSubmitting(false);
@@ -76,6 +90,10 @@ export default function LocationScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
+      <SessionExpiredModal
+        visible={sessionExpired}
+        onLogin={() => router.replace('/onboarding/login' as any)}
+      />
       <Stepper step={2} />
       <ScrollView
         contentContainerStyle={styles.content}

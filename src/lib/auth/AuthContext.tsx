@@ -9,7 +9,7 @@ type AuthCtx = {
   session: Session | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  loginWithPassword: (username: string, password: string) => Promise<void>;
+  loginWithPassword: (username: string, password: string) => Promise<Session>;
   logout: () => Promise<void>;
   saveRegistrationSession: (accessToken: string, refreshToken: string, expiresIn: number) => Promise<void>;
 };
@@ -40,7 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })();
   }, []);
 
-  const loginWithPassword = useCallback(async (username: string, password: string) => {
+  const loginWithPassword = useCallback(async (username: string, password: string): Promise<Session> => {
     const token = await authApi.login({ username, password });
     const newSession: Session = {
       accessToken: token.access_token,
@@ -51,6 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await saveSession(newSession);
     setSession(newSession);
     setUser(me);
+    return newSession;
   }, []);
 
   const logout = useCallback(async () => {

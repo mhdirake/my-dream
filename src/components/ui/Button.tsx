@@ -46,12 +46,12 @@ export function Button({ children, variant = 'accent', full = true, small, onPre
 
   if (isAccent) {
     return (
-      <Pressable onPress={onPress} disabled={disabled} style={({ pressed }) => [pressed && styles.pressed, disabled && styles.disabled, full && styles.full]}>
+      <Pressable onPress={onPress} disabled={disabled} style={({ pressed }) => [full && styles.full, style, pressed && styles.pressed, disabled && styles.disabled]}>
         <LinearGradient
           colors={Colors.gradColors}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
-          style={[styles.base, full && styles.full, small && styles.small, style]}
+          style={[styles.base, styles.full, small && styles.small]}
         >
           {label}
         </LinearGradient>
