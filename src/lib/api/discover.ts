@@ -21,6 +21,16 @@ export type DiscoverProfile = {
 
 export type InteractionType = 'like' | 'pass' | 'skip';
 
+export type ProfileView = {
+  id: number;
+  viewer_user: {
+    id: number;
+    first_name: string;
+    profile_photo: { urls: { medium: string; thumbnail: string } } | null;
+  };
+  viewed_at: string;
+};
+
 export type BackendGift = {
   id: number;
   title: string;
@@ -55,6 +65,11 @@ export const discoverApi = {
 
   listGifts: async (token: string) => {
     const res = await api.get<{ data: BackendGift[] }>('/api/client/gifts', token);
+    return res.data ?? [];
+  },
+
+  getProfileViews: async (token: string) => {
+    const res = await api.get<{ data: ProfileView[] }>('/api/client/profile-views', token);
     return res.data ?? [];
   },
 };

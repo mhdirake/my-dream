@@ -1,12 +1,15 @@
 import { GiftModal } from '@/components/GiftModal';
+import { TemplateMessageModal } from '@/components/TemplateMessageModal';
 import { Colors, Fonts } from '@/constants/colors';
 import { discoverApi } from '@/lib/api/discover';
+import { profileApi } from '@/lib/api/profile';
 import { profileCache } from '@/lib/cache/profileCache';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
+  AlertTriangle,
   ArrowLeft,
   Gift,
   Heart,
@@ -28,6 +31,8 @@ export default function ProfileViewScreen() {
   const { session } = useAuth();
   const [profile] = useState(profileCache.get(Number(id)) ?? null);
   const [giftOpen, setGiftOpen] = useState(false);
+  const [templateOpen, setTemplateOpen] = useState(false);
+  const [authDealbreakers, setAuthDealbreakers] = useState<string[]>([]);
 
   const goBack = () => {
     if (router.canGoBack()) router.back();
@@ -37,6 +42,9 @@ export default function ProfileViewScreen() {
   useEffect(() => {
     if (!session) return;
     discoverApi.recordProfileView(session.accessToken, Number(id)).catch(() => {});
+    profileApi.getProfile(session.accessToken)
+      .then(p => setAuthDealbreakers(p.dealbreakers ?? []))
+      .catch(() => {});
   }, [id, session]);
 
   if (!profile) {
@@ -58,6 +66,13 @@ export default function ProfileViewScreen() {
   const age = calcAge(profile.birth_date);
   const photoUrl = profile.profile_photo?.urls.large;
 
+  const redFlags = authDealbreakers.filter(d =>
+    profile.lifestyle_tags.some(t =>
+      t.label.toLowerCase().includes(d.toLowerCase()) ||
+      d.toLowerCase().includes(t.label.toLowerCase())
+    )
+  );
+
   const handleLike = () => {
     if (!session) return;
     discoverApi.interact(session.accessToken, profile.id, 'like').catch(() => {});
@@ -68,6 +83,7 @@ export default function ProfileViewScreen() {
     discoverApi.interact(session.accessToken, profile.id, 'pass').catch(() => {});
     goBack();
   };
+  const handleChat = () => setTemplateOpen(true);
 
   return (
     <View style={styles.root}>
@@ -106,13 +122,27 @@ export default function ProfileViewScreen() {
             </View>
           )}
           {profile.compatibility_score != null && (
-            <View style={styles.compatRow}>
+            <TouchableOpacity
+              style={styles.compatRow}
+              onPress={() => router.push(`/user/compatibility?id=${profile.id}` as never)}
+              activeOpacity={0.75}
+            >
               <Sparkles size={12} color={Colors.purple} strokeWidth={2} />
               <Text style={styles.compatTxt}>{profile.compatibility_score}٪ تطابق</Text>
-            </View>
+            </TouchableOpacity>
           )}
         </View>
       </View>
+
+      {/* Red flag warning */}
+      {redFlags.length > 0 && (
+        <View style={styles.redFlagBanner}>
+          <AlertTriangle size={15} color={Colors.danger} strokeWidth={2} />
+          <Text style={styles.redFlagTxt}>
+            این پروفایل با یک یا چند dealbreaker تو همخوانی داره
+          </Text>
+        </View>
+      )}
 
       {/* Content */}
       <ScrollView
@@ -184,7 +214,7 @@ export default function ProfileViewScreen() {
         <TouchableOpacity style={styles.likeBtn} onPress={handleLike}>
           <Heart size={30} color="#fff" fill="#fff" strokeWidth={2} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.chatBtn}>
+        <TouchableOpacity style={styles.chatBtn} onPress={handleChat}>
           <MessageCircle size={22} color={Colors.trust} strokeWidth={2} />
         </TouchableOpacity>
       </View>
@@ -195,6 +225,17 @@ export default function ProfileViewScreen() {
         firstName={profile.first_name}
         token={session?.accessToken ?? ''}
         onClose={() => setGiftOpen(false)}
+      />
+      <TemplateMessageModal
+        visible={templateOpen}
+        userId={profile.id}
+        firstName={profile.first_name}
+        token={session?.accessToken ?? ''}
+        onClose={() => setTemplateOpen(false)}
+        onSent={() => {
+          setTemplateOpen(false);
+          goBack();
+        }}
       />
     </View>
   );
@@ -264,6 +305,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 5,
   },
   badgeTxt: { fontSize: 12, fontFamily: Fonts.semiBold, color: Colors.trust },
+
+  redFlagBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    marginHorizontal: 16, marginTop: 8,
+    backgroundColor: Colors.dangerSoft, borderRadius: 12,
+    paddingHorizontal: 12, paddingVertical: 10,
+  },
+  redFlagTxt: { flex: 1, fontSize: 12, fontFamily: Fonts.semiBold, color: Colors.danger, lineHeight: 18 },
 
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   emptyTxt: { fontSize: 14, color: Colors.muted, fontFamily: Fonts.regular },

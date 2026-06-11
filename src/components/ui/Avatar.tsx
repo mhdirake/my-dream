@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { StyleSheet, Text, View } from 'react-native';
 import { Colors, Fonts } from '@/constants/colors';
 
@@ -6,10 +7,10 @@ interface AvatarProps {
   name?: string;
   online?: boolean;
   ring?: boolean;
-  uri?: string;
+  photoUrl?: string | null;
 }
 
-export function Avatar({ size = 44, name, online, ring }: AvatarProps) {
+export function Avatar({ size = 44, name, online, ring, photoUrl }: AvatarProps) {
   const initials = name ? name.charAt(0).toUpperCase() : '';
   return (
     <View style={{ width: size, height: size, position: 'relative' }}>
@@ -19,9 +20,17 @@ export function Avatar({ size = 44, name, online, ring }: AvatarProps) {
         ring && { borderColor: Colors.accent, borderWidth: 2 },
         !ring && { borderColor: Colors.hair, borderWidth: 1 },
       ]}>
-        <Text style={[styles.initial, { fontSize: size * 0.36, fontFamily: Fonts.bold, color: Colors.purple }]}>
-          {initials}
-        </Text>
+        {photoUrl ? (
+          <Image
+            source={{ uri: photoUrl }}
+            style={[StyleSheet.absoluteFill, { borderRadius: size / 2 }]}
+            contentFit="cover"
+          />
+        ) : (
+          <Text style={[styles.initial, { fontSize: size * 0.36, fontFamily: Fonts.bold, color: Colors.purple }]}>
+            {initials}
+          </Text>
+        )}
       </View>
       {online && (
         <View style={[
@@ -38,6 +47,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   initial: { lineHeight: undefined },
   dot: {

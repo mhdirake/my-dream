@@ -131,9 +131,21 @@ export const onboardingApi = {
       return data;
     }
 
-    const blob = await fetch(uri).then(r => r.blob());
+    let blob: Blob;
+    if (uri.startsWith('data:')) {
+      // data URI → Blob (برخی browserها fetch از data: پشتیبانی نمیکنن)
+      const [header, b64] = uri.split(',');
+      const mime = header.match(/:(.*?);/)?.[1] ?? mimeType;
+      const bytes = atob(b64);
+      const arr = new Uint8Array(bytes.length);
+      for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+      blob = new Blob([arr], { type: mime });
+    } else {
+      blob = await fetch(uri).then(r => r.blob());
+    }
+    const file = new File([blob], 'photo.jpg', { type: blob.type || mimeType });
     const form = new FormData();
-    form.append('image', blob, 'photo.jpg');
+    form.append('image', file);
     const res = await fetch(url, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },

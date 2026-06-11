@@ -1,10 +1,12 @@
 import { Button } from '@/components/ui/Button';
 import { Field } from '@/components/ui/Field';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
+import { onboardingApi } from '@/lib/api/onboarding';
+import { useAuth } from '@/lib/auth/AuthContext';
 import { profileSetupStore } from '@/lib/profileSetupStore';
 import { router } from 'expo-router';
 import { CheckCircle } from 'lucide-react-native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -26,11 +28,30 @@ const toPersian = (n: number | string) =>
   String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
 
 export default function BasicInfoScreen() {
+  const { session } = useAuth();
   const [name, setName] = useState('');
   const [year, setYear] = useState('');
   const [month, setMonth] = useState('');
   const [day, setDay] = useState('');
   const [gender, setGender] = useState<Gender | null>(null);
+
+  useEffect(() => {
+    if (!session?.accessToken) return;
+    onboardingApi.getStatus(session.accessToken).then(status => {
+      const u = status.user;
+      if (u.first_name) setName(u.first_name);
+      if (u.birth_date) {
+        const d = u.birth_date.split('T')[0]; // "2000-10-10"
+        const [y, m, dd] = d.split('-');
+        setYear(y);
+        setMonth(String(Number(m)));
+        setDay(String(Number(dd)));
+      }
+      if (u.gender && ['female', 'male', 'prefer_not_to_say'].includes(u.gender)) {
+        setGender(u.gender as Gender);
+      }
+    }).catch(() => {});
+  }, [session]);
 
   const birthDate =
     year.length === 4 && month.length >= 1 && day.length >= 1

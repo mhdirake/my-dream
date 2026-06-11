@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
 import { GiftModal } from '@/components/GiftModal';
+import { TemplateMessageModal } from '@/components/TemplateMessageModal';
 import { Colors, Fonts } from '@/constants/colors';
 import { DiscoverProfile, discoverApi } from '@/lib/api/discover';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -11,8 +12,17 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Bell, Gift, Heart, MessageCircle, Search, ShieldCheck, Sparkles, X } from 'lucide-react-native';
-import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Animated,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 type Mode = 'swipe' | 'daily' | 'ai';
@@ -106,20 +116,48 @@ function SwipeCard({ profile }: { profile: DiscoverProfile; onInteract: (type: '
   );
 }
 
-function ActionButtons({ onLike, onPass, onGift }: { onLike: () => void; onPass: () => void; onGift: () => void }) {
+function ActionButtons({
+  onLike,
+  onPass,
+  onGift,
+  onChat,
+}: {
+  onLike: () => void;
+  onPass: () => void;
+  onGift: () => void;
+  onChat: () => void;
+}) {
+  const heartScale = useRef(new Animated.Value(1)).current;
+
+  const onLikeIn = () =>
+    Animated.spring(heartScale, { toValue: 0.88, useNativeDriver: true, speed: 40, bounciness: 0 }).start();
+  const onLikeOut = () =>
+    Animated.spring(heartScale, { toValue: 1, useNativeDriver: true, speed: 18, bounciness: 12 }).start();
+
   return (
-    <View style={styles.actions}>
-      <TouchableOpacity style={styles.actionBtn} onPress={onPass}>
-        <X size={22} color={Colors.danger} strokeWidth={2.2} />
+    <View style={styles.actionsRow}>
+      <TouchableOpacity style={styles.actionSide} onPress={onPass} activeOpacity={0.6}>
+        <X size={20} color={Colors.danger} strokeWidth={2.5} />
       </TouchableOpacity>
-      <TouchableOpacity style={[styles.actionBtn, styles.actionGift]} onPress={onGift}>
-        <Gift size={21} color={Colors.goldDeep} strokeWidth={1.8} />
+
+      <TouchableOpacity style={styles.actionSide} onPress={onGift} activeOpacity={0.6}>
+        <Gift size={20} color={Colors.goldDeep} strokeWidth={2} />
       </TouchableOpacity>
-      <TouchableOpacity style={[styles.actionBtn, styles.actionLike]} onPress={onLike}>
-        <Heart size={28} color="#fff" fill="#fff" strokeWidth={1.8} />
-      </TouchableOpacity>
-      <TouchableOpacity style={[styles.actionBtn, styles.actionChat]}>
-        <MessageCircle size={21} color={Colors.trust} strokeWidth={1.8} />
+
+      <Pressable onPress={onLike} onPressIn={onLikeIn} onPressOut={onLikeOut}>
+        <Animated.View style={[styles.actionLike, { transform: [{ scale: heartScale }] }]}>
+          <LinearGradient
+            colors={Colors.gradColors}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[StyleSheet.absoluteFill, { borderRadius: 31 }]}
+          />
+          <Heart size={28} color="#fff" fill="#fff" strokeWidth={1.8} style={{ zIndex: 1 }} />
+        </Animated.View>
+      </Pressable>
+
+      <TouchableOpacity style={styles.actionSide} onPress={onChat} activeOpacity={0.6}>
+        <MessageCircle size={20} color={Colors.trust} strokeWidth={2} />
       </TouchableOpacity>
     </View>
   );
@@ -133,6 +171,7 @@ function SwipeView({ profiles, loading, token, onInteract }: {
 }) {
   const [index, setIndex] = useState(0);
   const [giftTarget, setGiftTarget] = useState<DiscoverProfile | null>(null);
+  const [templateTarget, setTemplateTarget] = useState<DiscoverProfile | null>(null);
   const current = profiles[index];
 
   if (loading) {
@@ -163,6 +202,7 @@ function SwipeView({ profiles, loading, token, onInteract }: {
           onLike={() => handleInteract('like')}
           onPass={() => handleInteract('pass')}
           onGift={() => setGiftTarget(current)}
+          onChat={() => setTemplateTarget(current)}
         />
         <Text style={styles.swipeRemain}>{profiles.length - index - 1} کشف باقی‌مانده</Text>
       </ScrollView>
@@ -173,6 +213,16 @@ function SwipeView({ profiles, loading, token, onInteract }: {
           firstName={giftTarget.first_name}
           token={token}
           onClose={() => setGiftTarget(null)}
+        />
+      )}
+      {templateTarget && (
+        <TemplateMessageModal
+          visible
+          userId={templateTarget.id}
+          firstName={templateTarget.first_name}
+          token={token}
+          onClose={() => setTemplateTarget(null)}
+          onSent={() => setTemplateTarget(null)}
         />
       )}
     </>
@@ -425,24 +475,35 @@ const styles = StyleSheet.create({
   },
   tagTxt: { fontSize: 11, fontFamily: Fonts.semiBold, color: Colors.inkSoft },
 
-  // Action buttons
-  actions: {
-    flexDirection: 'row', justifyContent: 'center',
-    alignItems: 'center', gap: 16, marginTop: 20,
+  // ── Action buttons ──────────────────────────────────────────────────────────
+  actionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 20,
+    marginTop: 20,
   },
-  actionBtn: {
-    width: 52, height: 52, borderRadius: 26,
-    backgroundColor: Colors.dangerSoft, alignItems: 'center', justifyContent: 'center',
-    shadowColor: Colors.danger, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15, shadowRadius: 8, elevation: 4,
+  actionSide: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.surface,
   },
-  actionGift: { backgroundColor: Colors.goldSoft, shadowColor: Colors.gold },
   actionLike: {
-    width: 64, height: 64, borderRadius: 32,
-    backgroundColor: Colors.accent,
-    shadowColor: Colors.accent, shadowOpacity: 0.5,
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: Colors.accent,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  actionChat: { backgroundColor: Colors.trustSoft, shadowColor: Colors.trust },
+  // ───────────────────────────────────────────────────────────────────────────
   swipeRemain: {
     textAlign: 'center', marginTop: 14,
     fontSize: 11.5, color: Colors.muted, fontFamily: Fonts.semiBold,

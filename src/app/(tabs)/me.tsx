@@ -10,11 +10,12 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
-  Bell, Camera, ChevronLeft, Coins, Pencil, Settings,
+  Bell, Camera, ChevronLeft, Coins, Eye, Pencil, Settings,
   Shield, Star, User, Users, type LucideIcon,
 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, Alert, Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const BASE = process.env.EXPO_PUBLIC_API_URL ?? '';
@@ -117,7 +118,9 @@ export default function MeScreen() {
   };
 
   const handleChangePhoto = () => {
-    if (Platform.OS === 'ios') {
+    if (Platform.OS === 'web') {
+      pickFromGallery();
+    } else if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         { options: ['لغو', 'انتخاب از گالری', 'گرفتن عکس'], cancelButtonIndex: 0 },
         i => { if (i === 1) pickFromGallery(); else if (i === 2) pickFromCamera(); },
@@ -229,6 +232,21 @@ export default function MeScreen() {
           ))}
         </View>
 
+        <TouchableOpacity
+          style={styles.viewedCard}
+          onPress={() => router.push('/viewed-me' as never)}
+          activeOpacity={0.8}
+        >
+          <View style={styles.viewedIcon}>
+            <Eye size={18} color={Colors.accent} strokeWidth={2} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.viewedTitle}>کی منو دید؟</Text>
+            <Text style={styles.viewedSub}>بینندگان پروفایل رو ببین</Text>
+          </View>
+          <ChevronLeft size={16} color={Colors.muted} strokeWidth={2} />
+        </TouchableOpacity>
+
         <Card style={styles.menu}>
           {MENU_ITEMS.map((item, i) => (
             <TouchableOpacity
@@ -333,6 +351,25 @@ const styles = StyleSheet.create({
   statItemLast: { borderRightWidth: 0 },
   statN: { fontSize: 18, fontFamily: Fonts.extraBold, color: Colors.ink },
   statL: { fontSize: 10.5, color: Colors.muted, fontFamily: Fonts.regular, marginTop: 2 },
+
+  viewedCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: Colors.surface,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: Colors.hair,
+    padding: 14,
+    marginBottom: 12,
+  },
+  viewedIcon: {
+    width: 40, height: 40, borderRadius: 13,
+    backgroundColor: Colors.accentSoft,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  viewedTitle: { fontSize: 13.5, fontFamily: Fonts.semiBold, color: Colors.ink },
+  viewedSub: { fontSize: 11, color: Colors.muted, fontFamily: Fonts.regular, marginTop: 1 },
 
   menu: { padding: 0, overflow: 'hidden' },
   menuRow: {

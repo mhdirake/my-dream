@@ -21,6 +21,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const doRefresh = useCallback(async (s: Session) => {
+    try {
+      const token = await authApi.refresh(s.refreshToken);
+      const next: Session = {
+        accessToken: token.access_token,
+        refreshToken: token.refresh_token ?? s.refreshToken,
+        expiresAt: Date.now() + (token.expires_in ?? 300) * 1000,
+      };
+      await saveSession(next);
+      setSession(next);
+    } catch {
+      await clearSession();
+      setSession(null);
+      setUser(null);
+    }
+  }, []);
+
+  // Auto-refresh: schedule refresh 60s before token expires
+  useEffect(() => {
+    if (!session) return;
+    if (isExpired(session)) {
+      doRefresh(session);
+      return;
+    }
+    const msUntilRefresh = session.expiresAt - Date.now() - 60_000;
+    const timer = setTimeout(() => doRefresh(session), Math.max(msUntilRefresh, 0));
+    return () => clearTimeout(timer);
+  }, [session, doRefresh]);
+
   useEffect(() => {
     (async () => {
       try {

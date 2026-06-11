@@ -33,9 +33,35 @@ export default function LocationScreen() {
   useEffect(() => {
     if (!session?.accessToken) return;
     setLoadingProvinces(true);
-    locationsApi
-      .getProvinces(session.accessToken)
-      .then(data => setProvinces(data.map(p => ({ id: p.id, name: p.name }))))
+    Promise.all([
+      locationsApi.getProvinces(session.accessToken),
+      onboardingApi.getStatus(session.accessToken),
+    ])
+      .then(([provData, status]) => {
+        const provOpts = provData.map(p => ({ id: p.id, name: p.name }));
+        setProvinces(provOpts);
+
+        const savedProvId = status.user.province_id;
+        const savedCityId = status.user.city_id;
+        if (!savedProvId) return;
+
+        const savedProv = provOpts.find(p => p.id === savedProvId);
+        if (!savedProv) return;
+
+        setProvince(savedProv);
+        setLoadingCities(true);
+        locationsApi.getCities(session.accessToken!, savedProv.id)
+          .then(cityData => {
+            const cityOpts = cityData.map(c => ({ id: c.id, name: c.name }));
+            setCities(cityOpts);
+            if (savedCityId) {
+              const savedCity = cityOpts.find(c => c.id === savedCityId);
+              if (savedCity) setCity(savedCity);
+            }
+          })
+          .catch(() => {})
+          .finally(() => setLoadingCities(false));
+      })
       .catch(e => {
         if (e instanceof ApiError && e.status === 401) { handleTokenExpired(); return; }
         setError(e.message ?? 'خطا در بارگذاری استان‌ها');
