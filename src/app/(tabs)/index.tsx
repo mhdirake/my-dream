@@ -2,11 +2,17 @@
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
+import { GiftModal } from '@/components/GiftModal';
 import { Colors, Fonts } from '@/constants/colors';
+import { DiscoverProfile, discoverApi } from '@/lib/api/discover';
+import { useAuth } from '@/lib/auth/AuthContext';
+import { profileCache } from '@/lib/cache/profileCache';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Bell, Gift, Heart, MessageCircle, Search, Sparkles, X } from 'lucide-react-native';
-import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { router } from 'expo-router';
+import { Bell, Gift, Heart, MessageCircle, Search, ShieldCheck, Sparkles, X } from 'lucide-react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 type Mode = 'swipe' | 'daily' | 'ai';
@@ -17,15 +23,10 @@ const MODES: { id: Mode; label: string }[] = [
   { id: 'ai', label: 'AI Match' },
 ];
 
-const SAMPLE_PROFILES = [
-  { id: 1, name: 'سارا', age: 26, city: 'تهران', goal: 'ازدواج', compat: 86, tags: ['فیلم', 'قهوه', 'کتاب'], verified: true },
-];
-
-const DAILY_PROFILES = [
-  { id: 1, name: 'پریسا', age: 27, city: 'تهران', compat: 86, tags: ['قهوه', 'کتاب', 'طبیعت'], note: 'هدف رابطه بسیار نزدیک' },
-  { id: 2, name: 'یاسمن', age: 30, city: 'کرج', compat: 74, tags: ['فیلم', 'گربه'], note: 'سبک زندگی مشابه' },
-  { id: 3, name: 'مهتاب', age: 25, city: 'تهران', compat: 68, tags: ['شب‌زنده‌دار', 'گیمر'], note: 'چند تگ مشترک' },
-];
+function calcAge(birthDate: string) {
+  const diff = Date.now() - new Date(birthDate).getTime();
+  return Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
+}
 
 function ModeSwitch({ active, onPress }: { active: Mode; onPress: (m: Mode) => void }) {
   return (
@@ -46,68 +47,75 @@ function ModeSwitch({ active, onPress }: { active: Mode; onPress: (m: Mode) => v
   );
 }
 
-function SwipeCard() {
-  const p = SAMPLE_PROFILES[0];
+function SwipeCard({ profile }: { profile: DiscoverProfile; onInteract: (type: 'like' | 'pass') => void }) {
+  const age = calcAge(profile.birth_date);
+  const photoUrl = profile.profile_photo?.urls.large;
   return (
-    <View style={styles.swipeCard}>
-      {/* Photo placeholder */}
-      <View style={styles.cardPhoto}>
-        <View style={styles.cardAvatarPlaceholder} />
-      </View>
-
-      {/* Top badges */}
-      <View style={styles.cardTopRight}>
-        <Badge kind="ai" label="AI Trusted" />
-      </View>
-      <View style={styles.cardTopLeft}>
-        <View style={styles.compatBadge}>
-          <Sparkles size={11} color={Colors.purple} strokeWidth={2} />
-          <Text style={styles.compatText}>{p.compat}٪</Text>
+    <TouchableOpacity activeOpacity={0.95} onPress={() => router.push(`/user/${profile.id}` as never)} style={styles.swipeCard}>
+      {photoUrl ? (
+        <Image source={{ uri: photoUrl }} style={StyleSheet.absoluteFill} contentFit="cover" transition={200} />
+      ) : (
+        <View style={styles.cardPhoto}>
+          <View style={styles.cardAvatarPlaceholder} />
         </View>
-      </View>
+      )}
 
-      {/* Bottom gradient overlay */}
+      <View style={styles.cardTopRight}>
+        {profile.badges.some(b => b.slug === 'ai_trusted') && <Badge kind="ai" label="AI Trusted" />}
+      </View>
+      {profile.compatibility_score != null && (
+        <View style={styles.cardTopLeft}>
+          <View style={styles.compatBadge}>
+            <Sparkles size={11} color={Colors.purple} strokeWidth={2} />
+            <Text style={styles.compatText}>{profile.compatibility_score}٪</Text>
+          </View>
+        </View>
+      )}
+
       <LinearGradient
         colors={['transparent', 'rgba(0,0,0,0.55)']}
         style={styles.cardGradient}
         pointerEvents="none"
       />
 
-      {/* Bottom info overlay */}
       <View style={styles.cardBottom}>
         <View style={styles.cardGlass}>
           <View style={styles.cardNameRow}>
-            <Text style={styles.cardName}>{p.name}، {p.age}</Text>
-            <Badge kind="check" label="" />
+            <Text style={styles.cardName}>{profile.first_name}، {age}</Text>
+            {profile.is_verified && <Badge kind="check" label="" />}
           </View>
           <View style={styles.cardMeta}>
-            <Text style={styles.cardMetaTxt}>📍 {p.city}</Text>
-            <Text style={styles.cardDot}>·</Text>
-            <Text style={styles.cardGoal}>{p.goal}</Text>
+            {profile.city && <Text style={styles.cardMetaTxt}>📍 {profile.city}</Text>}
+            {profile.relationship_goal && (
+              <>
+                <Text style={styles.cardDot}>·</Text>
+                <Text style={styles.cardGoal}>{profile.relationship_goal.label}</Text>
+              </>
+            )}
           </View>
           <View style={styles.tagRow}>
-            {p.tags.map(t => (
-              <View key={t} style={styles.tagPill}>
-                <Text style={styles.tagTxt}>{t}</Text>
+            {profile.lifestyle_tags.slice(0, 3).map(t => (
+              <View key={t.id} style={styles.tagPill}>
+                <Text style={styles.tagTxt}>{t.label}</Text>
               </View>
             ))}
           </View>
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
-function ActionButtons() {
+function ActionButtons({ onLike, onPass, onGift }: { onLike: () => void; onPass: () => void; onGift: () => void }) {
   return (
     <View style={styles.actions}>
-      <TouchableOpacity style={styles.actionBtn}>
+      <TouchableOpacity style={styles.actionBtn} onPress={onPass}>
         <X size={22} color={Colors.danger} strokeWidth={2.2} />
       </TouchableOpacity>
-      <TouchableOpacity style={[styles.actionBtn, styles.actionGift]}>
+      <TouchableOpacity style={[styles.actionBtn, styles.actionGift]} onPress={onGift}>
         <Gift size={21} color={Colors.goldDeep} strokeWidth={1.8} />
       </TouchableOpacity>
-      <TouchableOpacity style={[styles.actionBtn, styles.actionLike]}>
+      <TouchableOpacity style={[styles.actionBtn, styles.actionLike]} onPress={onLike}>
         <Heart size={28} color="#fff" fill="#fff" strokeWidth={1.8} />
       </TouchableOpacity>
       <TouchableOpacity style={[styles.actionBtn, styles.actionChat]}>
@@ -117,43 +125,117 @@ function ActionButtons() {
   );
 }
 
-function SwipeView() {
+function SwipeView({ profiles, loading, token, onInteract }: {
+  profiles: DiscoverProfile[];
+  loading: boolean;
+  token: string;
+  onInteract: (userId: number, type: 'like' | 'pass') => void;
+}) {
+  const [index, setIndex] = useState(0);
+  const [giftTarget, setGiftTarget] = useState<DiscoverProfile | null>(null);
+  const current = profiles[index];
+
+  if (loading) {
+    return (
+      <View style={styles.centerEmpty}>
+        <ActivityIndicator color={Colors.accent} />
+      </View>
+    );
+  }
+  if (!current) {
+    return (
+      <View style={styles.centerEmpty}>
+        <Text style={styles.emptyTxt}>کشف جدیدی نیست</Text>
+      </View>
+    );
+  }
+
+  const handleInteract = (type: 'like' | 'pass') => {
+    onInteract(current.id, type);
+    setIndex(i => i + 1);
+  };
+
   return (
-    <ScrollView contentContainerStyle={styles.swipeContent} showsVerticalScrollIndicator={false}>
-      <SwipeCard />
-      <ActionButtons />
-      <Text style={styles.swipeRemain}>۷ کشف باقی‌مانده امروز · Basic</Text>
-    </ScrollView>
+    <>
+      <ScrollView contentContainerStyle={styles.swipeContent} showsVerticalScrollIndicator={false}>
+        <SwipeCard profile={current} onInteract={handleInteract} />
+        <ActionButtons
+          onLike={() => handleInteract('like')}
+          onPass={() => handleInteract('pass')}
+          onGift={() => setGiftTarget(current)}
+        />
+        <Text style={styles.swipeRemain}>{profiles.length - index - 1} کشف باقی‌مانده</Text>
+      </ScrollView>
+      {giftTarget && (
+        <GiftModal
+          visible
+          userId={giftTarget.id}
+          firstName={giftTarget.first_name}
+          token={token}
+          onClose={() => setGiftTarget(null)}
+        />
+      )}
+    </>
   );
 }
 
-function DailyView() {
+function DailyView({ profiles, loading }: {
+  profiles: DiscoverProfile[];
+  loading: boolean;
+}) {
+  if (loading) {
+    return (
+      <View style={styles.centerEmpty}>
+        <ActivityIndicator color={Colors.accent} />
+      </View>
+    );
+  }
   return (
     <ScrollView contentContainerStyle={styles.dailyContent} showsVerticalScrollIndicator={false}>
-      {DAILY_PROFILES.map(p => (
-        <Card key={p.id} style={styles.dailyCard}>
+      {profiles.map(p => (
+        <TouchableOpacity key={p.id} activeOpacity={0.85} onPress={() => router.push(`/user/${p.id}` as never)}>
+        <Card style={styles.dailyCard}>
           <View style={styles.dailyRow}>
             <View style={styles.dailyAvatar}>
-              <View style={styles.dailyAvatarPlaceholder} />
-              <View style={styles.dailyCompat}>
-                <Sparkles size={9} color={Colors.purple} strokeWidth={2} />
-                <Text style={styles.dailyCompatTxt}>{p.compat}٪</Text>
-              </View>
+              {p.profile_photo?.urls.medium ? (
+                <Image
+                  source={{ uri: p.profile_photo.urls.medium }}
+                  style={[StyleSheet.absoluteFill, { borderRadius: 16 }]}
+                  contentFit="cover"
+                  transition={200}
+                />
+              ) : (
+                <View style={styles.dailyAvatarPlaceholder} />
+              )}
+              {p.compatibility_score != null && (
+                <View style={styles.dailyCompat}>
+                  <Sparkles size={9} color={Colors.purple} strokeWidth={2} />
+                  <Text style={styles.dailyCompatTxt}>{p.compatibility_score}٪</Text>
+                </View>
+              )}
             </View>
             <View style={styles.dailyInfo}>
-              <Text style={styles.dailyName}>{p.name}، {p.age}</Text>
-              <Text style={styles.dailyCity}>{p.city}</Text>
-              <View style={styles.dailyNote}>
-                <Sparkles size={9} color={Colors.purple} strokeWidth={2} />
-                <Text style={styles.dailyNoteTxt}>{p.note}</Text>
-              </View>
+              <Text style={styles.dailyName}>{p.first_name}، {calcAge(p.birth_date)}</Text>
+              {p.city && <Text style={styles.dailyCity}>{p.city}</Text>}
+              {p.relationship_goal && (
+                <View style={styles.dailyNote}>
+                  <Sparkles size={9} color={Colors.purple} strokeWidth={2} />
+                  <Text style={styles.dailyNoteTxt}>{p.relationship_goal.label}</Text>
+                </View>
+              )}
               <View style={styles.tagRow}>
-                {p.tags.map(t => <Chip key={t} small>{t}</Chip>)}
+                {p.lifestyle_tags.slice(0, 3).map(t => <Chip key={t.id} small>{t.label}</Chip>)}
               </View>
             </View>
           </View>
         </Card>
+        </TouchableOpacity>
       ))}
+      {profiles.length === 0 && (
+        <View style={styles.centerEmpty}>
+          <Text style={styles.emptyTxt}>پیشنهادی موجود نیست</Text>
+        </View>
+      )}
       <Card soft style={styles.upgradeCard}>
         <Text style={styles.upgradeTxt}>پیشنهادهای بیشتر؟</Text>
         <Text style={styles.upgradeSub}>Silver: ۵ · Gold: ۱۰ پیشنهاد در روز</Text>
@@ -178,6 +260,32 @@ function AiView() {
 
 export default function DiscoverScreen() {
   const [mode, setMode] = useState<Mode>('swipe');
+  const { session } = useAuth();
+  const [profiles, setProfiles] = useState<DiscoverProfile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [safeMode, setSafeMode] = useState(false);
+
+  const fetchProfiles = useCallback((safe: boolean) => {
+    if (!session) return;
+    setLoading(true);
+    discoverApi.getProfiles(session.accessToken, 15, safe)
+      .then(data => { profileCache.setMany(data); setProfiles(data); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [session]);
+
+  useEffect(() => { fetchProfiles(safeMode); }, [fetchProfiles]);
+
+  const toggleSafeMode = () => {
+    const next = !safeMode;
+    setSafeMode(next);
+    fetchProfiles(next);
+  };
+
+  const handleInteract = async (userId: number, type: 'like' | 'pass') => {
+    if (!session) return;
+    discoverApi.interact(session.accessToken, userId, type).catch(() => {});
+  };
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -185,6 +293,16 @@ export default function DiscoverScreen() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>کشف</Text>
         <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={[styles.iconBtn, safeMode && styles.iconBtnSafe]}
+            onPress={toggleSafeMode}
+          >
+            <ShieldCheck
+              size={17}
+              color={safeMode ? Colors.ok : Colors.ink}
+              strokeWidth={2}
+            />
+          </TouchableOpacity>
           <TouchableOpacity style={styles.iconBtn}>
             <Search size={17} color={Colors.ink} strokeWidth={2} />
           </TouchableOpacity>
@@ -197,10 +315,17 @@ export default function DiscoverScreen() {
         </View>
       </View>
 
+      {safeMode && (
+        <View style={styles.safeBanner}>
+          <ShieldCheck size={13} color={Colors.ok} strokeWidth={2} />
+          <Text style={styles.safeBannerTxt}>حالت امن فعال — فقط کاربران تأییدشده</Text>
+        </View>
+      )}
+
       <ModeSwitch active={mode} onPress={setMode} />
 
-      {mode === 'swipe' && <SwipeView />}
-      {mode === 'daily' && <DailyView />}
+      {mode === 'swipe' && <SwipeView profiles={profiles} loading={loading} token={session?.accessToken ?? ''} onInteract={handleInteract} />}
+      {mode === 'daily' && <DailyView profiles={profiles} loading={loading} />}
       {mode === 'ai' && <AiView />}
     </SafeAreaView>
   );
@@ -223,6 +348,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.8)',
     alignItems: 'center', justifyContent: 'center',
   },
+  iconBtnSafe: { backgroundColor: Colors.okSoft },
+  safeBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    marginHorizontal: 16, marginBottom: 4,
+    backgroundColor: Colors.okSoft, borderRadius: 12,
+    paddingHorizontal: 12, paddingVertical: 7,
+  },
+  safeBannerTxt: { fontSize: 12, fontFamily: Fonts.bold, color: Colors.ok },
   notifDot: {
     position: 'absolute', top: -2, right: -2,
     width: 8, height: 8, borderRadius: 4,
@@ -352,4 +485,6 @@ const styles = StyleSheet.create({
   aiEmpty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
   aiTitle: { fontSize: 18, fontFamily: Fonts.bold, color: Colors.ink, marginTop: 12 },
   aiSub: { fontSize: 12, color: Colors.muted, fontFamily: Fonts.regular, textAlign: 'center', marginTop: 6 },
+  centerEmpty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
+  emptyTxt: { fontSize: 14, color: Colors.muted, fontFamily: Fonts.regular },
 });

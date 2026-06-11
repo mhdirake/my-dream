@@ -103,6 +103,30 @@ export const authApi = {
     return json as LoginResponse;
   },
 
+  refresh: async (refreshToken: string): Promise<LoginResponse> => {
+    const kcUrl = process.env.KC_URL ?? process.env.EXPO_PUBLIC_KC_URL;
+    const kcSecret = process.env.KC_SECRET ?? process.env.EXPO_PUBLIC_KC_SECRET;
+
+    const body = [
+      ['grant_type', 'refresh_token'],
+      ['client_id', 'backend-client'],
+      ['client_secret', kcSecret ?? ''],
+      ['refresh_token', refreshToken],
+    ]
+      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+      .join('&');
+
+    const kcTokenUrl = `${kcUrl}/realms/My%20Dream/protocol/openid-connect/token`;
+    const res = await fetch(kcTokenUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body,
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new ApiError(res.status, json?.error_description ?? `HTTP ${res.status}`);
+    return json as LoginResponse;
+  },
+
   me: (token: string) =>
     api.get<MeResponse>('/api/me', token),
 };

@@ -23,13 +23,13 @@ export default function LoginScreen() {
       const session = await loginWithPassword(username.trim(), password);
       try {
         const status = await onboardingApi.getStatus(session.accessToken);
-        const { flags } = status;
-        if (flags.must_complete_required_profile || flags.force_required_profile_screen) {
-          router.replace('/profile-setup/basic-info' as any);
-          return;
-        }
-        if (flags.must_upload_profile_photo || flags.force_profile_photo_screen || flags.must_replace_profile_photo) {
-          router.replace('/profile-setup/photo' as any);
+
+        if (!status.can_enter_app || status.completion_percent < 50) {
+          if (status.next_required_step === 'profile_photo') {
+            router.replace('/profile-setup/photo' as any);
+          } else {
+            router.replace('/profile-setup/basic-info' as any);
+          }
           return;
         }
       } catch {

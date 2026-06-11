@@ -25,12 +25,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       try {
         const s = await loadSession();
-        if (!s || isExpired(s)) {
-          if (s) await clearSession();
-          return;
+        if (!s) return;
+
+        let active = s;
+        if (isExpired(s)) {
+          if (!s.refreshToken) {
+            await clearSession();
+            return;
+          }
+          try {
+            const token = await authApi.refresh(s.refreshToken);
+            active = {
+              accessToken: token.access_token,
+              refreshToken: token.refresh_token ?? s.refreshToken,
+              expiresAt: Date.now() + (token.expires_in ?? 300) * 1000,
+            };
+            await saveSession(active);
+          } catch {
+            await clearSession();
+            return;
+          }
         }
-        const me = await authApi.me(s.accessToken);
-        setSession(s);
+
+        const me = await authApi.me(active.accessToken);
+        setSession(active);
         setUser(me);
       } catch {
         await clearSession();

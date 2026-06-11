@@ -24,32 +24,64 @@ export type ProfilePhotoUrls = {
   large: string;
 };
 
+export type CompletionBreakdownItem = {
+  key: string;
+  label: string;
+  weight: number;
+  completed: boolean;
+  current_value?: string | number | { count: number; primary_count: number };
+};
+
 export type OnboardingUser = {
   id: number;
+  keycloak_id: string;
   username: string;
+  email: string | null;
   first_name: string | null;
   last_name: string | null;
   mobile: string | null;
+  mobile_verified_at: string | null;
+  status: string;
   bio: string | null;
   gender: string | null;
   birth_date: string | null;
   province: string | null;
+  province_id: number | null;
   city: string | null;
+  city_id: number | null;
   height_cm: number | null;
   job: string | null;
   education: string | null;
+  religiosity_level: string | null;
   relationship_goal_id: number | null;
-  profile_completion_percent: number;
+  profile_photo_path: string | null;
   profile_photo_status: string | null;
-  profile_photo: { urls: ProfilePhotoUrls } | null;
+  profile_completion_percent: number;
+  profile_quality_score: number;
+  valid_reports_count: number;
   safe_mode_enabled: boolean;
+  is_banned: boolean;
+  restricted_until: string | null;
+  is_restricted: boolean;
+  restriction_badge: string | null;
+  last_login_at: string | null;
+  created_at: string;
+  updated_at: string;
+  profile_photo: { urls: ProfilePhotoUrls } | null;
+  lifestyle_tags: LifestyleTag[];
+  languages: Language[];
+  dealbreakers: any[];
+  latest_personality_test: any | null;
 };
 
 export type OnboardingStatus = {
   completion_percent: number;
+  completion_status: 'incomplete' | 'complete';
   can_enter_app: boolean;
   next_required_step: string | null;
   profile_photo_status: string | null;
+  completion_breakdown: CompletionBreakdownItem[];
+  missing_completion_items: CompletionBreakdownItem[];
   flags: {
     must_complete_required_profile: boolean;
     must_upload_profile_photo: boolean;
@@ -59,15 +91,17 @@ export type OnboardingStatus = {
     force_profile_photo_screen: boolean;
   };
   steps: {
-    required_profile: { completed: boolean; missing_fields: string[] };
-    profile_photo: { completed: boolean; uploaded: boolean; status: string };
+    required_profile: { completed: boolean; required_fields: string[]; missing_fields: string[] };
+    profile_photo: { completed: boolean; uploaded: boolean; status: string; required_fields: string[]; missing_fields: string[] };
   };
   user: OnboardingUser;
 };
 
 export const onboardingApi = {
-  getStatus: (token: string) =>
-    api.get<OnboardingStatus>('/api/client/onboarding', token),
+  getStatus: async (token: string) => {
+    const res = await api.get<{ data: OnboardingStatus }>('/api/client/onboarding', token);
+    return res.data;
+  },
 
   saveRequiredProfile: (
     token: string,

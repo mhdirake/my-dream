@@ -1,65 +1,71 @@
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Coins, Pin, MoreHorizontal, Star } from 'lucide-react-native';
 import { Card } from '@/components/ui/Card';
 import { Colors, Fonts } from '@/constants/colors';
+import { BackendGift, discoverApi } from '@/lib/api/discover';
+import { profileApi } from '@/lib/api/profile';
+import { useAuth } from '@/lib/auth/AuthContext';
+import { Coins, Star } from 'lucide-react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-const GIFT_STORE = [
-  { id: 1, emoji: '🌹', name: 'گل رز',     type: 'ساده',     coins: 10  },
-  { id: 2, emoji: '💐', name: 'دسته گل',   type: 'خفن',      coins: 50  },
-  { id: 3, emoji: '💎', name: 'الماس',     type: 'ویژه',     coins: 200 },
-  { id: 4, emoji: '👑', name: 'تاج طلایی', type: 'افسانه‌ای', coins: 500 },
-  { id: 5, emoji: '☕', name: 'قهوه',      type: 'ساده',     coins: 15  },
-  { id: 6, emoji: '🎭', name: 'ماسک',      type: 'خفن',      coins: 80  },
-];
+const TYPE_LABEL: Record<string, string> = {
+  simple: 'ساده',
+  cool: 'خفن',
+  special: 'ویژه',
+  legendary: 'افسانه‌ای',
+};
 
-const RECEIVED_GIFTS = [
-  { id: 1, from: 'کیان',  emoji: '💎', gift: 'الماس',  date: 'امروز ۱۴:۲۲', pinned: true },
-  { id: 2, from: 'آرمان', emoji: '🌹', gift: 'گل رز',  date: 'دیروز' },
-];
+const SLUG_EMOJI: Record<string, string> = {
+  'dream-rose': '🌹',
+  'coffee-invite': '☕',
+  'cool-moon': '🌙',
+  'golden-heart': '💛',
+  'legendary-star': '⭐',
+};
+
+function giftEmoji(g: BackendGift) {
+  return SLUG_EMOJI[g.slug] ?? '🎁';
+}
 
 export default function GiftsScreen() {
+  const { session } = useAuth();
+  const [gifts, setGifts] = useState<BackendGift[]>([]);
+  const [coins, setCoins] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(() => {
+    if (!session) return;
+    setLoading(true);
+    Promise.all([
+      discoverApi.listGifts(session.accessToken),
+      profileApi.getProfile(session.accessToken),
+    ])
+      .then(([giftList, profile]) => {
+        setGifts(giftList);
+        setCoins(profile.coins ?? 0);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [session]);
+
+  useEffect(() => { load(); }, [load]);
+
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+        {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>هدایا</Text>
           <View style={styles.wallet}>
             <Coins size={15} color={Colors.goldDeep} strokeWidth={2} />
-            <Text style={styles.walletTxt}>۴۵۰</Text>
+            <Text style={styles.walletTxt}>
+              {coins == null ? '...' : coins.toLocaleString('fa-IR')}
+            </Text>
             <TouchableOpacity style={styles.buyBtn}>
               <Text style={styles.buyBtnTxt}>خرید +</Text>
             </TouchableOpacity>
           </View>
         </View>
-
-        {/* Received gifts */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>هدایای دریافتی</Text>
-        </View>
-
-        {RECEIVED_GIFTS.map(g => (
-          <View key={g.id} style={[styles.giftRow, g.pinned && styles.giftRowPinned]}>
-            <View style={styles.giftEmoji}>
-              <Text style={styles.giftEmojiText}>{g.emoji}</Text>
-            </View>
-            <View style={styles.giftInfo}>
-              <View style={styles.giftNameRow}>
-                <Text style={styles.giftName}>{g.gift}</Text>
-                {g.pinned && (
-                  <View style={styles.pinnedBadge}>
-                    <Pin size={10} color={Colors.goldDeep} strokeWidth={2} />
-                    <Text style={styles.pinnedTxt}>پین‌شده</Text>
-                  </View>
-                )}
-              </View>
-              <Text style={styles.giftFrom}>از {g.from} · {g.date}</Text>
-            </View>
-            <TouchableOpacity style={styles.giftAction}>
-              <MoreHorizontal size={18} color={Colors.muted} strokeWidth={2} />
-            </TouchableOpacity>
-          </View>
-        ))}
 
         {/* Gift store */}
         <View style={styles.sectionHeader}>
@@ -67,23 +73,33 @@ export default function GiftsScreen() {
           <Text style={styles.sectionSub}>همه هدایا با سکه خریداری می‌شوند</Text>
         </View>
 
-        <View style={styles.giftGrid}>
-          {GIFT_STORE.map(g => (
-            <TouchableOpacity key={g.id} style={styles.storeCard}>
-              <Text style={styles.storeEmoji}>{g.emoji}</Text>
-              <Text style={styles.storeName}>{g.name}</Text>
-              <View style={styles.storeTypeBadge}>
-                <Text style={styles.storeTypeTxt}>{g.type}</Text>
+        {loading ? (
+          <View style={styles.loadingBox}>
+            <ActivityIndicator color={Colors.accent} />
+          </View>
+        ) : gifts.length === 0 ? (
+          <View style={styles.emptyBox}>
+            <Text style={styles.emptyTxt}>هدیه‌ای موجود نیست</Text>
+          </View>
+        ) : (
+          <View style={styles.giftGrid}>
+            {gifts.map(g => (
+              <View key={g.id} style={styles.storeCard}>
+                <Text style={styles.storeEmoji}>{giftEmoji(g)}</Text>
+                <Text style={styles.storeName}>{g.title}</Text>
+                <View style={styles.storeTypeBadge}>
+                  <Text style={styles.storeTypeTxt}>{TYPE_LABEL[g.type] ?? g.type}</Text>
+                </View>
+                <View style={styles.storePrice}>
+                  <Coins size={10} color={Colors.goldDeep} strokeWidth={2} />
+                  <Text style={styles.storePriceTxt}>{g.coin_price}</Text>
+                </View>
               </View>
-              <View style={styles.storePrice}>
-                <Coins size={10} color={Colors.goldDeep} strokeWidth={2} />
-                <Text style={styles.storePriceTxt}>{g.coins}</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
+            ))}
+          </View>
+        )}
 
-        {/* Gift Gold Badge */}
+        {/* Gold Badge gift */}
         <Card tint="gold" style={styles.goldBadgeCard}>
           <View style={styles.goldBadgeTitleRow}>
             <Star size={16} color={Colors.goldDeep} fill={Colors.gold} strokeWidth={1.5} />
@@ -129,24 +145,9 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 14, fontFamily: Fonts.bold, color: Colors.ink },
   sectionSub: { fontSize: 11, color: Colors.muted, fontFamily: Fonts.regular, marginTop: 2 },
 
-  giftRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    padding: 12, backgroundColor: Colors.surface,
-    borderRadius: 16, borderWidth: 1, borderColor: Colors.hair, marginBottom: 8,
-  },
-  giftRowPinned: { borderColor: Colors.gold + '66', backgroundColor: Colors.goldSoft },
-  giftEmoji: {
-    width: 52, height: 52, borderRadius: 14,
-    backgroundColor: Colors.ph2, alignItems: 'center', justifyContent: 'center',
-  },
-  giftEmojiText: { fontSize: 28 },
-  giftInfo: { flex: 1 },
-  giftNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  giftName: { fontSize: 14, fontFamily: Fonts.bold, color: Colors.ink },
-  pinnedBadge: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  pinnedTxt: { fontSize: 10, color: Colors.goldDeep, fontFamily: Fonts.semiBold },
-  giftFrom: { fontSize: 11.5, color: Colors.muted, fontFamily: Fonts.regular, marginTop: 2 },
-  giftAction: { padding: 6 },
+  loadingBox: { height: 120, alignItems: 'center', justifyContent: 'center' },
+  emptyBox: { height: 80, alignItems: 'center', justifyContent: 'center' },
+  emptyTxt: { fontSize: 13, color: Colors.muted, fontFamily: Fonts.regular },
 
   giftGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   storeCard: {
@@ -157,17 +158,17 @@ const styles = StyleSheet.create({
   },
   storeEmoji: { fontSize: 32, marginBottom: 2 },
   storeName: { fontSize: 10.5, fontFamily: Fonts.semiBold, color: Colors.ink, textAlign: 'center' },
-  storeTypeBadge: {
-    backgroundColor: Colors.purpleSoft, borderRadius: 999,
-    paddingHorizontal: 6, paddingVertical: 2,
-  },
-  storeTypeTxt: { fontSize: 9, color: Colors.purple, fontFamily: Fonts.semiBold },
   storePrice: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
     backgroundColor: Colors.goldSoft, borderRadius: 999,
     paddingHorizontal: 8, paddingVertical: 3,
   },
   storePriceTxt: { fontSize: 10, fontFamily: Fonts.bold, color: Colors.goldDeep },
+  storeTypeBadge: {
+    backgroundColor: Colors.purpleSoft, borderRadius: 999,
+    paddingHorizontal: 6, paddingVertical: 2,
+  },
+  storeTypeTxt: { fontSize: 9, color: Colors.purple, fontFamily: Fonts.semiBold },
 
   goldBadgeCard: { marginTop: 16, gap: 8 },
   goldBadgeTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },

@@ -3,16 +3,18 @@ import { Card } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
 import { Colors, Fonts } from '@/constants/colors';
 import { ApiError } from '@/lib/api/client';
+import { onboardingApi } from '@/lib/api/onboarding';
 import type { ClientProfile } from '@/lib/api/profile';
 import { profileApi } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/AuthContext';
+import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
-  Bell, ChevronLeft, Coins, Pencil, Settings,
+  Bell, Camera, ChevronLeft, Coins, Pencil, Settings,
   Shield, Star, User, Users, type LucideIcon,
 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActionSheetIOS, ActivityIndicator, Alert, Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const BASE = process.env.EXPO_PUBLIC_API_URL ?? '';
@@ -57,6 +59,8 @@ export default function MeScreen() {
   const [profile, setProfile] = useState<ClientProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [photoError, setPhotoError] = useState(false);
+  const [localPhotoUri, setLocalPhotoUri] = useState<string | null>(null);
+  const [photoUploading, setPhotoUploading] = useState(false);
 
   useEffect(() => {
     if (!session?.accessToken) return;
@@ -65,6 +69,67 @@ export default function MeScreen() {
       .catch(e => { if (e instanceof ApiError && e.status === 401) logout(); })
       .finally(() => setLoading(false));
   }, [session]);
+
+  const uploadPhoto = async (uri: string) => {
+    if (!session?.accessToken) return;
+    setLocalPhotoUri(uri);
+    setPhotoUploading(true);
+    try {
+      await onboardingApi.uploadPhoto(session.accessToken, uri);
+      const updated = await profileApi.getProfile(session.accessToken);
+      setProfile(updated);
+      setPhotoError(false);
+    } catch {
+      Alert.alert('خطا', 'آپلود عکس موفق نبود. دوباره تلاش کن.');
+      setLocalPhotoUri(null);
+    } finally {
+      setPhotoUploading(false);
+    }
+  };
+
+  const pickFromGallery = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('دسترسی لازمه', 'برای انتخاب عکس باید دسترسی به گالری رو بدی.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.85,
+    });
+    if (!result.canceled) uploadPhoto(result.assets[0].uri);
+  };
+
+  const pickFromCamera = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('دسترسی لازمه', 'برای گرفتن عکس باید دسترسی به دوربین رو بدی.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.85,
+    });
+    if (!result.canceled) uploadPhoto(result.assets[0].uri);
+  };
+
+  const handleChangePhoto = () => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options: ['لغو', 'انتخاب از گالری', 'گرفتن عکس'], cancelButtonIndex: 0 },
+        i => { if (i === 1) pickFromGallery(); else if (i === 2) pickFromCamera(); },
+      );
+    } else {
+      Alert.alert('تغییر عکس پروفایل', '', [
+        { text: 'انتخاب از گالری', onPress: pickFromGallery },
+        { text: 'گرفتن عکس', onPress: pickFromCamera },
+        { text: 'لغو', style: 'cancel' },
+      ]);
+    }
+  };
 
   const displayName = [profile?.first_name ?? user?.first_name, profile?.last_name ?? user?.last_name]
     .filter(Boolean).join(' ') || user?.username || '—';
@@ -86,20 +151,28 @@ export default function MeScreen() {
 
         <Card style={styles.profileCard}>
           <View style={styles.profileTop}>
-            <View style={styles.avatarWrap}>
-              {photoUrl && !photoError ? (
-                <Image
-                  source={{ uri: photoUrl }}
-                  style={styles.avatarImg}
-                  resizeMode="cover"
-                  onError={() => setPhotoError(true)}
-                />
-              ) : (
-                <View style={styles.avatarFallback}>
-                  <User size={32} color={Colors.accent} strokeWidth={1.5} />
-                </View>
-              )}
-            </View>
+            <TouchableOpacity onPress={handleChangePhoto} style={styles.avatarOuter} activeOpacity={0.85}>
+              <View style={styles.avatarWrap}>
+                {(localPhotoUri ?? photoUrl) && !photoError ? (
+                  <Image
+                    source={{ uri: localPhotoUri ?? photoUrl! }}
+                    style={styles.avatarImg}
+                    resizeMode="cover"
+                    onError={() => setPhotoError(true)}
+                  />
+                ) : (
+                  <View style={styles.avatarFallback}>
+                    <User size={32} color={Colors.accent} strokeWidth={1.5} />
+                  </View>
+                )}
+              </View>
+              <View style={styles.cameraBtn}>
+                {photoUploading
+                  ? <ActivityIndicator size="small" color="#fff" />
+                  : <Camera size={13} color="#fff" strokeWidth={2.5} />
+                }
+              </View>
+            </TouchableOpacity>
 
             <View style={styles.profileInfo}>
               <View style={styles.nameRow}>
@@ -203,9 +276,16 @@ const styles = StyleSheet.create({
   profileCard: { gap: 12 },
   profileTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
 
+  avatarOuter: { position: 'relative' },
   avatarWrap: {
     width: 72, height: 72, borderRadius: 36,
     overflow: 'hidden', borderWidth: 2, borderColor: Colors.accent,
+  },
+  cameraBtn: {
+    position: 'absolute', bottom: 0, right: 0,
+    width: 24, height: 24, borderRadius: 12,
+    backgroundColor: Colors.ink, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: Colors.surface,
   },
   avatarImg: { width: '100%', height: '100%' },
   avatarFallback: {

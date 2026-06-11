@@ -34,6 +34,7 @@ export type ClientProfile = {
   dealbreakers: string[];
   badges: { id: number; label: string; icon?: string }[];
   active_subscription: { plan: string; expires_at: string } | null;
+  coins: number;
 };
 
 export const profileApi = {
