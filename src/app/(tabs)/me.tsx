@@ -20,10 +20,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 const BASE = process.env.EXPO_PUBLIC_API_URL ?? '';
 
-type MenuItem = { icon: LucideIcon; iconColor: string; label: string; sub: string };
+type MenuItem = { icon: LucideIcon; iconColor: string; label: string; sub: string; route?: string };
 
 const MENU_ITEMS: MenuItem[] = [
-  { icon: Pencil,   iconColor: Colors.purple,   label: 'ویرایش پروفایل',  sub: 'اطلاعات، عکس، Bio'    },
+  { icon: Pencil,   iconColor: Colors.purple,   label: 'ویرایش پروفایل',  sub: 'اطلاعات، عکس، Bio',    route: '/profile-edit' },
   { icon: Bell,     iconColor: Colors.trust,    label: 'اعلان‌ها',         sub: 'مدیریت اعلان‌ها'       },
   { icon: Shield,   iconColor: Colors.ok,       label: 'حریم خصوصی',      sub: 'Safe Mode، Trust Gate' },
   { icon: Star,     iconColor: Colors.goldDeep, label: 'اشتراک و ارتقا',  sub: 'Silver · Gold'         },
@@ -188,7 +188,7 @@ export default function MeScreen() {
                 {profile?.city ? ` · ${profile.city}` : ''}
               </Text>
               {profile?.relationship_goal ? (
-                <Text style={styles.goal}>{profile.relationship_goal.label}</Text>
+                <Text style={styles.goal}>{profile.relationship_goal.title}</Text>
               ) : null}
             </View>
 
@@ -205,7 +205,7 @@ export default function MeScreen() {
 
           {(profile?.lifestyle_tags?.length ?? 0) > 0 ? (
             <View style={styles.tags}>
-              {profile!.lifestyle_tags.map(t => <Chip key={t.id} small>{t.label}</Chip>)}
+              {profile!.lifestyle_tags.map(t => <Chip key={t.id} small>{t.title}</Chip>)}
             </View>
           ) : null}
 
@@ -252,6 +252,7 @@ export default function MeScreen() {
             <TouchableOpacity
               key={item.label}
               style={[styles.menuRow, i < MENU_ITEMS.length - 1 && styles.menuBorder]}
+              onPress={() => { if (item.route) router.push(item.route as never); }}
             >
               <View style={[styles.menuIcon, { backgroundColor: item.iconColor + '18' }]}>
                 <item.icon size={18} color={item.iconColor} strokeWidth={1.8} />

@@ -102,7 +102,7 @@ export default function AboutMeScreen() {
         ) : (
           shown.map(p => (
             <View key={p.id} style={styles.promptBlock}>
-              <Text style={styles.question}>{p.question}</Text>
+              <Text style={styles.question}>{p.body}</Text>
               <TextInput
                 style={[styles.answerInput, answers[p.id]?.trim() && styles.answerFilled]}
                 value={answers[p.id] ?? ''}

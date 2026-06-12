@@ -11,7 +11,7 @@ import { profileCache } from '@/lib/cache/profileCache';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { Bell, Gift, Heart, MessageCircle, Search, ShieldCheck, Sparkles, X } from 'lucide-react-native';
+import { Bell, Gift, Heart, MessageCircle, Search, ShieldCheck, Sparkles, User, X } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -66,7 +66,9 @@ function SwipeCard({ profile }: { profile: DiscoverProfile; onInteract: (type: '
         <Image source={{ uri: photoUrl }} style={StyleSheet.absoluteFill} contentFit="cover" transition={200} />
       ) : (
         <View style={styles.cardPhoto}>
-          <View style={styles.cardAvatarPlaceholder} />
+          <View style={styles.cardDefaultAvatar}>
+            <User size={72} color="rgba(255,255,255,0.45)" strokeWidth={1.2} />
+          </View>
         </View>
       )}
 
@@ -99,14 +101,14 @@ function SwipeCard({ profile }: { profile: DiscoverProfile; onInteract: (type: '
             {profile.relationship_goal && (
               <>
                 <Text style={styles.cardDot}>·</Text>
-                <Text style={styles.cardGoal}>{profile.relationship_goal.label}</Text>
+                <Text style={styles.cardGoal}>{profile.relationship_goal.title}</Text>
               </>
             )}
           </View>
           <View style={styles.tagRow}>
             {profile.lifestyle_tags.slice(0, 3).map(t => (
               <View key={t.id} style={styles.tagPill}>
-                <Text style={styles.tagTxt}>{t.label}</Text>
+                <Text style={styles.tagTxt}>{t.title}</Text>
               </View>
             ))}
           </View>
@@ -255,7 +257,7 @@ function DailyView({ profiles, loading }: {
                   transition={200}
                 />
               ) : (
-                <View style={styles.dailyAvatarPlaceholder} />
+                <User size={36} color="rgba(150,140,170,0.6)" strokeWidth={1.3} />
               )}
               {p.compatibility_score != null && (
                 <View style={styles.dailyCompat}>
@@ -270,11 +272,11 @@ function DailyView({ profiles, loading }: {
               {p.relationship_goal && (
                 <View style={styles.dailyNote}>
                   <Sparkles size={9} color={Colors.purple} strokeWidth={2} />
-                  <Text style={styles.dailyNoteTxt}>{p.relationship_goal.label}</Text>
+                  <Text style={styles.dailyNoteTxt}>{p.relationship_goal.title}</Text>
                 </View>
               )}
               <View style={styles.tagRow}>
-                {p.lifestyle_tags.slice(0, 3).map(t => <Chip key={t.id} small>{t.label}</Chip>)}
+                {p.lifestyle_tags.slice(0, 3).map(t => <Chip key={t.id} small>{t.title}</Chip>)}
               </View>
             </View>
           </View>
@@ -443,9 +445,11 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   cardPhoto: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
-  cardAvatarPlaceholder: {
-    width: 100, height: 100, borderRadius: 50,
-    backgroundColor: Colors.ph,
+  cardDefaultAvatar: {
+    width: 130, height: 130, borderRadius: 65,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 2, borderColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center', justifyContent: 'center',
   },
   cardTopRight: { position: 'absolute', top: 14, right: 14 },
   cardTopLeft: { position: 'absolute', top: 14, left: 14 },
@@ -517,10 +521,6 @@ const styles = StyleSheet.create({
     width: 78, height: 98, borderRadius: 16,
     backgroundColor: Colors.ph2, alignItems: 'center', justifyContent: 'center',
     position: 'relative',
-  },
-  dailyAvatarPlaceholder: {
-    width: 44, height: 44, borderRadius: 22,
-    backgroundColor: Colors.ph,
   },
   dailyCompat: {
     position: 'absolute', bottom: 5,

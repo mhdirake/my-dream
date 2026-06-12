@@ -2,10 +2,11 @@ import { Avatar } from '@/components/ui/Avatar';
 import { Colors, Fonts, Radius } from '@/constants/colors';
 import { Conversation, chatApi } from '@/lib/api/chat';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { useConversations } from '@/lib/chat/useConversations';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Check, Clock, PenLine, Search, X } from 'lucide-react-native';
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -39,28 +40,9 @@ type Tab = 'all' | 'requests';
 
 export default function ChatScreen() {
   const { session, user } = useAuth();
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const { conversations, loading, refreshing, refresh } = useConversations(session?.accessToken);
   const [tab, setTab] = useState<Tab>('all');
   const [responding, setResponding] = useState<number | null>(null);
-
-  const load = useCallback(async () => {
-    if (!session) return;
-    try {
-      const data = await chatApi.listConversations(session.accessToken);
-      setConversations(data);
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [session]);
-
-  useEffect(() => { load(); }, [load]);
-
-  const onRefresh = () => { setRefreshing(true); load(); };
 
   const openConversation = (c: Conversation) => {
     const avatarUrl = absoluteUrl(c.other_user.profile_photo?.urls.medium) ?? '';
@@ -80,7 +62,7 @@ export default function ChatScreen() {
     setResponding(c.id);
     try {
       await chatApi.respondToRequest(session.accessToken, c.conversation_request_id, status);
-      await load();
+      refresh();
       if (status === 'accepted') openConversation({ ...c, status: 'active' });
     } catch {
       // ignore
@@ -156,7 +138,7 @@ export default function ChatScreen() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accent} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={Colors.accent} />}
         >
           {displayed.map(c => {
             if (c.status === 'pending') {

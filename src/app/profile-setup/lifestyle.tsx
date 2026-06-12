@@ -1,9 +1,9 @@
 import { Button } from '@/components/ui/Button';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { lookupsApi, type LifestyleTag } from '@/lib/api/onboarding';
+import { lookupsApi, type LifestyleTagOption } from '@/lib/api/onboarding';
 import { profileApi } from '@/lib/api/profile';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Sparkles } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -22,26 +22,40 @@ const toPersian = (n: number) => String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵�
 
 export default function LifestyleScreen() {
   const { session } = useAuth();
-  const [tags, setTags] = useState<LifestyleTag[]>([]);
-  const [selected, setSelected] = useState<number[]>([]);
+  const { mode, currentTagIds } = useLocalSearchParams<{ mode?: string; currentTagIds?: string }>();
+  const isEdit = mode === 'edit';
+  const [tags, setTags] = useState<LifestyleTagOption[]>([]);
+  const [selected, setSelected] = useState<number[]>(() => {
+    if (typeof currentTagIds === 'string' && currentTagIds) {
+      try { return JSON.parse(currentTagIds); } catch { return []; }
+    }
+    return [];
+  });
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [loadError, setLoadError] = useState('');
 
-  useEffect(() => {
+  const loadTags = () => {
     if (!session?.accessToken) return;
     setLoading(true);
+    setLoadError('');
     lookupsApi
       .getLifestyleTags(session.accessToken)
-      .then(setTags)
-      .catch(() => {})
+      .then(data => {
+        setTags(data);
+        if (!data.length) setLoadError('سرور داده‌ای برنگرداند');
+      })
+      .catch(e => setLoadError(e.message ?? 'خطا در بارگذاری'))
       .finally(() => setLoading(false));
-  }, [session]);
+  };
+
+  useEffect(() => { loadTags(); }, [session]);
 
   const byCategory = useMemo(() => {
-    const map = new Map<string, LifestyleTag[]>();
+    const map = new Map<string, LifestyleTagOption[]>();
     tags.forEach(t => {
-      const cat = t.category ?? 'سایر';
+      const cat = t.lifestyle_tag_category?.name ?? 'سایر';
       if (!map.has(cat)) map.set(cat, []);
       map.get(cat)!.push(t);
     });
@@ -66,7 +80,8 @@ export default function LifestyleScreen() {
     setError('');
     try {
       await profileApi.updateProfile(session.accessToken, { lifestyle_tag_ids: selected });
-      router.push('/profile-setup/languages' as any);
+      if (isEdit) router.back();
+      else router.push('/profile-setup/languages' as any);
     } catch (e: any) {
       setError(e.message ?? 'خطا در ذخیره');
     } finally {
@@ -76,7 +91,7 @@ export default function LifestyleScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
-      <OptStepper idx={3} />
+      {!isEdit && <OptStepper idx={3} />}
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>سبک زندگی</Text>
         <View style={styles.subRow}>
@@ -88,6 +103,13 @@ export default function LifestyleScreen() {
 
         {loading ? (
           <ActivityIndicator color={Colors.accent} style={{ marginTop: 40 }} />
+        ) : loadError ? (
+          <View style={styles.errBox}>
+            <Text style={styles.errTxt}>{loadError}</Text>
+            <Pressable onPress={loadTags} style={styles.retryBtn}>
+              <Text style={styles.retryTxt}>تلاش مجدد</Text>
+            </Pressable>
+          </View>
         ) : (
           byCategory.map(([cat, catTags]) => (
             <View key={cat} style={styles.category}>
@@ -100,7 +122,7 @@ export default function LifestyleScreen() {
                     style={[styles.chip, selected.includes(t.id) && styles.chipActive]}
                   >
                     <Text style={[styles.chipText, selected.includes(t.id) && styles.chipTextActive]}>
-                      {t.label}
+                      {t.title}
                     </Text>
                   </Pressable>
                 ))}
@@ -117,7 +139,7 @@ export default function LifestyleScreen() {
         <View style={styles.btnRow}>
           <Button variant="ghost" onPress={() => router.back()} full={false} style={styles.btnSkip}>فعلاً نه</Button>
           <Button variant="accent" onPress={handleSave} disabled={!canSave || saving} full={false} style={styles.btnSave}>
-            {saving ? 'در حال ذخیره…' : 'ذخیره و ادامه'}
+            {saving ? 'در حال ذخیره…' : isEdit ? 'ذخیره' : 'ذخیره و ادامه'}
           </Button>
         </View>
       </View>
@@ -172,6 +194,13 @@ const styles = StyleSheet.create({
   chipText: { fontSize: 12.5, fontFamily: Fonts.semiBold, color: Colors.inkSoft },
   chipTextActive: { color: '#fff' },
   error: { fontSize: 12, color: Colors.danger, fontFamily: Fonts.regular, marginTop: 8 },
+  errBox: { alignItems: 'center', marginTop: 40, gap: 12 },
+  errTxt: { fontSize: 13, color: Colors.danger, fontFamily: Fonts.regular },
+  retryBtn: {
+    paddingHorizontal: 20, paddingVertical: 8, borderRadius: Radius.pill,
+    backgroundColor: Colors.accentSoft,
+  },
+  retryTxt: { fontSize: 13, fontFamily: Fonts.semiBold, color: Colors.accent },
   bottomBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     padding: Spacing.lg, borderTopWidth: 1, borderTopColor: Colors.lineSoft,

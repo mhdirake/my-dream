@@ -5,7 +5,7 @@ import { SelectModal, type SelectOption } from '@/components/ui/SelectModal';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { profileApi } from '@/lib/api/profile';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Lock, Sparkles } from 'lucide-react-native';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -24,9 +24,18 @@ const toPersian = (n: number) => String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵�
 
 export default function OptionalInfoScreen() {
   const { session } = useAuth();
-  const [height, setHeight] = useState('');
-  const [job, setJob] = useState('');
-  const [education, setEducation] = useState<SelectOption | null>(null);
+  const { mode, currentHeight, currentJob, currentEducation } = useLocalSearchParams<{
+    mode?: string; currentHeight?: string; currentJob?: string; currentEducation?: string;
+  }>();
+  const isEdit = mode === 'edit';
+  const [height, setHeight] = useState(typeof currentHeight === 'string' ? currentHeight : '');
+  const [job, setJob] = useState(typeof currentJob === 'string' ? currentJob : '');
+  const [education, setEducation] = useState<SelectOption | null>(() => {
+    if (typeof currentEducation === 'string' && currentEducation) {
+      return EDUCATION_OPTIONS.find(e => e.name === currentEducation) ?? null;
+    }
+    return null;
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -42,7 +51,8 @@ export default function OptionalInfoScreen() {
         job: job.trim() || undefined,
         education: education?.name || undefined,
       });
-      router.push('/profile-setup/about-me' as any);
+      if (isEdit) router.back();
+      else router.push('/profile-setup/about-me' as any);
     } catch (e: any) {
       setError(e.message ?? 'خطا در ذخیره');
     } finally {
@@ -52,7 +62,7 @@ export default function OptionalInfoScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
-      <OptStepper idx={7} />
+      {!isEdit && <OptStepper idx={7} />}
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -104,7 +114,7 @@ export default function OptionalInfoScreen() {
         <View style={styles.btnRow}>
           <Button variant="ghost" onPress={() => router.back()} full={false} style={styles.btnSkip}>فعلاً نه</Button>
           <Button variant="accent" onPress={handleSave} disabled={!hasSomething || saving} full={false} style={styles.btnSave}>
-            {saving ? 'در حال ذخیره…' : 'ذخیره و ادامه'}
+            {saving ? 'در حال ذخیره…' : isEdit ? 'ذخیره' : 'ذخیره و ادامه'}
           </Button>
         </View>
       </View>

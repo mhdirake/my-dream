@@ -43,7 +43,7 @@ export default function ProfileViewScreen() {
     if (!session) return;
     discoverApi.recordProfileView(session.accessToken, Number(id)).catch(() => {});
     profileApi.getProfile(session.accessToken)
-      .then(p => setAuthDealbreakers(p.dealbreakers ?? []))
+      .then(p => setAuthDealbreakers((p.dealbreakers ?? []).map(d => d.body)))
       .catch(() => {});
   }, [id, session]);
 
@@ -68,8 +68,8 @@ export default function ProfileViewScreen() {
 
   const redFlags = authDealbreakers.filter(d =>
     profile.lifestyle_tags.some(t =>
-      t.label.toLowerCase().includes(d.toLowerCase()) ||
-      d.toLowerCase().includes(t.label.toLowerCase())
+      t.title.toLowerCase().includes(d.toLowerCase()) ||
+      d.toLowerCase().includes(t.title.toLowerCase())
     )
   );
 
@@ -152,7 +152,7 @@ export default function ProfileViewScreen() {
       >
         {profile.relationship_goal && (
           <View style={styles.goalPill}>
-            <Text style={styles.goalTxt}>{profile.relationship_goal.label}</Text>
+            <Text style={styles.goalTxt}>{profile.relationship_goal.title}</Text>
           </View>
         )}
 
@@ -168,7 +168,7 @@ export default function ProfileViewScreen() {
             <View style={styles.tagRow}>
               {profile.lifestyle_tags.map(t => (
                 <View key={t.id} style={styles.tag}>
-                  <Text style={styles.tagTxt}>{t.label}</Text>
+                  <Text style={styles.tagTxt}>{t.title}</Text>
                 </View>
               ))}
             </View>

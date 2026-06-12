@@ -149,8 +149,8 @@ export default function CompatibilityScreen() {
               matched={goalMatch}
               detail={
                 goalMatch
-                  ? `هر دو: ${profile.relationship_goal?.label}`
-                  : profile.relationship_goal?.label ?? '—'
+                  ? `هر دو: ${profile.relationship_goal?.title}`
+                  : profile.relationship_goal?.title ?? '—'
               }
             />
 
@@ -181,7 +181,7 @@ export default function CompatibilityScreen() {
               <View style={styles.tagRow}>
                 {sharedTags.map(t => (
                   <View key={t.id} style={styles.sharedTag}>
-                    <Text style={styles.sharedTagTxt}>{t.label}</Text>
+                    <Text style={styles.sharedTagTxt}>{t.title}</Text>
                   </View>
                 ))}
               </View>
@@ -198,7 +198,7 @@ export default function CompatibilityScreen() {
                   return (
                     <View key={t.id} style={[styles.lifeTag, isShared && styles.lifeTagShared]}>
                       <Text style={[styles.lifeTagTxt, isShared && styles.lifeTagTxtShared]}>
-                        {t.label}
+                        {t.title}
                       </Text>
                     </View>
                   );

@@ -28,21 +28,33 @@ export type ClientProfile = {
   profile_completion_percent: number;
   profile_photo_status: string | null;
   profile_photo: { urls: ProfilePhotoVariants } | null;
-  relationship_goal: { id: number; label: string } | null;
-  lifestyle_tags: { id: number; label: string; category?: string }[];
-  languages: { id: number; name: string; is_primary?: boolean }[];
-  dealbreakers: string[];
-  badges: { id: number; label: string; icon?: string }[];
+  relationship_goal: { id: number; title: string; slug: string } | null;
+  lifestyle_tags: { id: number; title: string; slug: string; category_id?: number }[];
+  languages: { id: number; title: string; slug: string; pivot?: { is_primary: number | boolean } }[];
+  dealbreakers: { id: number; body: string; moderation_status: string }[];
+  badges: { id: number; title?: string; label?: string; slug?: string; icon?: string }[];
   active_subscription: { plan: string; expires_at: string } | null;
-  coins: number;
+  coins?: number;
 };
 
 export const profileApi = {
   getProfile: (token: string) =>
     api.get<{ data: ClientProfile }>('/api/client/profile', token).then(r => r.data),
 
-  updateProfile: (token: string, data: Partial<Pick<ClientProfile,
-    'bio' | 'height_cm' | 'job' | 'education' | 'religiosity_level' | 'safe_mode_enabled'
-  >>) =>
+  updateProfile: (
+    token: string,
+    data: {
+      bio?: string;
+      height_cm?: number;
+      job?: string;
+      education?: string;
+      religiosity_level?: number;
+      safe_mode_enabled?: boolean;
+      relationship_goal_id?: number;
+      lifestyle_tag_ids?: number[];
+      languages?: { id: number; is_primary: boolean }[];
+      dealbreakers?: string[];
+    }
+  ) =>
     api.patch<ClientProfile>('/api/client/profile', data, token),
 };

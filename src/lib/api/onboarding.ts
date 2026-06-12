@@ -11,10 +11,20 @@ function unwrap<T>(res: T[] | { data: T[] }): T[] {
 
 export type Province = { id: number; name: string };
 export type City = { id: number; name: string };
-export type RelationshipGoal = { id: number; label: string };
-export type LifestyleTag = { id: number; label: string; category?: string };
+export type RelationshipGoal = { id: number; title: string; slug: string; weight?: number; is_active?: boolean };
+export type LifestyleTag = { id: number; title: string; slug: string; category_id?: number };
+
+export type LifestyleTagOption = {
+  id: number;
+  title: string;
+  slug: string;
+  category_id?: number;
+  lifestyle_tag_category?: { id: number; name: string; slug: string };
+};
 export type Language = { id: number; name: string };
-export type ProfilePrompt = { id: number; question: string };
+
+export type LanguageOption = { id: number; title: string; slug: string; is_active?: boolean };
+export type ProfilePrompt = { id: number; body: string; is_active?: boolean };
 
 export type ProfilePhotoUrls = {
   original: string;
@@ -170,10 +180,10 @@ export const lookupsApi = {
     unwrap(await api.get<RelationshipGoal[] | { data: RelationshipGoal[] }>('/api/lookups/relationship-goals', token)),
 
   getLifestyleTags: async (token: string) =>
-    unwrap(await api.get<LifestyleTag[] | { data: LifestyleTag[] }>('/api/lookups/lifestyle-tags', token)),
+    unwrap(await api.get<LifestyleTagOption[] | { data: LifestyleTagOption[] }>('/api/lookups/lifestyle-tags', token)),
 
   getLanguages: async (token: string) =>
-    unwrap(await api.get<Language[] | { data: Language[] }>('/api/lookups/languages', token)),
+    unwrap(await api.get<LanguageOption[] | { data: LanguageOption[] }>('/api/lookups/languages', token)),
 
   getProfilePrompts: async (token: string) =>
     unwrap(await api.get<ProfilePrompt[] | { data: ProfilePrompt[] }>('/api/lookups/profile-prompts', token)),

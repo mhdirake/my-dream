@@ -3,7 +3,7 @@ import { Card } from '@/components/ui/Card';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { profileApi } from '@/lib/api/profile';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Info, Plus, Sparkles, X } from 'lucide-react-native';
 import { useState } from 'react';
 import {
@@ -22,7 +22,17 @@ const toPersian = (n: number) => String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵�
 
 export default function RedFlagsScreen() {
   const { session } = useAuth();
-  const [flags, setFlags] = useState<string[]>(['', '', '']);
+  const { mode, currentFlags } = useLocalSearchParams<{ mode?: string; currentFlags?: string }>();
+  const isEdit = mode === 'edit';
+  const [flags, setFlags] = useState<string[]>(() => {
+    if (typeof currentFlags === 'string' && currentFlags) {
+      try {
+        const parsed: string[] = JSON.parse(currentFlags);
+        return [...parsed, '', '', ''].slice(0, 3);
+      } catch { return ['', '', '']; }
+    }
+    return ['', '', ''];
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -37,10 +47,9 @@ export default function RedFlagsScreen() {
     setSaving(true);
     setError('');
     try {
-      await profileApi.updateProfile(session.accessToken, {
-        dealbreakers: filled,
-      });
-      router.push('/profile-setup/optional-info' as any);
+      await profileApi.updateProfile(session.accessToken, { dealbreakers: filled });
+      if (isEdit) router.back();
+      else router.push('/profile-setup/optional-info' as any);
     } catch (e: any) {
       setError(e.message ?? 'خطا در ذخیره');
     } finally {
@@ -50,7 +59,7 @@ export default function RedFlagsScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
-      <OptStepper idx={6} />
+      {!isEdit && <OptStepper idx={6} />}
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -106,7 +115,7 @@ export default function RedFlagsScreen() {
         <View style={styles.btnRow}>
           <Button variant="ghost" onPress={() => router.back()} full={false} style={styles.btnSkip}>فعلاً نه</Button>
           <Button variant="accent" onPress={handleSave} disabled={filled.length === 0 || saving} full={false} style={styles.btnSave}>
-            {saving ? 'در حال ذخیره…' : 'ذخیره و ادامه'}
+            {saving ? 'در حال ذخیره…' : isEdit ? 'ذخیره' : 'ذخیره و ادامه'}
           </Button>
         </View>
       </View>

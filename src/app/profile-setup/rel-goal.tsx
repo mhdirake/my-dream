@@ -3,7 +3,7 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { lookupsApi, type RelationshipGoal } from '@/lib/api/onboarding';
 import { profileApi } from '@/lib/api/profile';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Check, Sparkles } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
@@ -17,46 +17,62 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const EMOJI_MAP: Record<string, string> = {
-  marriage: '💍',
-  serious_dating: '🤝',
-  long_term: '❤️',
-  short_term: '💫',
-  casual: '☕',
-  friendship: '🫂',
-  online_only: '💬',
-  not_sure: '🤷',
-  activity_partner: '🎬',
-  travel_partner: '🧳',
-  networking: '🌐',
+  'azdoag': '💍',
+  'ashnayy-gdy-bray-azdoag': '🤝',
+  'rabth-blndmdt-gdy': '❤️',
+  'rabth-kotahmdt': '💫',
+  'krar-kzhoal-ashnayy-raht': '☕',
+  'fkt-dosty-bdon-gnbh-rmantyk': '🫂',
+  'fkt-gftogoy-anlayn': '💬',
+  'bbynym-chy-myshh-hnoz-mtmyn-nystm': '🤷',
+  'hmrah-bray-faaalyt-tfryh': '🎬',
+  'hmsfr': '🧳',
+  'shbkhsazy-o-ashnayy-gdyd-ghyraaashkanh': '🌐',
 };
 
 const toPersian = (n: number) => String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
 
 export default function RelGoalScreen() {
   const { session } = useAuth();
+  const { mode, currentGoalId } = useLocalSearchParams<{ mode?: string; currentGoalId?: string }>();
+  const isEdit = mode === 'edit';
   const [goals, setGoals] = useState<RelationshipGoal[]>([]);
-  const [selected, setSelected] = useState<number | null>(null);
+  const [selected, setSelected] = useState<number | null>(() => {
+    if (typeof currentGoalId === 'string' && currentGoalId) {
+      const n = Number(currentGoalId);
+      return isNaN(n) ? null : n;
+    }
+    return null;
+  });
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [loadError, setLoadError] = useState('');
 
-  useEffect(() => {
+  const loadGoals = () => {
     if (!session?.accessToken) return;
     setLoading(true);
+    setLoadError('');
     lookupsApi
       .getRelationshipGoals(session.accessToken)
-      .then(setGoals)
-      .catch(() => {})
+      .then(data => {
+        setGoals(data);
+        if (!data.length) setLoadError('سرور داده‌ای برنگرداند');
+      })
+      .catch(e => setLoadError(e.message ?? 'خطا در بارگذاری'))
       .finally(() => setLoading(false));
-  }, [session]);
+  };
+
+  useEffect(() => { loadGoals(); }, [session]);
 
   const handleSave = async () => {
     if (!session?.accessToken || selected === null) return;
     setSaving(true);
     setError('');
     try {
-      await profileApi.updateProfile(session.accessToken, { relationship_goal_id: selected });
-      router.push('/profile-setup/lifestyle' as any);
+      await profileApi.updateProfile(session.accessToken, { relationship_goal_id: selected! });
+      if (isEdit) router.back();
+      else router.push('/profile-setup/lifestyle' as any);
     } catch (e: any) {
       setError(e.message ?? 'خطا در ذخیره');
     } finally {
@@ -66,13 +82,20 @@ export default function RelGoalScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
-      <OptStepper idx={2} />
+      {!isEdit && <OptStepper idx={2} />}
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>هدفت از حضور در اپ؟</Text>
         <Text style={styles.sub}>فقط یک گزینه. در Match وزن بالایی دارد.</Text>
 
         {loading ? (
           <ActivityIndicator color={Colors.accent} style={{ marginTop: 40 }} />
+        ) : loadError ? (
+          <View style={styles.errBox}>
+            <Text style={styles.errTxt}>{loadError}</Text>
+            <Pressable onPress={loadGoals} style={styles.retryBtn}>
+              <Text style={styles.retryTxt}>تلاش مجدد</Text>
+            </Pressable>
+          </View>
         ) : (
           goals.map(g => (
             <Pressable
@@ -80,9 +103,9 @@ export default function RelGoalScreen() {
               onPress={() => setSelected(g.id)}
               style={[styles.option, selected === g.id && styles.optionActive]}
             >
-              <Text style={styles.optionEmoji}>{EMOJI_MAP[g.label] ?? '•'}</Text>
+              <Text style={styles.optionEmoji}>{EMOJI_MAP[g.slug] ?? '•'}</Text>
               <Text style={[styles.optionLabel, selected === g.id && styles.optionLabelActive]}>
-                {g.label}
+                {g.title}
               </Text>
               <View style={[styles.radio, selected === g.id && styles.radioActive]}>
                 {selected === g.id && <Check size={11} color="#fff" strokeWidth={3} />}
@@ -99,7 +122,7 @@ export default function RelGoalScreen() {
         <View style={styles.btnRow}>
           <Button variant="ghost" onPress={() => router.back()} full={false} style={styles.btnSkip}>فعلاً نه</Button>
           <Button variant="accent" onPress={handleSave} disabled={selected === null || saving} full={false} style={styles.btnSave}>
-            {saving ? 'در حال ذخیره…' : 'ذخیره و ادامه'}
+            {saving ? 'در حال ذخیره…' : isEdit ? 'ذخیره' : 'ذخیره و ادامه'}
           </Button>
         </View>
       </View>
@@ -157,6 +180,13 @@ const styles = StyleSheet.create({
   },
   radioActive: { borderColor: Colors.accent, backgroundColor: Colors.accent },
   error: { fontSize: 12, color: Colors.danger, fontFamily: Fonts.regular, marginTop: 8 },
+  errBox: { alignItems: 'center', marginTop: 40, gap: 12 },
+  errTxt: { fontSize: 13, color: Colors.danger, fontFamily: Fonts.regular },
+  retryBtn: {
+    paddingHorizontal: 20, paddingVertical: 8, borderRadius: Radius.pill,
+    backgroundColor: Colors.accentSoft,
+  },
+  retryTxt: { fontSize: 13, fontFamily: Fonts.semiBold, color: Colors.accent },
   bottomBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     padding: Spacing.lg, borderTopWidth: 1, borderTopColor: Colors.lineSoft,

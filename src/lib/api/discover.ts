@@ -11,7 +11,7 @@ export type DiscoverProfile = {
   province: string | null;
   bio: string | null;
   height_cm: number | null;
-  relationship_goal: { id: number; label: string } | null;
+  relationship_goal: { id: number; title: string; slug: string } | null;
   profile_photo: { urls: ProfilePhotoUrls } | null;
   lifestyle_tags: LifestyleTag[];
   compatibility_score: number | null;
