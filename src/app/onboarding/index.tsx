@@ -1,92 +1,96 @@
-// Splash screen
-import { useEffect } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Animated, Dimensions, Easing, StyleSheet, Text } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { Colors, Fonts } from '@/constants/colors';
+import { Fonts } from '@/constants/colors';
+
+const { width } = Dimensions.get('window');
+const LOGO_SIZE = width * 0.38;
+const GLOW_SIZE = LOGO_SIZE * 2.2;
 
 export default function SplashScreen() {
+  const logoOpacity = useRef(new Animated.Value(0)).current;
+  const logoScale = useRef(new Animated.Value(0.8)).current;
+  const glowOpacity = useRef(new Animated.Value(0)).current;
+  const textOpacity = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
-    const t = setTimeout(() => router.replace('/onboarding/welcome'), 1800);
+    Animated.parallel([
+      Animated.timing(logoOpacity, {
+        toValue: 1,
+        duration: 600,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(logoScale, {
+        toValue: 1,
+        duration: 700,
+        easing: Easing.out(Easing.back(1.06)),
+        useNativeDriver: true,
+      }),
+      Animated.sequence([
+        Animated.delay(150),
+        Animated.timing(glowOpacity, {
+          toValue: 0.6,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.sequence([
+        Animated.delay(400),
+        Animated.timing(textOpacity, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+
+    const t = setTimeout(() => router.replace('/onboarding/welcome'), 2200);
     return () => clearTimeout(t);
   }, []);
 
   return (
     <LinearGradient colors={['#181522', '#221E30', '#2A1B3D']} style={styles.root}>
-      <LinearGradient
-        colors={Colors.gradColors}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.logoRing}
-      >
-        <View style={styles.logoInner}>
-          <Text style={styles.logoText}>MD</Text>
-        </View>
-      </LinearGradient>
-
-      <Text style={styles.name}>My Dream</Text>
-      <Text style={styles.sub}>آشنایی محترمانه</Text>
-
-      <View style={styles.dots}>
-        <View style={[styles.dot, styles.dotActive]} />
-        <View style={styles.dot} />
-        <View style={styles.dot} />
-      </View>
+      <Animated.Image
+        source={require('../../../assets/images/logo-glow.png')}
+        style={[styles.glow, { opacity: glowOpacity }]}
+      />
+      <Animated.Image
+        source={require('../../../assets/images/logo.png')}
+        style={[styles.logo, { opacity: logoOpacity, transform: [{ scale: logoScale }] }]}
+      />
+      <Animated.View style={[styles.textWrap, { opacity: textOpacity }]}>
+        <Text style={styles.name}>My Dream</Text>
+      </Animated.View>
     </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-
-  logoRing: {
-    width: 104,
-    height: 104,
-    borderRadius: 32,
+  root: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logoInner: {
-    width: 90,
-    height: 90,
-    borderRadius: 27,
-    backgroundColor: '#221E30',
+  glow: {
+    position: 'absolute',
+    width: GLOW_SIZE,
+    height: GLOW_SIZE,
+  },
+  logo: {
+    width: LOGO_SIZE,
+    height: LOGO_SIZE,
+    resizeMode: 'contain',
+  },
+  textWrap: {
     alignItems: 'center',
-    justifyContent: 'center',
+    marginTop: 24,
   },
-  logoText: {
-    fontSize: 36,
-    fontFamily: Fonts.extraBold,
-    color: '#fff',
-    letterSpacing: -1,
-  },
-
   name: {
-    marginTop: 22,
     fontSize: 28,
     fontFamily: Fonts.bold,
     color: '#fff',
     letterSpacing: -0.5,
-  },
-  sub: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.45)',
-    marginTop: 6,
-    fontFamily: Fonts.regular,
-  },
-
-  dots: {
-    position: 'absolute',
-    bottom: 52,
-    flexDirection: 'row',
-    gap: 6,
-  },
-  dot: {
-    width: 6, height: 6, borderRadius: 3,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-  },
-  dotActive: {
-    width: 20,
-    backgroundColor: Colors.accent,
   },
 });

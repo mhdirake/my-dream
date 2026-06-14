@@ -1,5 +1,5 @@
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { UserX, Eye, Sparkles } from 'lucide-react-native';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
@@ -19,9 +19,10 @@ const ANON_SENT = [
 ];
 
 export default function LikesScreen() {
+  const { bottom } = useSafeAreaInsets();
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: bottom + 92 }]}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>مَچ و لایک</Text>
         </View>

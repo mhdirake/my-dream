@@ -17,7 +17,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const BASE = process.env.EXPO_PUBLIC_API_URL ?? '';
 
@@ -40,6 +40,7 @@ type Tab = 'all' | 'requests';
 
 export default function ChatScreen() {
   const { session, user } = useAuth();
+  const { bottom } = useSafeAreaInsets();
   const { conversations, loading, refreshing, refresh } = useConversations(session?.accessToken);
   const [tab, setTab] = useState<Tab>('all');
   const [responding, setResponding] = useState<number | null>(null);
@@ -137,7 +138,7 @@ export default function ChatScreen() {
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: bottom + 92 }]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={Colors.accent} />}
         >
           {displayed.map(c => {

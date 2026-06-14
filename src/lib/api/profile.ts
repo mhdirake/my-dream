@@ -8,6 +8,35 @@ export type ProfilePhotoVariants = {
   large: string;
 };
 
+// Full profile of another user — returned by GET /api/client/users/{id}/profile
+// Note: the endpoint records the profile view automatically, so no separate call needed.
+export type UserProfile = {
+  id: number;
+  username: string;
+  first_name: string;
+  last_name: string | null;
+  birth_date: string;
+  gender: string | null;
+  province: string | null;
+  city: string | null;
+  bio: string | null;
+  height_cm: number | null;
+  job: string | null;
+  education: string | null;
+  religiosity_level: number | null;
+  is_verified?: boolean;
+  profile_photo: { urls: ProfilePhotoVariants } | null;
+  relationship_goal: { id: number; title: string; slug: string } | null;
+  lifestyle_tags: { id: number; title: string; slug: string }[];
+  languages: { id: number; title: string; slug: string; pivot?: { is_primary: number } }[];
+  dealbreakers: { id: number; body: string; moderation_status: string }[];
+  badges: { id: number; title: string; slug: string; is_active?: boolean }[];
+  prompt_answers?: { id: number; answer: string; prompt: { id: number; text: string } }[];
+  latest_personality_test?: { result_key: string; result_title: string; completed_at: string } | null;
+  // Preserved from cache when available — not in API response
+  compatibility_score?: number | null;
+};
+
 export type ClientProfile = {
   id: number;
   username: string;
@@ -40,6 +69,9 @@ export type ClientProfile = {
 export const profileApi = {
   getProfile: (token: string) =>
     api.get<{ data: ClientProfile }>('/api/client/profile', token).then(r => r.data),
+
+  getUserProfile: (token: string, userId: number) =>
+    api.get<{ data: UserProfile }>(`/api/client/users/${userId}/profile`, token).then(r => r.data),
 
   updateProfile: (
     token: string,

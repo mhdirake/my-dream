@@ -39,12 +39,11 @@ export type ConversationRequest = {
   created_at: string;
 };
 
-export const TEMPLATE_MESSAGES: { key: string; text: string }[] = [
-  { key: 'intro', text: 'سلام، دوست دارم بیشتر باهات آشنا بشم.' },
-  { key: 'profile', text: 'پروفایلت برام جالب بود، خوشحال می‌شم صحبت کنیم.' },
-  { key: 'common', text: 'فکر می‌کنم چند تا علاقه مشترک داریم.' },
-  { key: 'chat', text: 'اگه مایل باشی، یه گفت‌وگوی کوتاه داشته باشیم.' },
-];
+export type ConversationTemplate = {
+  id: number;
+  title: string | null;
+  body: string;
+};
 
 export const chatApi = {
   listConversations: async (token: string) => {
@@ -63,10 +62,18 @@ export const chatApi = {
   sendMessage: (token: string, conversationId: number, body: string) =>
     api.post(`/api/client/conversations/${conversationId}/messages`, { type: 'text', body }, token),
 
-  sendConversationRequest: async (token: string, userId: number, templateKey: string) => {
+  listConversationTemplates: async (token: string): Promise<ConversationTemplate[]> => {
+    const res = await api.get<{ data: ConversationTemplate[] }>(
+      '/api/client/conversation-start-templates',
+      token,
+    );
+    return res.data ?? [];
+  },
+
+  sendConversationRequest: async (token: string, userId: number, templateId: number) => {
     const res = await api.post<{ data: { id: number } }>(
       `/api/client/users/${userId}/conversation-requests`,
-      { template_key: templateKey },
+      { conversation_start_template_id: templateId },
       token,
     );
     return res.data.id;

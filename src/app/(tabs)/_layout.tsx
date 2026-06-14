@@ -4,9 +4,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Redirect, Tabs } from 'expo-router';
 import { Compass, Gift, Heart, MessageCircle, User } from 'lucide-react-native';
 import { ActivityIndicator, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabsLayout() {
   const { isAuthenticated, isLoading } = useAuth();
+  const insets = useSafeAreaInsets();
 
   if (isLoading) {
     return (
@@ -28,7 +30,7 @@ export default function TabsLayout() {
         tabBarInactiveTintColor: Colors.muted,
         tabBarStyle: {
           position: 'absolute',
-          bottom: 20,
+          bottom: insets.bottom + 8,
           left: 16,
           right: 16,
           height: 68,

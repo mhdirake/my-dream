@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { Coins, Star } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const TYPE_LABEL: Record<string, string> = {
   simple: 'ساده',
@@ -29,6 +29,7 @@ function giftEmoji(g: BackendGift) {
 
 export default function GiftsScreen() {
   const { session } = useAuth();
+  const { bottom } = useSafeAreaInsets();
   const [gifts, setGifts] = useState<BackendGift[]>([]);
   const [coins, setCoins] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -52,7 +53,7 @@ export default function GiftsScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: bottom + 92 }]}>
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>هدایا</Text>

@@ -16,7 +16,7 @@ import {
 import { useEffect, useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, Alert, Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { router } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const BASE = process.env.EXPO_PUBLIC_API_URL ?? '';
 
@@ -57,6 +57,7 @@ function absoluteUrl(path: string | null | undefined): string | null {
 
 export default function MeScreen() {
   const { user, session, logout } = useAuth();
+  const { bottom } = useSafeAreaInsets();
   const [profile, setProfile] = useState<ClientProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [photoError, setPhotoError] = useState(false);
@@ -143,7 +144,7 @@ export default function MeScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: bottom + 92 }]}>
 
         <View style={styles.header}>
           <Text style={styles.headerTitle}>من</Text>
