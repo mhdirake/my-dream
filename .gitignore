@@ -5,6 +5,9 @@ node_modules/
 
 # Expo
 .expo/
+.claude/
+.github/
+.vscode/
 dist/
 web-build/
 expo-env.d.ts
