@@ -113,7 +113,7 @@ export default function ConversationScreen() {
             data={messages}
             keyExtractor={m => String(m.id)}
             renderItem={({ item }) => {
-              const isMine = item.sender_id === myId;
+              const isMine = item.sender_user_id === myId;
               return (
                 <View style={[styles.msgWrap, isMine ? styles.msgWrapMine : styles.msgWrapTheirs]}>
                   <View style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}>

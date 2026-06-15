@@ -1,10 +1,13 @@
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { UserX, Eye, Sparkles } from 'lucide-react-native';
+import { UserX, Eye, Sparkles, Heart } from 'lucide-react-native';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { Colors, Fonts } from '@/constants/colors';
+import { useAuth } from '@/lib/auth/AuthContext';
+import { SentAnonInterest, likesApi, mediaUrl } from '@/lib/api/likes';
 
 const LIKES = [
   { id: 1, name: 'کیان',  age: 29, city: 'تهران',  compat: 82, badge: 'ai'        as const, anonymous: false },
@@ -13,13 +16,27 @@ const LIKES = [
   { id: 4, name: '???',   age: 0,  city: '???',     compat: 0,  badge: undefined,             anonymous: true  },
 ];
 
-const ANON_SENT = [
-  { id: 1, name: 'پریسا', age: 27, city: 'تهران', compat: 86 },
-  { id: 2, name: 'مهتاب', age: 30, city: 'کرج',   compat: 74 },
-];
+function timeAgo(iso: string) {
+  const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (diff < 3600) return `${Math.floor(diff / 60)} دقیقه پیش`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} ساعت پیش`;
+  return `${Math.floor(diff / 86400)} روز پیش`;
+}
 
 export default function LikesScreen() {
   const { bottom } = useSafeAreaInsets();
+  const { session } = useAuth();
+  const [sentInterests, setSentInterests] = useState<SentAnonInterest[]>([]);
+  const [loadingSent, setLoadingSent] = useState(true);
+
+  useEffect(() => {
+    if (!session?.accessToken) return;
+    likesApi.listSentAnonInterests(session.accessToken, 'active')
+      .then(res => setSentInterests(res.data))
+      .catch(() => {})
+      .finally(() => setLoadingSent(false));
+  }, [session?.accessToken]);
+
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: bottom + 92 }]}>
@@ -82,21 +99,41 @@ export default function LikesScreen() {
         {/* Section: Sent anonymous */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>علاقه ناشناس فرستاده شده</Text>
+          {!loadingSent && (
+            <Text style={styles.sectionSub}>{sentInterests.length} نفر</Text>
+          )}
         </View>
 
-        {ANON_SENT.map(p => (
-          <View key={p.id} style={styles.anonRow}>
-            <Avatar size={48} name={p.name} />
-            <View style={styles.anonInfo}>
-              <Text style={styles.anonName}>{p.name}، {p.age}</Text>
-              <Text style={styles.anonCity}>{p.city}</Text>
-            </View>
-            <View style={styles.anonCompat}>
-              <Sparkles size={10} color={Colors.purple} strokeWidth={2} />
-              <Text style={styles.anonCompatTxt}>{p.compat}٪</Text>
-            </View>
+        {loadingSent ? (
+          <ActivityIndicator color={Colors.accent} style={{ marginVertical: 16 }} />
+        ) : sentInterests.length === 0 ? (
+          <View style={styles.emptyAnonRow}>
+            <Sparkles size={20} color={Colors.muted} strokeWidth={1.5} />
+            <Text style={styles.emptyAnonTxt}>هنوز علاقه ناشناس نفرستادی</Text>
           </View>
-        ))}
+        ) : (
+          sentInterests.map(item => (
+            <View key={item.id} style={styles.anonRow}>
+              <Avatar
+                size={48}
+                name={item.target.first_name}
+                photoUrl={mediaUrl(item.target.profile_photo)}
+              />
+              <View style={styles.anonInfo}>
+                <Text style={styles.anonName}>
+                  {item.target.first_name}{item.target.last_name ? ' ' + item.target.last_name : ''}
+                </Text>
+                <Text style={styles.anonCity}>{timeAgo(item.sent_at)}</Text>
+              </View>
+              {item.is_mutual && (
+                <View style={styles.mutualBadge}>
+                  <Heart size={11} color={Colors.accent} strokeWidth={2} fill={Colors.accent} />
+                  <Text style={styles.mutualTxt}>متقابل</Text>
+                </View>
+              )}
+            </View>
+          ))
+        )}
 
         <View style={{ height: 100 }} />
       </ScrollView>
@@ -165,10 +202,16 @@ const styles = StyleSheet.create({
   anonInfo: { flex: 1 },
   anonName: { fontSize: 13.5, fontFamily: Fonts.bold, color: Colors.ink },
   anonCity: { fontSize: 11, color: Colors.muted, fontFamily: Fonts.regular, marginTop: 1 },
-  anonCompat: {
-    backgroundColor: Colors.purpleSoft, borderRadius: 999,
+  mutualBadge: {
+    backgroundColor: Colors.accentSoft, borderRadius: 999,
     paddingHorizontal: 9, paddingVertical: 4,
     flexDirection: 'row', alignItems: 'center', gap: 4,
   },
-  anonCompatTxt: { fontSize: 11, fontFamily: Fonts.extraBold, color: Colors.purple },
+  mutualTxt: { fontSize: 11, fontFamily: Fonts.bold, color: Colors.accent },
+
+  emptyAnonRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingVertical: 20, justifyContent: 'center',
+  },
+  emptyAnonTxt: { fontSize: 13, color: Colors.muted, fontFamily: Fonts.regular },
 });

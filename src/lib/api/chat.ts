@@ -1,42 +1,34 @@
 import { api } from './client';
 
+export type ConversationUser = {
+  id: number;
+  username: string;
+  first_name: string;
+  last_name: string | null;
+  profile_photo_path: string | null;
+};
+
 export type Message = {
   id: number;
   type: 'text' | 'image' | 'file';
   body: string | null;
-  sender_id: number;
+  sender_user_id: number;
   created_at: string;
   read_at: string | null;
 };
 
 export type Conversation = {
   id: number;
-  status: 'active' | 'pending' | 'locked';
-  conversation_request_id?: number;
-  unread_count: number;
-  other_user: {
-    id: number;
-    first_name: string;
-    profile_photo: { urls: { medium: string; thumbnail: string } } | null;
-  };
-  last_message: {
-    body: string | null;
-    type: string;
-    created_at: string;
-    sender_id: number;
-  } | null;
-};
-
-export type ConversationRequest = {
-  id: number;
-  status: 'pending' | 'accepted' | 'rejected';
-  template_key: string;
-  sender_user: {
-    id: number;
-    first_name: string;
-    profile_photo: { urls: { medium: string; thumbnail: string } } | null;
-  };
-  created_at: string;
+  status: 'accepted' | 'pending' | 'expired' | 'rejected';
+  conversation_request_id: number | null;
+  first_user_id: number;
+  second_user_id: number;
+  last_message_at: string | null;
+  pending_expires_at: string | null;
+  accepted_at: string | null;
+  first_user: ConversationUser;
+  second_user: ConversationUser;
+  messages: Message[];
 };
 
 export type ConversationTemplate = {
@@ -46,12 +38,28 @@ export type ConversationTemplate = {
 };
 
 export const chatApi = {
-  listConversations: async (token: string) => {
+  listConversations: async (token: string): Promise<Conversation[]> => {
     const res = await api.get<{ data: Conversation[] }>('/api/client/conversations', token);
     return res.data ?? [];
   },
 
-  getMessages: async (token: string, conversationId: number) => {
+  listPendingIncoming: async (token: string): Promise<Conversation[]> => {
+    const res = await api.get<{ data: Conversation[] }>(
+      '/api/client/conversations/pending/incoming',
+      token,
+    );
+    return res.data ?? [];
+  },
+
+  listPendingOutgoing: async (token: string): Promise<Conversation[]> => {
+    const res = await api.get<{ data: Conversation[] }>(
+      '/api/client/conversations/pending/outgoing',
+      token,
+    );
+    return res.data ?? [];
+  },
+
+  getMessages: async (token: string, conversationId: number): Promise<Message[]> => {
     const res = await api.get<{ data: Message[] }>(
       `/api/client/conversations/${conversationId}/messages`,
       token,
@@ -79,10 +87,19 @@ export const chatApi = {
     return res.data.id;
   },
 
-  respondToRequest: (token: string, requestId: number, status: 'accepted' | 'rejected') =>
-    api.patch(
-      `/api/client/conversation-requests/${requestId}`,
-      { status },
-      token,
-    ),
+  acceptConversation: (token: string, conversationId: number) =>
+    api.post(`/api/client/conversations/${conversationId}/accept`, undefined, token),
+
+  rejectConversation: (token: string, conversationId: number) =>
+    api.post(`/api/client/conversations/${conversationId}/reject`, undefined, token),
+
+  getRealtimeToken: async (token: string) => {
+    const res = await api.get<{
+      token: string;
+      ws_url: string;
+      channels: { user: string };
+      expires_in: number;
+    }>('/api/client/realtime/token', token);
+    return res;
+  },
 };
