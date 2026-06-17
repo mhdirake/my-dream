@@ -1,0 +1,18 @@
+services:
+  expo-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NPM_USER: ${NPM_USER}
+        NPM_PASS: ${NPM_PASS}
+        KC_URL: ${KC_URL}
+        KC_SECRET: ${KC_SECRET}
+        EXPO_PUBLIC_KC_SECRET: ${EXPO_PUBLIC_KC_SECRET}
+        EXPO_PUBLIC_KC_URL: ${EXPO_PUBLIC_KC_URL}
+        EXPO_PUBLIC_API_URL: ${EXPO_PUBLIC_API_URL}
+    container_name: mydream-app
+    ports:
+      - "127.0.0.1:8081:80"
+
+    restart: unless-stopped

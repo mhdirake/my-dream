@@ -1,0 +1,14 @@
+stages:
+  - deploy
+
+deploy-production:
+  stage: deploy
+  tags:
+    - runner01
+  only:
+    - main
+  script:
+    - cp $ENV_FILE .env
+    - docker compose down
+    - docker compose up -d
+    - echo "Deployment complete!"
