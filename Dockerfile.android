@@ -1,0 +1,66 @@
+ARG NODE_IMAGE=docker.iranserver.com/node:22.13.1-bookworm
+
+FROM ${NODE_IMAGE} AS android-base
+
+ENV ANDROID_HOME=/opt/android-sdk \
+  ANDROID_SDK_ROOT=/opt/android-sdk \
+  JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 \
+  PATH=/opt/android-sdk/cmdline-tools/latest/bin:/opt/android-sdk/platform-tools:$PATH
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    git \
+    openjdk-17-jdk-headless \
+    unzip \
+  && rm -rf /var/lib/apt/lists/* \
+  && mkdir -p "$ANDROID_HOME/cmdline-tools" \
+  && curl -fsSL https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -o /tmp/cmdline-tools.zip \
+  && unzip -q /tmp/cmdline-tools.zip -d "$ANDROID_HOME/cmdline-tools" \
+  && mv "$ANDROID_HOME/cmdline-tools/cmdline-tools" "$ANDROID_HOME/cmdline-tools/latest" \
+  && rm /tmp/cmdline-tools.zip \
+  && yes | sdkmanager --licenses >/dev/null \
+  && sdkmanager \
+    "platform-tools" \
+    "platforms;android-36" \
+    "build-tools;36.0.0"
+
+WORKDIR /app
+
+FROM android-base AS deps
+COPY package*.json ./
+
+ARG NPM_USER
+ARG NPM_PASS
+RUN --mount=type=cache,target=/root/.npm \
+  set -eu; \
+  if [ -n "${NPM_USER:-}" ] && [ -n "${NPM_PASS:-}" ]; then \
+    pass64="$(printf '%s' "$NPM_PASS" | base64 | tr -d '\n')"; \
+    printf "registry=https://nexus.gosafir.com/repository/npm-group/\n//nexus.gosafir.com/repository/npm-group/:username=%s\n//nexus.gosafir.com/repository/npm-group/:_password=%s\n//nexus.gosafir.com/repository/npm-group/:email=ci@example.com\n" "$NPM_USER" "$pass64" > /tmp/npmrc; \
+    NPM_CONFIG_USERCONFIG=/tmp/npmrc npm ci; \
+    rm -f /tmp/npmrc; \
+  else \
+    npm ci; \
+  fi
+
+FROM deps AS android-build
+COPY . .
+
+ARG EXPO_PUBLIC_API_URL
+ARG EXPO_PUBLIC_KC_URL
+ARG EXPO_PUBLIC_KC_SECRET
+
+ENV EXPO_PUBLIC_API_URL=${EXPO_PUBLIC_API_URL} \
+  EXPO_PUBLIC_KC_URL=${EXPO_PUBLIC_KC_URL} \
+  EXPO_PUBLIC_KC_SECRET=${EXPO_PUBLIC_KC_SECRET}
+
+RUN --mount=type=cache,target=/root/.expo \
+  --mount=type=cache,target=/root/.gradle \
+  npx expo prebuild --platform android --non-interactive \
+  && cd android \
+  && chmod +x gradlew \
+  && ./gradlew assembleRelease --build-cache --no-daemon
+
+FROM scratch AS android-artifacts
+COPY --from=android-build /app/android/app/build/outputs/apk/release/ /

@@ -6,13 +6,12 @@ services:
       args:
         NPM_USER: ${NPM_USER}
         NPM_PASS: ${NPM_PASS}
-        KC_URL: ${KC_URL}
-        KC_SECRET: ${KC_SECRET}
-        EXPO_PUBLIC_KC_SECRET: ${EXPO_PUBLIC_KC_SECRET}
-        EXPO_PUBLIC_KC_URL: ${EXPO_PUBLIC_KC_URL}
         EXPO_PUBLIC_API_URL: ${EXPO_PUBLIC_API_URL}
+    environment:
+      KC_URL: ${KC_URL}
+      KC_SECRET: ${KC_SECRET}
     container_name: mydream-app
     ports:
-      - "127.0.0.1:8081:80"
+      - "127.0.0.1:8081:3000"
 
     restart: unless-stopped

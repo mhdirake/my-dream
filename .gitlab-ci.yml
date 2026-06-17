@@ -3,7 +3,8 @@ stages:
   - build-android
 
 variables:
-  NODE_ENV: production
+  COMPOSE_DOCKER_CLI_BUILD: "1"
+  DOCKER_BUILDKIT: "1"
 
 build-web:
   stage: build-web
@@ -12,8 +13,8 @@ build-web:
   only:
     - main
   script:
-    - docker compose down
-    - docker compose up -d --build
+    - docker compose build expo-web
+    - docker compose up -d --no-deps expo-web
     - echo "Deployment complete!"
 
 
@@ -22,23 +23,18 @@ build-android:
   tags:
     - runner01
   script:
-    # Build APK inside a container
-    - |
-      docker run --rm \
-        -v "$CI_PROJECT_DIR:/app" \
-        -w /app \
-        docker.iranserver.com/node:26-bullseye bash -c '
-          apt-get update &&
-          apt-get install -y openjdk-17-jdk wget unzip &&
-          npm ci &&
-          npx expo prebuild --platform android --non-interactive &&
-          cd android &&
-          chmod +x gradlew &&
-          ./gradlew assembleRelease
-        '
-
     - mkdir -p artifacts
-    - cp android/app/build/outputs/apk/release/*.apk artifacts/
+    - |
+      docker build \
+        --file Dockerfile.android \
+        --target android-artifacts \
+        --output type=local,dest=artifacts \
+        --build-arg NPM_USER="$NPM_USER" \
+        --build-arg NPM_PASS="$NPM_PASS" \
+        --build-arg EXPO_PUBLIC_API_URL="$EXPO_PUBLIC_API_URL" \
+        --build-arg EXPO_PUBLIC_KC_URL="$EXPO_PUBLIC_KC_URL" \
+        --build-arg EXPO_PUBLIC_KC_SECRET="$EXPO_PUBLIC_KC_SECRET" \
+        .
 
   artifacts:
     name: "apk-$CI_COMMIT_REF_SLUG-$CI_PIPELINE_ID"

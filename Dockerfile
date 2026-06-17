@@ -1,56 +1,44 @@
-# Build stage
-FROM docker.iranserver.com/node:26.1.0 AS builder
+ARG NODE_IMAGE=docker.iranserver.com/node:22.13.1-bookworm
 
+FROM ${NODE_IMAGE} AS deps
 WORKDIR /app
 
 COPY package*.json ./
 
 ARG NPM_USER
 ARG NPM_PASS
+RUN --mount=type=cache,target=/root/.npm \
+  set -eu; \
+  if [ -n "${NPM_USER:-}" ] && [ -n "${NPM_PASS:-}" ]; then \
+    pass64="$(printf '%s' "$NPM_PASS" | base64 | tr -d '\n')"; \
+    printf "registry=https://nexus.gosafir.com/repository/npm-group/\n//nexus.gosafir.com/repository/npm-group/:username=%s\n//nexus.gosafir.com/repository/npm-group/:_password=%s\n//nexus.gosafir.com/repository/npm-group/:email=ci@example.com\n" "$NPM_USER" "$pass64" > /tmp/npmrc; \
+    NPM_CONFIG_USERCONFIG=/tmp/npmrc npm ci; \
+    rm -f /tmp/npmrc; \
+  else \
+    npm ci; \
+  fi
 
-RUN printf "registry=https://nexus.gosafir.com/repository/npm-group/\n//nexus.gosafir.com/repository/npm-group/:username=%s\n//nexus.gosafir.com/repository/npm-group/:_password=%s\n//nexus.gosafir.com/repository/npm-group/:email=ci@example.com\n" \
-  "$NPM_USER" \
-  "$(printf '%s' "$NPM_PASS" | base64 | tr -d '\n')" > /root/.npmrc
-
-
-RUN npm ci
+FROM deps AS web-build
+WORKDIR /app
 
 COPY . .
 
-# Build-time environment variables
-ARG KC_URL
-ARG KC_SECRET
-ARG EXPO_PUBLIC_KC_SECRET
-ARG EXPO_PUBLIC_KC_URL
 ARG EXPO_PUBLIC_API_URL
-
-ENV KC_URL=${KC_URL}
-ENV KC_SECRET=${KC_SECRET}
-ENV EXPO_PUBLIC_KC_SECRET=${EXPO_PUBLIC_KC_SECRET}
-ENV EXPO_PUBLIC_KC_URL=${EXPO_PUBLIC_KC_URL}
 ENV EXPO_PUBLIC_API_URL=${EXPO_PUBLIC_API_URL}
 
-# Generate web build
-RUN npx expo export --platform web
+RUN --mount=type=cache,target=/root/.expo \
+  npx expo export --platform web
 
-# Runtime stage
-FROM docker.iranserver.com/nginx:alpine
+FROM ${NODE_IMAGE} AS web-runtime
+WORKDIR /app
 
-COPY --from=builder /app/dist /usr/share/nginx/html
+ENV NODE_ENV=production
+ENV PORT=3000
 
-# SPA routing support
-RUN printf '%s\n' \
-'server {' \
-'    listen 80;' \
-'    server_name _;' \
-'    root /usr/share/nginx/html;' \
-'    index index.html;' \
-'' \
-'    location / {' \
-'        try_files $uri $uri/ /index.html;' \
-'    }' \
-'}' > /etc/nginx/conf.d/default.conf
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=web-build /app/dist ./dist
+COPY package.json server.js ./
 
-EXPOSE 80
+EXPOSE 3000
 
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["node", "server.js"]
