@@ -5,6 +5,7 @@ import { onboardingApi } from '@/lib/api/onboarding';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { profileSetupStore } from '@/lib/profileSetupStore';
 import { router } from 'expo-router';
+import { toJalaali, toGregorian } from 'jalaali-js';
 import { CheckCircle } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
@@ -42,10 +43,11 @@ export default function BasicInfoScreen() {
       if (u.first_name) setName(u.first_name);
       if (u.birth_date) {
         const d = u.birth_date.split('T')[0]; // "2000-10-10"
-        const [y, m, dd] = d.split('-');
-        setYear(y);
-        setMonth(String(Number(m)));
-        setDay(String(Number(dd)));
+        const [gy, gm, gd] = d.split('-').map(Number);
+        const { jy, jm, jd } = toJalaali(gy, gm, gd);
+        setYear(String(jy));
+        setMonth(String(jm));
+        setDay(String(jd));
       }
       if (u.gender && ['female', 'male', 'prefer_not_to_say'].includes(u.gender)) {
         setGender(u.gender as Gender);
@@ -53,10 +55,15 @@ export default function BasicInfoScreen() {
     }).catch(() => {});
   }, [session]);
 
-  const birthDate =
-    year.length === 4 && month.length >= 1 && day.length >= 1
-      ? `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
-      : null;
+  const birthDate = (() => {
+    if (year.length !== 4 || !month || !day) return null;
+    try {
+      const { gy, gm, gd } = toGregorian(Number(year), Number(month), Number(day));
+      return `${gy}-${String(gm).padStart(2, '0')}-${String(gd).padStart(2, '0')}`;
+    } catch {
+      return null;
+    }
+  })();
 
   const canContinue = name.trim().length >= 2 && !!birthDate && !!gender;
 
@@ -87,7 +94,7 @@ export default function BasicInfoScreen() {
           autoCapitalize="words"
         />
 
-        <Text style={styles.fieldLabel}>تاریخ تولد (میلادی)</Text>
+        <Text style={styles.fieldLabel}>تاریخ تولد (شمسی)</Text>
         <View style={styles.dateRow}>
           <TextInput
             style={[styles.dateInput, styles.dateField]}
@@ -120,7 +127,7 @@ export default function BasicInfoScreen() {
             textAlign="center"
           />
         </View>
-        <Text style={styles.hint}>مثلاً ۱۹۹۸ / ۰۶ / ۱۵</Text>
+        <Text style={styles.hint}>مثلاً ۱۳۷۷ / ۰۶ / ۱۵</Text>
 
         <Text style={styles.fieldLabel}>جنسیت</Text>
         <View style={styles.genderRow}>

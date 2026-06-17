@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/Card';
 import { Field } from '@/components/ui/Field';
 import { Colors, Fonts } from '@/constants/colors';
 import { authApi } from '@/lib/api/auth';
+import { useAuth } from '@/lib/auth/AuthContext';
 import { registrationStore } from '@/lib/registrationStore';
 import { router } from 'expo-router';
 import { useState } from 'react';
@@ -11,6 +12,7 @@ import { ScrollView, StyleSheet, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function UserPassScreen() {
+  const { saveRegistrationSession } = useAuth();
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -23,27 +25,29 @@ export default function UserPassScreen() {
   const canSubmit = username.length >= 3 && emailValid && password.length >= 8 && passwordsMatch;
 
   const handleNext = async () => {
-    setError('');
     if (!passwordsMatch) {
       setError('رمز عبور و تکرار آن یکسان نیستند');
       return;
     }
+    const { registration_token } = registrationStore.get();
+    if (!registration_token) {
+      setError('جلسه منقضی شده. لطفاً از ابتدا شروع کنید.');
+      return;
+    }
     setLoading(true);
+    setError('');
     try {
-      const { registration_token } = registrationStore.get();
-      if (!registration_token) {
-        setError('جلسه منقضی شده. لطفاً از ابتدا شروع کنید.');
-        return;
-      }
-      await authApi.register({
+      const res = await authApi.register({
         registration_token,
         username,
-        email,
+        email: email || undefined,
         password,
         password_confirmation: passwordConfirm,
       });
       registrationStore.clear();
-      router.replace('/onboarding/login' as any);
+      const { access_token, refresh_token, expires_in } = res.data.auth;
+      await saveRegistrationSession(access_token, refresh_token, expires_in);
+      router.replace('/profile-setup/basic-info' as any);
     } catch (e: any) {
       setError(e.message ?? 'خطا در ثبت‌نام');
     } finally {

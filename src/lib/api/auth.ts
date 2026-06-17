@@ -17,10 +17,18 @@ export type OtpVerifyResponse = {
 };
 
 export type RegisterCompleteResponse = {
-  access_token: string;
-  refresh_token: string;
-  expires_in: number;
-  token_type: string;
+  success: boolean;
+  data: {
+    user: Record<string, unknown>;
+    auth: {
+      token_type: string;
+      access_token: string;
+      refresh_token: string;
+      expires_in: number;
+      refresh_expires_in: number;
+    };
+    next_step: string;
+  };
 };
 
 export type LoginResponse = {
