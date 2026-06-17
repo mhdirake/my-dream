@@ -64,6 +64,7 @@ export type ClientProfile = {
   badges: { id: number; title?: string; label?: string; slug?: string; icon?: string }[];
   active_subscription: { plan: string; expires_at: string } | null;
   coins?: number;
+  prompt_answers?: { id: number; answer: string; prompt: { id: number; text: string; body?: string } }[];
 };
 
 export const profileApi = {

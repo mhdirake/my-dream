@@ -6,6 +6,7 @@ import { Colors, Fonts } from '@/constants/colors';
 import { authApi } from '@/lib/api/auth';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { registrationStore } from '@/lib/registrationStore';
+import { toast } from '@/lib/toast';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text } from 'react-native';
@@ -18,7 +19,6 @@ export default function UserPassScreen() {
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
 
   const passwordsMatch = password === passwordConfirm;
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -26,16 +26,15 @@ export default function UserPassScreen() {
 
   const handleNext = async () => {
     if (!passwordsMatch) {
-      setError('رمز عبور و تکرار آن یکسان نیستند');
+      toast.error('رمز عبور و تکرار آن یکسان نیستند');
       return;
     }
     const { registration_token } = registrationStore.get();
     if (!registration_token) {
-      setError('جلسه منقضی شده. لطفاً از ابتدا شروع کنید.');
+      toast.error('جلسه منقضی شده. لطفاً از ابتدا شروع کنید.');
       return;
     }
     setLoading(true);
-    setError('');
     try {
       const res = await authApi.register({
         registration_token,
@@ -49,7 +48,7 @@ export default function UserPassScreen() {
       await saveRegistrationSession(access_token, refresh_token, expires_in);
       router.replace('/profile-setup/basic-info' as any);
     } catch (e: any) {
-      setError(e.message ?? 'خطا در ثبت‌نام');
+      toast.error(e.message ?? 'خطا در ثبت‌نام');
     } finally {
       setLoading(false);
     }
@@ -93,8 +92,6 @@ export default function UserPassScreen() {
           secureTextEntry
         />
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-
         <Card tint="trust">
           <Text style={styles.noteText}>
             شماره موبایلت ذخیره می‌مونه ولی به کسی نشون داده نمی‌شه.
@@ -115,5 +112,4 @@ const styles = StyleSheet.create({
   headline: { fontSize: 17, fontFamily: Fonts.bold, color: Colors.ink, marginBottom: 2 },
   sub: { fontSize: 12, color: Colors.muted, fontFamily: Fonts.regular, marginBottom: 14 },
   noteText: { fontSize: 11.5, color: '#2C5C8F', fontFamily: Fonts.regular, lineHeight: 18 },
-  error: { fontSize: 12, color: Colors.danger, fontFamily: Fonts.regular },
 });

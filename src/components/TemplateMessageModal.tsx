@@ -1,5 +1,6 @@
 import { Colors, Fonts, Radius } from '@/constants/colors';
 import { chatApi, type ConversationTemplate } from '@/lib/api/chat';
+import { toast } from '@/lib/toast';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MessageCircle, Send, Shield, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
@@ -28,34 +29,32 @@ export function TemplateMessageModal({ visible, userId, firstName, token, onClos
   const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [selected, setSelected] = useState<number | null>(null);
   const [sending, setSending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!visible || !token) return;
     setLoadingTemplates(true);
-    setError(null);
     chatApi.listConversationTemplates(token)
       .then(setTemplates)
-      .catch(() => setError('خطا در دریافت پیام‌های آماده'))
+      .catch(() => toast.error('خطا در دریافت پیام‌های آماده'))
       .finally(() => setLoadingTemplates(false));
   }, [visible, token]);
 
   const handleSend = async () => {
     if (selected === null || sending) return;
     setSending(true);
-    setError(null);
     try {
       await chatApi.sendConversationRequest(token, userId, selected);
+      toast.success('درخواست گفتگو ارسال شد!');
       setSelected(null);
       onSent();
     } catch (e: unknown) {
       const msg = (e as { message?: string })?.message;
-      // If conversation already exists, navigate anyway
       if (msg?.includes('already exists') || msg?.includes('already pending')) {
+        toast.success('درخواست قبلاً ارسال شده');
         setSelected(null);
         onSent();
       } else {
-        setError(msg ?? 'خطا در ارسال درخواست');
+        toast.error(msg ?? 'خطا در ارسال درخواست');
         setSending(false);
       }
     } finally {
@@ -66,7 +65,6 @@ export function TemplateMessageModal({ visible, userId, firstName, token, onClos
   const handleClose = () => {
     if (sending) return;
     setSelected(null);
-    setError(null);
     onClose();
   };
 
@@ -99,13 +97,6 @@ export function TemplateMessageModal({ visible, userId, firstName, token, onClos
           </Text>
         </View>
 
-        {/* Error */}
-        {error && (
-          <View style={styles.errorBanner}>
-            <Text style={styles.errorTxt}>{error}</Text>
-          </View>
-        )}
-
         {/* Templates */}
         {loadingTemplates ? (
           <View style={styles.loadingBox}>
@@ -123,7 +114,7 @@ export function TemplateMessageModal({ visible, userId, firstName, token, onClos
                 <TouchableOpacity
                   key={t.id}
                   style={[styles.templateItem, isActive && styles.templateItemActive]}
-                  onPress={() => { setSelected(t.id); setError(null); }}
+                  onPress={() => setSelected(t.id)}
                   activeOpacity={0.75}
                 >
                   {isActive && (
@@ -134,11 +125,11 @@ export function TemplateMessageModal({ visible, userId, firstName, token, onClos
                       style={StyleSheet.absoluteFill}
                     />
                   )}
-                  {t.title && (
+                  {/* {t.title && (
                     <Text style={[styles.templateTitle, isActive && styles.templateTitleActive]}>
                       {t.title}
                     </Text>
-                  )}
+                  )} */}
                   <Text style={[styles.templateTxt, isActive && styles.templateTxtActive]}>
                     {t.body}
                   </Text>
@@ -217,12 +208,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.trustSoft, borderRadius: Radius.md, padding: 12,
   },
   trustTxt: { fontSize: 12, fontFamily: Fonts.regular, color: '#2C5C8F', lineHeight: 18, flex: 1 },
-
-  errorBanner: {
-    marginHorizontal: 20, marginBottom: 10,
-    backgroundColor: Colors.dangerSoft, borderRadius: 10, padding: 10,
-  },
-  errorTxt: { fontSize: 12, fontFamily: Fonts.semiBold, color: Colors.danger, textAlign: 'center' },
 
   loadingBox: { height: 100, alignItems: 'center', justifyContent: 'center' },
 

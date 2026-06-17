@@ -3,7 +3,9 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { lookupsApi, type LanguageOption } from '@/lib/api/onboarding';
 import { profileApi } from '@/lib/api/profile';
+import { toast } from '@/lib/toast';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useSafeBack } from '@/lib/useSafeBack';
 import { Star, Sparkles } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
@@ -24,6 +26,7 @@ export default function LanguagesScreen() {
     mode?: string; currentLangIds?: string; currentPrimary?: string;
   }>();
   const isEdit = mode === 'edit';
+  const safeBack = useSafeBack('/profile-edit');
   const [languages, setLanguages] = useState<LanguageOption[]>([]);
   const [selected, setSelected] = useState<number[]>(() => {
     if (typeof currentLangIds === 'string' && currentLangIds) {
@@ -40,7 +43,6 @@ export default function LanguagesScreen() {
   });
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
   const [loadError, setLoadError] = useState('');
 
   const loadLanguages = () => {
@@ -74,14 +76,13 @@ export default function LanguagesScreen() {
   const handleSave = async () => {
     if (!session?.accessToken || selected.length === 0) return;
     setSaving(true);
-    setError('');
     try {
       const langs = selected.map(id => ({ id, is_primary: id === primary }));
       await profileApi.updateProfile(session.accessToken, { languages: langs });
-      if (isEdit) router.back();
+      if (isEdit) safeBack();
       else router.push('/profile-setup/religion' as any);
     } catch (e: any) {
-      setError(e.message ?? 'خطا در ذخیره');
+      toast.error(e.message ?? 'خطا در ذخیره');
     } finally {
       setSaving(false);
     }
@@ -153,7 +154,6 @@ export default function LanguagesScreen() {
           </>
         )}
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
         <View style={{ height: 100 }} />
       </ScrollView>
 
@@ -214,7 +214,6 @@ const styles = StyleSheet.create({
   chipPrimary: { backgroundColor: Colors.accent, borderColor: Colors.accent },
   chipText: { fontSize: 12.5, fontFamily: Fonts.semiBold, color: Colors.inkSoft },
   chipTextSelected: { color: '#fff' },
-  error: { fontSize: 12, color: Colors.danger, fontFamily: Fonts.regular, marginTop: 8 },
   errBox: { alignItems: 'center', marginTop: 40, gap: 12 },
   errTxt: { fontSize: 13, color: Colors.danger, fontFamily: Fonts.regular },
   retryBtn: {

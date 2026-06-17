@@ -1,9 +1,14 @@
 import { AuthProvider } from '@/lib/auth/AuthContext';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { I18nManager } from 'react-native';
+import Toast from 'react-native-toast-message';
+import { toastConfig } from '@/components/ui/ToastConfig';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -25,12 +30,18 @@ export default function RootLayout() {
   if (!fontsLoaded) return null;
 
   return (
-    <AuthProvider>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="onboarding" options={{ animation: 'fade' }} />
-        <Stack.Screen name="profile-setup" options={{ animation: 'slide_from_right' }} />
-      </Stack>
-    </AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <StatusBar style="dark" />
+        <AuthProvider>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="onboarding" options={{ animation: 'fade' }} />
+            <Stack.Screen name="profile-setup" options={{ animation: 'slide_from_right' }} />
+          </Stack>
+        </AuthProvider>
+        <Toast config={toastConfig} visibilityTime={3000} topOffset={56} />
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

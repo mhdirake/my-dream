@@ -7,6 +7,7 @@ import { ApiError } from '@/lib/api/client';
 import { locationsApi, onboardingApi } from '@/lib/api/onboarding';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { profileSetupStore } from '@/lib/profileSetupStore';
+import { toast } from '@/lib/toast';
 import { router } from 'expo-router';
 import { CheckCircle, Shield } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
@@ -22,7 +23,6 @@ export default function LocationScreen() {
   const [loadingProvinces, setLoadingProvinces] = useState(false);
   const [loadingCities, setLoadingCities] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
   const [sessionExpired, setSessionExpired] = useState(false);
 
   const handleTokenExpired = async () => {
@@ -64,7 +64,7 @@ export default function LocationScreen() {
       })
       .catch(e => {
         if (e instanceof ApiError && e.status === 401) { handleTokenExpired(); return; }
-        setError(e.message ?? 'خطا در بارگذاری استان‌ها');
+        toast.error(e.message ?? 'خطا در بارگذاری استان‌ها');
       })
       .finally(() => setLoadingProvinces(false));
   }, [session]);
@@ -88,7 +88,6 @@ export default function LocationScreen() {
 
   const handleNext = async () => {
     if (!canContinue || !session?.accessToken) return;
-    setError('');
     setSubmitting(true);
     try {
       const stored = profileSetupStore.get();
@@ -108,7 +107,7 @@ export default function LocationScreen() {
       router.push('/profile-setup/photo' as any);
     } catch (e: any) {
       if (e instanceof ApiError && e.status === 401) { handleTokenExpired(); return; }
-      setError(e.message ?? 'خطا در ذخیره اطلاعات');
+      toast.error(e.message ?? 'خطا در ذخیره اطلاعات');
     } finally {
       setSubmitting(false);
     }
@@ -157,7 +156,6 @@ export default function LocationScreen() {
           </View>
         </Card>
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <View style={{ height: 100 }} />
       </ScrollView>
@@ -238,7 +236,6 @@ const styles = StyleSheet.create({
   note: { marginTop: 4 },
   noteRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   noteText: { fontSize: 12, color: Colors.trust, fontFamily: Fonts.regular, flex: 1, lineHeight: 18 },
-  error: { fontSize: 12, color: Colors.danger, fontFamily: Fonts.regular, marginTop: 8 },
   bottomBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     padding: Spacing.lg, borderTopWidth: 1, borderTopColor: Colors.lineSoft,

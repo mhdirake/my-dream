@@ -8,6 +8,7 @@ import {
   Flag,
   Globe,
   MapPin,
+  MessageSquare,
   Pencil,
   Sliders,
   Sparkles,
@@ -95,7 +96,7 @@ function buildSections(profile: ClientProfile): Section[] {
     {
       icon: Flag,
       iconColor: Colors.danger,
-      label: 'Deal Breakers',
+      label: 'خط قرمز',
       value: profile.dealbreakers.filter(d => d.body).length > 0
         ? `${profile.dealbreakers.filter(d => d.body).length} مورد`
         : '—',
@@ -122,6 +123,15 @@ function buildSections(profile: ClientProfile): Section[] {
       label: 'موقعیت مکانی',
       value: locationPreview,
       onPress: () => router.push('/profile-setup/location' as any),
+    },
+    {
+      icon: MessageSquare,
+      iconColor: Colors.purple,
+      label: 'آشنایی با من',
+      value: (profile.prompt_answers?.length ?? 0) > 0
+        ? `${profile.prompt_answers!.length} پاسخ`
+        : '—',
+      onPress: () => push('/profile-setup/about-me', { mode: 'edit' }),
     },
   ];
 }

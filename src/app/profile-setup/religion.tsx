@@ -3,6 +3,7 @@ import { Card } from '@/components/ui/Card';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { profileApi } from '@/lib/api/profile';
+import { toast } from '@/lib/toast';
 import { router } from 'expo-router';
 import { Check, Info, Sparkles } from 'lucide-react-native';
 import { useState } from 'react';
@@ -29,17 +30,15 @@ export default function ReligionScreen() {
   const { session } = useAuth();
   const [selected, setSelected] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
 
   const handleSave = async () => {
     if (!session?.accessToken || selected === null) return;
     setSaving(true);
-    setError('');
     try {
       await profileApi.updateProfile(session.accessToken, { religiosity_level: selected + 1 });
       router.push('/profile-setup/red-flags' as any);
     } catch (e: any) {
-      setError(e.message ?? 'خطا در ذخیره');
+      toast.error(e.message ?? 'خطا در ذخیره');
     } finally {
       setSaving(false);
     }
@@ -79,7 +78,6 @@ export default function ReligionScreen() {
           </View>
         </Card>
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
         <View style={{ height: 100 }} />
       </ScrollView>
 
@@ -146,7 +144,6 @@ const styles = StyleSheet.create({
   note: { marginTop: 8 },
   noteRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   noteText: { fontSize: 12, color: Colors.trust, fontFamily: Fonts.regular, flex: 1, lineHeight: 18 },
-  error: { fontSize: 12, color: Colors.danger, fontFamily: Fonts.regular, marginTop: 8 },
   bottomBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     padding: Spacing.lg, borderTopWidth: 1, borderTopColor: Colors.lineSoft,

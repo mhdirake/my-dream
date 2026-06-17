@@ -3,7 +3,9 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { lookupsApi, type ProfilePrompt } from '@/lib/api/onboarding';
 import { profileApi } from '@/lib/api/profile';
-import { router } from 'expo-router';
+import { toast } from '@/lib/toast';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useSafeBack } from '@/lib/useSafeBack';
 import { RefreshCw, Sparkles } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
@@ -21,21 +23,35 @@ const toPersian = (n: number) => String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵�
 
 export default function AboutMeScreen() {
   const { session } = useAuth();
+  const { mode } = useLocalSearchParams<{ mode?: string }>();
+  const isEdit = mode === 'edit';
+  const safeBack = useSafeBack('/profile-edit');
   const [allPrompts, setAllPrompts] = useState<ProfilePrompt[]>([]);
   const [shown, setShown] = useState<ProfilePrompt[]>([]);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
 
   useEffect(() => {
     if (!session?.accessToken) return;
     setLoading(true);
-    lookupsApi
-      .getProfilePrompts(session.accessToken)
-      .then(data => {
-        setAllPrompts(data);
-        setShown(pickRandom(data, 5));
+    Promise.all([
+      lookupsApi.getProfilePrompts(session.accessToken),
+      isEdit ? profileApi.getProfile(session.accessToken) : Promise.resolve(null),
+    ])
+      .then(([prompts, profile]) => {
+        setAllPrompts(prompts);
+        if (isEdit && profile?.prompt_answers?.length) {
+          const existing = profile.prompt_answers.map(a => a.prompt as ProfilePrompt);
+          const existingIds = new Set(existing.map(p => p.id));
+          const extra = prompts.filter(p => !existingIds.has(p.id));
+          setShown([...existing, ...pickRandom(extra, Math.max(0, 5 - existing.length))]);
+          const prefilled: Record<number, string> = {};
+          profile.prompt_answers.forEach(a => { prefilled[a.prompt.id] = a.answer; });
+          setAnswers(prefilled);
+        } else {
+          setShown(pickRandom(prompts, 5));
+        }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -59,11 +75,10 @@ export default function AboutMeScreen() {
       .filter(p => answers[p.id]?.trim())
       .map(p => ({ profile_prompt_id: p.id, answer: answers[p.id].trim() }));
     if (answered.length === 0) {
-      router.replace('/(tabs)/' as any);
+      isEdit ? safeBack() : router.replace('/(tabs)/' as any);
       return;
     }
     setSaving(true);
-    setError('');
     try {
       await fetch(
         `${process.env.EXPO_PUBLIC_API_URL}/api/client/profile/prompts`,
@@ -76,9 +91,9 @@ export default function AboutMeScreen() {
           body: JSON.stringify({ answers: answered }),
         },
       );
-      router.replace('/(tabs)/' as any);
+      isEdit ? safeBack() : router.replace('/(tabs)/' as any);
     } catch (e: any) {
-      setError(e.message ?? 'خطا در ذخیره');
+      toast.error(e.message ?? 'خطا در ذخیره');
     } finally {
       setSaving(false);
     }
@@ -86,7 +101,7 @@ export default function AboutMeScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
-      <OptStepper idx={8} />
+      {!isEdit && <OptStepper idx={8} />}
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -122,17 +137,16 @@ export default function AboutMeScreen() {
           <Text style={styles.refreshText}>سؤال‌های دیگر</Text>
         </Pressable>
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
         <View style={{ height: 100 }} />
       </ScrollView>
 
       <View style={styles.bottomBar}>
         <View style={styles.btnRow}>
-          <Button variant="ghost" onPress={() => router.replace('/(tabs)/' as any)} full={false} style={styles.btnSkip}>
-            بعداً
+          <Button variant="ghost" onPress={() => isEdit ? safeBack() : router.replace('/(tabs)/' as any)} full={false} style={styles.btnSkip}>
+            {isEdit ? 'لغو' : 'بعداً'}
           </Button>
           <Button variant="accent" onPress={handleSave} disabled={saving} full={false} style={styles.btnSave}>
-            {saving ? 'در حال ذخیره…' : filledCount > 0 ? 'ذخیره و ورود' : 'ورود به اپ'}
+            {saving ? 'در حال ذخیره…' : isEdit ? 'ذخیره' : filledCount > 0 ? 'ذخیره و ورود' : 'ورود به اپ'}
           </Button>
         </View>
       </View>
@@ -183,11 +197,10 @@ const styles = StyleSheet.create({
   },
   answerFilled: { borderStyle: 'solid', borderColor: Colors.ink },
   refreshBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    flexDirection: 'row', alignItems: 'center', alignSelf: 'center',
     gap: 6, marginTop: 8, padding: 8,
   },
   refreshText: { fontSize: 12, color: Colors.accent, fontFamily: Fonts.semiBold },
-  error: { fontSize: 12, color: Colors.danger, fontFamily: Fonts.regular, marginTop: 8 },
   bottomBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     padding: Spacing.lg, borderTopWidth: 1, borderTopColor: Colors.lineSoft,

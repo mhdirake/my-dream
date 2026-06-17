@@ -1,5 +1,6 @@
 import { Colors, Fonts } from '@/constants/colors';
 import { BackendGift, discoverApi } from '@/lib/api/discover';
+import { toast } from '@/lib/toast';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -31,7 +32,6 @@ export function GiftModal({ visible, userId, firstName, token, onClose }: Props)
   const [gifts, setGifts] = useState<BackendGift[]>([]);
   const [selected, setSelected] = useState<number | null>(null);
   const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(false);
 
   useEffect(() => {
     if (!visible || !token) return;
@@ -43,20 +43,17 @@ export function GiftModal({ visible, userId, firstName, token, onClose }: Props)
     setSending(true);
     try {
       await discoverApi.sendGift(token, userId, selected);
-      setSent(true);
-      setTimeout(() => {
-        setSent(false);
-        setSelected(null);
-        onClose();
-      }, 1200);
-    } catch {
+      toast.success('هدیه ارسال شد! 🎁');
+      setSelected(null);
+      onClose();
+    } catch (e: any) {
+      toast.error(e.message ?? 'خطا در ارسال هدیه');
       setSending(false);
     }
   };
 
   const handleClose = () => {
     setSelected(null);
-    setSent(false);
     onClose();
   };
 
@@ -67,13 +64,7 @@ export function GiftModal({ visible, userId, firstName, token, onClose }: Props)
       <Pressable style={styles.backdrop} onPress={handleClose} />
       <View style={styles.sheet}>
         <View style={styles.handle} />
-        {sent ? (
-          <View style={styles.sentBox}>
-            <Text style={styles.sentEmoji}>🎁</Text>
-            <Text style={styles.sentTxt}>هدیه ارسال شد!</Text>
-          </View>
-        ) : (
-          <>
+        <>
             <Text style={styles.title}>ارسال هدیه به {firstName}</Text>
             <Text style={styles.sub}>هر هدیه از موجودی سکه شما کسر می‌شود</Text>
 
@@ -115,8 +106,7 @@ export function GiftModal({ visible, userId, firstName, token, onClose }: Props)
                 <Text style={styles.sendTxt}>ارسال هدیه</Text>
               )}
             </TouchableOpacity>
-          </>
-        )}
+        </>
       </View>
     </Modal>
   );
@@ -145,7 +135,7 @@ const styles = StyleSheet.create({
 
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24, justifyContent: 'center' },
   giftCard: {
-    width: 80, alignItems: 'center', paddingVertical: 14, paddingHorizontal: 8,
+    width: 110, alignItems: 'center', paddingVertical: 14, paddingHorizontal: 8,
     borderRadius: 18, backgroundColor: Colors.surface,
     borderWidth: 2, borderColor: 'transparent',
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
@@ -156,7 +146,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.accentSoft,
   },
   giftEmoji: { fontSize: 28, marginBottom: 6 },
-  giftLabel: { fontSize: 11, fontFamily: Fonts.bold, color: Colors.ink, marginBottom: 5 },
+  giftLabel: { fontSize: 11, fontFamily: Fonts.bold, color: Colors.ink, marginBottom: 5, textAlign: "center" },
   coinRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   coinIcon: { fontSize: 10 },
   coinTxt: { fontSize: 11, fontFamily: Fonts.semiBold, color: Colors.goldDeep },
@@ -170,7 +160,4 @@ const styles = StyleSheet.create({
   sendBtnDisabled: { backgroundColor: Colors.ph, shadowOpacity: 0 },
   sendTxt: { fontSize: 15, fontFamily: Fonts.extraBold, color: '#fff' },
 
-  sentBox: { alignItems: 'center', paddingVertical: 24 },
-  sentEmoji: { fontSize: 48, marginBottom: 12 },
-  sentTxt: { fontSize: 16, fontFamily: Fonts.bold, color: Colors.ok },
 });

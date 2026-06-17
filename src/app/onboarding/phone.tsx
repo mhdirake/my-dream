@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/Button';
 import { Colors, Fonts } from '@/constants/colors';
 import { authApi } from '@/lib/api/auth';
 import { toEnDigits } from '@/lib/toEnDigits';
+import { toast } from '@/lib/toast';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -11,17 +12,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 export default function PhoneScreen() {
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
 
   const handleSend = async () => {
-    setError('');
     setLoading(true);
     const mobile = phone.startsWith('0') ? phone : `0${phone}`;
     try {
       const res = await authApi.sendOtp(mobile);
       router.push({ pathname: '/onboarding/otp', params: { phone: mobile, resend_after: res.resend_after } });
     } catch (e: any) {
-      setError(e.message ?? 'خطا در ارسال کد');
+      toast.error(e.message ?? 'خطا در ارسال کد');
     } finally {
       setLoading(false);
     }
@@ -50,8 +49,6 @@ export default function PhoneScreen() {
             <Text style={styles.plus}>+</Text>
           </View>
         </View>
-
-        {error ? <Text style={styles.error}>{error}</Text> : null}
 
         {/* <Card tint="trust" style={styles.note}>
           <Text style={styles.noteText}>
@@ -106,5 +103,4 @@ const styles = StyleSheet.create({
   },
   note: { marginVertical: 4, flexDirection: "row", textAlign: "right" },
   noteText: { writingDirection: 'rtl', textAlign: 'right', fontSize: 11.5, color: '#2C5C8F', fontFamily: Fonts.regular, lineHeight: 18 },
-  error: { fontSize: 12, color: Colors.danger, textAlign: 'right', fontFamily: Fonts.regular },
 });

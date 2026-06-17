@@ -1,17 +1,18 @@
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { Field } from '@/components/ui/Field';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { profileApi } from '@/lib/api/profile';
+import { toast } from '@/lib/toast';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Info, Plus, Sparkles, X } from 'lucide-react-native';
+import { useSafeBack } from '@/lib/useSafeBack';
+import { Info, Sparkles } from 'lucide-react-native';
 import { useState } from 'react';
 import {
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -24,6 +25,7 @@ export default function RedFlagsScreen() {
   const { session } = useAuth();
   const { mode, currentFlags } = useLocalSearchParams<{ mode?: string; currentFlags?: string }>();
   const isEdit = mode === 'edit';
+  const safeBack = useSafeBack('/profile-edit');
   const [flags, setFlags] = useState<string[]>(() => {
     if (typeof currentFlags === 'string' && currentFlags) {
       try {
@@ -34,7 +36,6 @@ export default function RedFlagsScreen() {
     return ['', '', ''];
   });
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
 
   const filled = flags.filter(f => f.trim().length > 0);
 
@@ -45,13 +46,12 @@ export default function RedFlagsScreen() {
   const handleSave = async () => {
     if (!session?.accessToken || filled.length === 0) return;
     setSaving(true);
-    setError('');
     try {
       await profileApi.updateProfile(session.accessToken, { dealbreakers: filled });
-      if (isEdit) router.back();
+      if (isEdit) safeBack();
       else router.push('/profile-setup/optional-info' as any);
     } catch (e: any) {
-      setError(e.message ?? 'خطا در ذخیره');
+      toast.error(e.message ?? 'خطا در ذخیره');
     } finally {
       setSaving(false);
     }
@@ -65,36 +65,19 @@ export default function RedFlagsScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.title}>Red Flags</Text>
+        <Text style={styles.title}>خط قرمز</Text>
         <Text style={styles.sub}>
           حداکثر {toPersian(MAX_FLAGS)} مورد — چه چیزایی برات قابل قبول نیست؟
         </Text>
 
         {flags.map((f, i) => (
-          <View key={i} style={[styles.flagBox, f.trim() && styles.flagBoxFilled]}>
-            <TextInput
-              style={styles.flagInput}
-              value={f}
-              onChangeText={v => updateFlag(i, v)}
-              placeholder={`Red Flag ${toPersian(i + 1)}`}
-              placeholderTextColor={Colors.muted}
-              maxLength={MAX_CHARS}
-            />
-            <View style={styles.flagFooter}>
-              {f.trim() ? (
-                <>
-                  <Pressable onPress={() => updateFlag(i, '')} hitSlop={8}>
-                    <X size={14} color={Colors.muted} strokeWidth={2} />
-                  </Pressable>
-                  <Text style={styles.charCount}>
-                    {toPersian(f.length)}/{toPersian(MAX_CHARS)}
-                  </Text>
-                </>
-              ) : (
-                <Plus size={14} color={Colors.muted} strokeWidth={2} />
-              )}
-            </View>
-          </View>
+          <Field
+            key={i}
+            label={`خط قرمز ${toPersian(i + 1)}`}
+            value={f}
+            onChangeText={v => updateFlag(i, v)}
+            maxLength={MAX_CHARS}
+          />
         ))}
 
         <Card tint="trust" style={styles.note}>
@@ -107,7 +90,6 @@ export default function RedFlagsScreen() {
           </View>
         </Card>
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
         <View style={{ height: 100 }} />
       </ScrollView>
 
@@ -156,21 +138,9 @@ const styles = StyleSheet.create({
   content: { padding: Spacing.xl, paddingBottom: 30 },
   title: { fontSize: 19, fontFamily: Fonts.extraBold, color: Colors.ink, letterSpacing: -0.3, marginBottom: 4 },
   sub: { fontSize: 12, color: Colors.muted, fontFamily: Fonts.regular, marginBottom: 16 },
-  flagBox: {
-    borderWidth: 1.5, borderColor: Colors.lineSoft, borderRadius: 10,
-    backgroundColor: Colors.surface, marginBottom: 8, paddingHorizontal: 12, paddingTop: 10,
-  },
-  flagBoxFilled: { borderColor: Colors.ink },
-  flagInput: {
-    fontSize: 13, fontFamily: Fonts.regular, color: Colors.ink,
-    minHeight: 38, paddingBottom: 6,
-  },
-  flagFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8 },
-  charCount: { fontSize: 10, color: Colors.muted, fontFamily: Fonts.regular },
   note: { marginTop: 8 },
   noteRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   noteText: { fontSize: 12, color: Colors.trust, fontFamily: Fonts.regular, flex: 1, lineHeight: 18 },
-  error: { fontSize: 12, color: Colors.danger, fontFamily: Fonts.regular, marginTop: 8 },
   bottomBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     padding: Spacing.lg, borderTopWidth: 1, borderTopColor: Colors.lineSoft,

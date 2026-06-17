@@ -414,7 +414,7 @@ export default function ProfileViewScreen() {
         <View style={styles.redFlagBanner}>
           <AlertTriangle size={14} color={Colors.danger} strokeWidth={2} />
           <Text style={styles.redFlagTxt}>
-            این پروفایل با {redFlags.length > 1 ? 'چند' : 'یک'} dealbreaker تو همخوانی داره
+            این پروفایل با {redFlags.length > 1 ? 'چند' : 'یک'} خط قرمز تو همخوانی داره
           </Text>
         </View>
       )}

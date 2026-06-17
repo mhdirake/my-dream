@@ -4,6 +4,7 @@ import { Colors, Fonts } from '@/constants/colors';
 import { authApi } from '@/lib/api/auth';
 import { registrationStore } from '@/lib/registrationStore';
 import { toEnDigits } from '@/lib/toEnDigits';
+import { toast } from '@/lib/toast';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -17,7 +18,6 @@ export default function OTPScreen() {
   const [otp, setOtp] = useState('');
   const [seconds, setSeconds] = useState(() => Number(resend_after) || 60);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
 
   useEffect(() => {
     if (seconds <= 0) return;
@@ -28,7 +28,6 @@ export default function OTPScreen() {
   const handleChange = (text: string) => {
     const digits = toEnDigits(text).replace(/\D/g, '').slice(0, OTP_LENGTH);
     setOtp(digits);
-    setError('');
   };
 
   const handleResend = async () => {
@@ -37,22 +36,20 @@ export default function OTPScreen() {
       await authApi.sendOtp(phone);
       setSeconds(Number(resend_after) || 60);
       setOtp('');
-      setError('');
     } catch (e: any) {
-      setError(e.message ?? 'خطا در ارسال مجدد کد');
+      toast.error(e.message ?? 'خطا در ارسال مجدد کد');
     }
   };
 
   const handleVerify = async () => {
     if (!phone || otp.length < OTP_LENGTH) return;
-    setError('');
     setLoading(true);
     try {
       const res = await authApi.verifyOtp(phone, otp);
       registrationStore.set({ phone, registration_token: res.data.registration_token });
       router.push('/onboarding/userpass');
     } catch (e: any) {
-      setError(e.message ?? 'کد وارد شده اشتباه است');
+      toast.error(e.message ?? 'کد وارد شده اشتباه است');
     } finally {
       setLoading(false);
     }
@@ -93,8 +90,6 @@ export default function OTPScreen() {
           maxLength={OTP_LENGTH}
           autoFocus
         />
-
-        {error ? <Text style={styles.error}>{error}</Text> : null}
 
         {seconds > 0 ? (
           <Text style={styles.resend}>
@@ -158,12 +153,5 @@ const styles = StyleSheet.create({
   },
   timer: { fontFamily: Fonts.bold, color: Colors.ink },
   resendActive: { color: Colors.accent, fontFamily: Fonts.bold },
-  error: {
-    textAlign: 'center',
-    marginTop: 16,
-    fontSize: 12,
-    color: Colors.danger,
-    fontFamily: Fonts.regular,
-  },
   btnWrap: { position: 'absolute', bottom: 32, left: 20, right: 20 },
 });

@@ -14,12 +14,20 @@ import {
   Bell, Gift, Heart, MessageCircle,
   Search, ShieldCheck, Sparkles, User,
 } from 'lucide-react-native';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  Extrapolation,
+  interpolate,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Animated,
   Dimensions,
-  PanResponder,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -34,9 +42,9 @@ const SWIPE_THRESHOLD = 80;
 
 type Mode = 'swipe' | 'daily' | 'ai';
 const MODES: { id: Mode; label: string }[] = [
-  { id: 'swipe', label: 'Swipe' },
+  { id: 'swipe', label: 'جستجو' },
   { id: 'daily', label: 'پیشنهاد روزانه' },
-  { id: 'ai', label: 'AI Match' },
+  { id: 'ai', label: 'مچ هوشمند' },
 ];
 
 function calcAge(d: string) {
@@ -52,21 +60,22 @@ function badgeKind(slug: string): 'ai' | 'community' | 'gold' | 'complete' | 'pe
 
 // ── LikeButton with spring press ─────────────────────────────────────────────
 function LikeButton({ onPress, liked }: { onPress: () => void; liked: boolean }) {
-  const scale = useRef(new Animated.Value(1)).current;
-  const down = () =>
-    Animated.spring(scale, { toValue: 0.86, useNativeDriver: true, speed: 40, bounciness: 0 }).start();
-  const up = () =>
-    Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 18, bounciness: 14 }).start();
+  const scale = useSharedValue(1);
+  const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
   return (
-    <Pressable onPress={onPress} onPressIn={down} onPressOut={up}>
-      <Animated.View style={[styles.actionLike, { transform: [{ scale }] }]}>
+    <Pressable
+      onPress={onPress}
+      onPressIn={() => { scale.value = withSpring(0.86, { damping: 20, stiffness: 300 }); }}
+      onPressOut={() => { scale.value = withSpring(1, { damping: 10, stiffness: 200 }); }}
+    >
+      <Animated.View style={[styles.actionLike, animStyle]}>
         <LinearGradient
           colors={Colors.gradColors}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFill}
         />
-        <Heart size={30} color="#fff" fill={liked ? '#fff' : 'none'} strokeWidth={liked ? 0 : 2} />
+        <Heart style={styles.actionLikeIcon} size={30} color="#fff" fill={liked ? '#fff' : 'none'} strokeWidth={liked ? 0 : 2} />
       </Animated.View>
     </Pressable>
   );
@@ -82,66 +91,51 @@ function SwipeCard({
 }: {
   profile: DiscoverProfile;
   liked: boolean;
-  onSwipeLeft: () => void;  // pass
-  onSwipeRight: () => void; // like
+  onSwipeLeft: () => void;
+  onSwipeRight: () => void;
   onLike: () => void;
 }) {
-  const pan = useRef(new Animated.ValueXY()).current;
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
   const age = calcAge(profile.birth_date);
   const photoUrl = profile.profile_photo?.urls.large;
 
-  const rotate = pan.x.interpolate({
-    inputRange: [-SW / 2, 0, SW / 2],
-    outputRange: ['-12deg', '0deg', '12deg'],
-    extrapolate: 'clamp',
-  });
+  const pan = Gesture.Pan()
+    .minDistance(10)
+    .onUpdate((e) => {
+      translateX.value = e.translationX;
+      translateY.value = e.translationY;
+    })
+    .onEnd((e) => {
+      if (Math.abs(e.translationX) > SWIPE_THRESHOLD) {
+        const dir = e.translationX > 0 ? 1 : -1;
+        const cb = dir > 0 ? onSwipeRight : onSwipeLeft;
+        translateX.value = withTiming(dir * SW * 1.5, { duration: 260 }, () => runOnJS(cb)());
+      } else {
+        translateX.value = withSpring(0, { damping: 15, stiffness: 150 });
+        translateY.value = withSpring(0, { damping: 15, stiffness: 150 });
+      }
+    });
 
-  const likeOpacity = pan.x.interpolate({
-    inputRange: [0, SWIPE_THRESHOLD * 0.6],
-    outputRange: [0, 1],
-    extrapolate: 'clamp',
-  });
+  const cardStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+      { rotate: `${interpolate(translateX.value, [-SW / 2, 0, SW / 2], [-12, 0, 12], Extrapolation.CLAMP)}deg` },
+    ],
+  }));
 
-  const nopeOpacity = pan.x.interpolate({
-    inputRange: [-SWIPE_THRESHOLD * 0.6, 0],
-    outputRange: [1, 0],
-    extrapolate: 'clamp',
-  });
+  const likeOpacity = useAnimatedStyle(() => ({
+    opacity: interpolate(translateX.value, [0, SWIPE_THRESHOLD * 0.6], [0, 1], Extrapolation.CLAMP),
+  }));
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_, g) =>
-        Math.abs(g.dx) > 10 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
-      onPanResponderMove: Animated.event([null, { dx: pan.x, dy: pan.y }], { useNativeDriver: false }),
-      onPanResponderRelease: (_, g) => {
-        if (Math.abs(g.dx) > SWIPE_THRESHOLD) {
-          const dir = g.dx > 0 ? 1 : -1;
-          Animated.timing(pan, {
-            toValue: { x: dir * SW * 1.5, y: g.dy * 0.4 },
-            duration: 260,
-            useNativeDriver: false,
-          }).start(() => {
-            if (dir > 0) onSwipeRight();
-            else onSwipeLeft();
-          });
-        } else {
-          Animated.spring(pan, {
-            toValue: { x: 0, y: 0 },
-            useNativeDriver: false,
-            friction: 6,
-            tension: 40,
-          }).start();
-        }
-      },
-    }),
-  ).current;
+  const nopeOpacity = useAnimatedStyle(() => ({
+    opacity: interpolate(translateX.value, [-SWIPE_THRESHOLD * 0.6, 0], [1, 0], Extrapolation.CLAMP),
+  }));
 
   return (
-    <Animated.View
-      style={[styles.card, { transform: [{ translateX: pan.x }, { translateY: pan.y }, { rotate }] }]}
-      {...panResponder.panHandlers}
-    >
+    <GestureDetector gesture={pan}>
+      <Animated.View style={[styles.card, cardStyle]}>
       {/* Photo / default avatar */}
       {photoUrl ? (
         <Image
@@ -149,6 +143,7 @@ function SwipeCard({
           style={StyleSheet.absoluteFill}
           contentFit="cover"
           transition={150}
+          pointerEvents="none"
         />
       ) : (
         <LinearGradient
@@ -172,10 +167,10 @@ function SwipeCard({
       />
 
       {/* LIKE / NOPE swipe indicators */}
-      <Animated.View style={[styles.swipeHint, styles.likeHint, { opacity: likeOpacity }]}>
+      <Animated.View style={[styles.swipeHint, styles.likeHint, likeOpacity]}>
         <Text style={styles.likeHintTxt}>LIKE</Text>
       </Animated.View>
-      <Animated.View style={[styles.swipeHint, styles.passHint, { opacity: nopeOpacity }]}>
+      <Animated.View style={[styles.swipeHint, styles.passHint, nopeOpacity]}>
         <Text style={styles.passHintTxt}>NOPE</Text>
       </Animated.View>
 
@@ -220,11 +215,16 @@ function SwipeCard({
             activeOpacity={0.8}
           >
             <Heart
-              size={14}
+              size={13}
               color={liked ? '#fff' : Colors.accent}
               fill={liked ? '#fff' : 'none'}
               strokeWidth={2.4}
             />
+            {profile.likes_count > 0 && (
+              <Text style={[styles.likeCountTxt, liked && styles.likeCountTxtActive]}>
+                {profile.likes_count}
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -251,7 +251,8 @@ function SwipeCard({
           </View>
         )}
       </View>
-    </Animated.View>
+      </Animated.View>
+    </GestureDetector>
   );
 }
 
@@ -282,18 +283,20 @@ function SwipeView({
 
   const current = profiles[index];
 
+  useEffect(() => {
+    setLiked(current?.liked_by_me ?? false);
+  }, [index, current]);
+
   const handleSwipeLeft = () => {
     if (!current) return;
     onInteract(current.id, 'pass');
     setIndex(i => i + 1);
-    setLiked(false);
   };
 
   const handleSwipeRight = () => {
     if (!current) return;
     onInteract(current.id, 'like');
     setIndex(i => i + 1);
-    setLiked(false);
   };
 
   const handleLike = () => {
@@ -444,9 +447,17 @@ function DailyView({ profiles, loading }: { profiles: DiscoverProfile[]; loading
                 )}
               </View>
               <View style={styles.dailyInfo}>
-                <Text style={styles.dailyName}>
-                  {p.first_name}، {calcAge(p.birth_date)}
-                </Text>
+                <View style={styles.dailyNameRow}>
+                  <Text style={styles.dailyName}>
+                    {p.first_name}، {calcAge(p.birth_date)}
+                  </Text>
+                  {p.likes_count > 0 && (
+                    <View style={styles.dailyLikePill}>
+                      <Heart size={11} color={Colors.accent} fill={Colors.accent} strokeWidth={0} />
+                      <Text style={styles.dailyLikeTxt}>{p.likes_count}</Text>
+                    </View>
+                  )}
+                </View>
                 {p.city && <Text style={styles.dailyCity}>{p.city}</Text>}
                 {p.relationship_goal && (
                   <View style={styles.dailyGoal}>
@@ -746,18 +757,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1,
   },
   cardName: {
-    fontSize: 22, fontFamily: Fonts.extraBold, color: Colors.ink, letterSpacing: -0.5,
+    fontSize: 18, fontFamily: Fonts.extraBold, color: Colors.ink,
   },
   likeCountPill: {
-    width: 34, height: 34, borderRadius: 17,
+    height: 34, borderRadius: 17,
+    paddingHorizontal: 10,
     backgroundColor: Colors.accentSoft,
-    alignItems: 'center', justifyContent: 'center',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
     borderWidth: 1, borderColor: 'rgba(217,79,112,0.2)',
   },
   likeCountPillActive: {
     backgroundColor: Colors.accent,
     borderColor: Colors.accent,
   },
+  likeCountTxt: { fontSize: 12, fontFamily: Fonts.bold, color: Colors.accent },
+  likeCountTxtActive: { color: '#fff' },
   cardMeta: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginTop: 2 },
   cardMetaTxt: { fontSize: 12.5, color: Colors.inkSoft, fontFamily: Fonts.regular },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
@@ -795,6 +809,10 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.accent,
     shadowColor: Colors.accent, shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.5, shadowRadius: 16, elevation: 12,
+  },
+
+  actionLikeIcon: {
+    zIndex: 1
   },
   // Chat — trust blue bg (trustSoft), size 52
   actionChat: {
@@ -842,7 +860,14 @@ const styles = StyleSheet.create({
   },
   dailyCompatTxt: { fontFamily: Fonts.extraBold, fontSize: 10, color: Colors.purple },
   dailyInfo: { flex: 1 },
+  dailyNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   dailyName: { fontSize: 15, fontFamily: Fonts.bold, color: Colors.ink },
+  dailyLikePill: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: Colors.accentSoft, borderRadius: 999,
+    paddingHorizontal: 7, paddingVertical: 3,
+  },
+  dailyLikeTxt: { fontSize: 11, fontFamily: Fonts.bold, color: Colors.accent },
   dailyCity: { fontSize: 11.5, color: Colors.muted, fontFamily: Fonts.regular, marginTop: 2 },
   dailyGoal: {
     backgroundColor: Colors.accentSoft, borderRadius: 999,

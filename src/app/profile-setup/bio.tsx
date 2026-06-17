@@ -3,7 +3,9 @@ import { Card } from '@/components/ui/Card';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { profileApi } from '@/lib/api/profile';
+import { toast } from '@/lib/toast';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useSafeBack } from '@/lib/useSafeBack';
 import { Sparkles } from 'lucide-react-native';
 import { useState } from 'react';
 import {
@@ -24,20 +26,19 @@ export default function BioScreen() {
   const { session } = useAuth();
   const { mode, currentBio } = useLocalSearchParams<{ mode?: string; currentBio?: string }>();
   const isEdit = mode === 'edit';
+  const safeBack = useSafeBack('/profile-edit');
   const [bio, setBio] = useState(typeof currentBio === 'string' ? currentBio : '');
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
 
   const handleSave = async () => {
     if (!session?.accessToken) return;
     setSaving(true);
-    setError('');
     try {
       await profileApi.updateProfile(session.accessToken, { bio: bio.trim() || undefined });
-      if (isEdit) router.back();
+      if (isEdit) safeBack();
       else router.push('/profile-setup/rel-goal' as any);
     } catch (e: any) {
-      setError(e.message ?? 'خطا در ذخیره');
+      toast.error(e.message ?? 'خطا در ذخیره');
     } finally {
       setSaving(false);
     }
@@ -74,13 +75,12 @@ export default function BioScreen() {
           </Text>
         </Card>
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
         <View style={{ height: 100 }} />
       </ScrollView>
 
       <View style={styles.bottomBar}>
         <View style={styles.btnRow}>
-          <Button variant="ghost" onPress={() => isEdit ? router.back() : router.push('/profile-setup/account-ready' as any)} full={false} style={styles.btnSkip}>
+          <Button variant="ghost" onPress={() => isEdit ? safeBack() : router.push('/profile-setup/account-ready' as any)} full={false} style={styles.btnSkip}>
             {isEdit ? 'لغو' : 'فعلاً نه'}
           </Button>
           <Button variant="accent" onPress={handleSave} disabled={saving} full={false} style={styles.btnSave}>
@@ -140,7 +140,6 @@ const styles = StyleSheet.create({
   },
   aiBadgeText: { fontSize: 10, color: Colors.accent, fontFamily: Fonts.semiBold },
   aiBody: { fontSize: 11, color: Colors.muted, lineHeight: 17 },
-  error: { fontSize: 12, color: Colors.danger, fontFamily: Fonts.regular, marginTop: 8 },
   bottomBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     padding: Spacing.lg, borderTopWidth: 1, borderTopColor: Colors.lineSoft,

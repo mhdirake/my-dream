@@ -17,6 +17,8 @@ export type DiscoverProfile = {
   compatibility_score: number | null;
   badges: { id: number; title: string; slug: string; is_active: boolean }[];
   is_verified: boolean;
+  likes_count: number;
+  liked_by_me: boolean;
 };
 
 export type InteractionType = 'like' | 'pass' | 'skip';
@@ -58,7 +60,7 @@ export const discoverApi = {
     api.post(`/api/client/users/${userId}/interactions`, { type, metadata: {} }, token),
 
   sendGift: (token: string, userId: number, giftId: number, message?: string) =>
-    api.post(`/api/client/users/${userId}/gifts`, { gift_id: giftId, message: message ?? '' }, token),
+    api.post(`/api/client/gifts/${giftId}/send`, { receiver_user_id: userId, note: message ?? null, show_in_chat: false }, token),
 
   recordProfileView: (token: string, userId: number) =>
     api.post(`/api/client/users/${userId}/profile-view`, {}, token),

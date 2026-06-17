@@ -115,12 +115,12 @@ export default function ConversationScreen() {
             renderItem={({ item }) => {
               const isMine = item.sender_user_id === myId;
               return (
-                <View style={[styles.msgWrap, isMine ? styles.msgWrapMine : styles.msgWrapTheirs]}>
-                  <View style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}>
-                    <Text style={[styles.bubbleTxt, isMine ? styles.bubbleTxtMine : styles.bubbleTxtTheirs]}>
+                <View style={[styles.msgWrap, !isMine ? styles.msgWrapMine : styles.msgWrapTheirs]}>
+                  <View style={[styles.bubble, !isMine ? styles.bubbleMine : styles.bubbleTheirs]}>
+                    <Text style={[styles.bubbleTxt, !isMine ? styles.bubbleTxtMine : styles.bubbleTxtTheirs]}>
                       {item.body}
                     </Text>
-                    <Text style={[styles.bubbleTime, isMine ? styles.bubbleTimeMine : styles.bubbleTimeTheirs]}>
+                    <Text style={[styles.bubbleTime, !isMine ? styles.bubbleTimeMine : styles.bubbleTimeTheirs]}>
                       {formatTime(item.created_at)}
                     </Text>
                   </View>
@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06, shadowRadius: 4, elevation: 1,
   },
   bubbleMine: { backgroundColor: Colors.accent, borderBottomRightRadius: 5 },
-  bubbleTheirs: { backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.hair, borderBottomLeftRadius: 5 },
+  bubbleTheirs: { backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.hair, borderBottomRightRadius: 5 },
   bubbleTxt: { fontSize: 14, fontFamily: Fonts.regular, lineHeight: 22 },
   bubbleTxtMine: { color: '#fff' },
   bubbleTxtTheirs: { color: Colors.ink },

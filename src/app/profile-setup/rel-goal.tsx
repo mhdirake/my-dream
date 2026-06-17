@@ -3,7 +3,9 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { lookupsApi, type RelationshipGoal } from '@/lib/api/onboarding';
 import { profileApi } from '@/lib/api/profile';
+import { toast } from '@/lib/toast';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useSafeBack } from '@/lib/useSafeBack';
 import { Check, Sparkles } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
@@ -36,6 +38,7 @@ export default function RelGoalScreen() {
   const { session } = useAuth();
   const { mode, currentGoalId } = useLocalSearchParams<{ mode?: string; currentGoalId?: string }>();
   const isEdit = mode === 'edit';
+  const safeBack = useSafeBack('/profile-edit');
   const [goals, setGoals] = useState<RelationshipGoal[]>([]);
   const [selected, setSelected] = useState<number | null>(() => {
     if (typeof currentGoalId === 'string' && currentGoalId) {
@@ -46,7 +49,6 @@ export default function RelGoalScreen() {
   });
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
   const [loadError, setLoadError] = useState('');
 
   const loadGoals = () => {
@@ -68,13 +70,12 @@ export default function RelGoalScreen() {
   const handleSave = async () => {
     if (!session?.accessToken || selected === null) return;
     setSaving(true);
-    setError('');
     try {
       await profileApi.updateProfile(session.accessToken, { relationship_goal_id: selected! });
-      if (isEdit) router.back();
+      if (isEdit) safeBack();
       else router.push('/profile-setup/lifestyle' as any);
     } catch (e: any) {
-      setError(e.message ?? 'خطا در ذخیره');
+      toast.error(e.message ?? 'خطا در ذخیره');
     } finally {
       setSaving(false);
     }
@@ -114,7 +115,6 @@ export default function RelGoalScreen() {
           ))
         )}
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
         <View style={{ height: 100 }} />
       </ScrollView>
 
@@ -179,7 +179,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface, alignItems: 'center', justifyContent: 'center',
   },
   radioActive: { borderColor: Colors.accent, backgroundColor: Colors.accent },
-  error: { fontSize: 12, color: Colors.danger, fontFamily: Fonts.regular, marginTop: 8 },
   errBox: { alignItems: 'center', marginTop: 40, gap: 12 },
   errTxt: { fontSize: 13, color: Colors.danger, fontFamily: Fonts.regular },
   retryBtn: {

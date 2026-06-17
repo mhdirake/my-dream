@@ -3,7 +3,9 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { lookupsApi, type LifestyleTagOption } from '@/lib/api/onboarding';
 import { profileApi } from '@/lib/api/profile';
+import { toast } from '@/lib/toast';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useSafeBack } from '@/lib/useSafeBack';
 import { Sparkles } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -24,6 +26,7 @@ export default function LifestyleScreen() {
   const { session } = useAuth();
   const { mode, currentTagIds } = useLocalSearchParams<{ mode?: string; currentTagIds?: string }>();
   const isEdit = mode === 'edit';
+  const safeBack = useSafeBack('/profile-edit');
   const [tags, setTags] = useState<LifestyleTagOption[]>([]);
   const [selected, setSelected] = useState<number[]>(() => {
     if (typeof currentTagIds === 'string' && currentTagIds) {
@@ -33,7 +36,6 @@ export default function LifestyleScreen() {
   });
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
   const [loadError, setLoadError] = useState('');
 
   const loadTags = () => {
@@ -77,13 +79,12 @@ export default function LifestyleScreen() {
   const handleSave = async () => {
     if (!session?.accessToken || !canSave) return;
     setSaving(true);
-    setError('');
     try {
       await profileApi.updateProfile(session.accessToken, { lifestyle_tag_ids: selected });
-      if (isEdit) router.back();
+      if (isEdit) safeBack();
       else router.push('/profile-setup/languages' as any);
     } catch (e: any) {
-      setError(e.message ?? 'خطا در ذخیره');
+      toast.error(e.message ?? 'خطا در ذخیره');
     } finally {
       setSaving(false);
     }
@@ -131,7 +132,6 @@ export default function LifestyleScreen() {
           ))
         )}
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
         <View style={{ height: 100 }} />
       </ScrollView>
 
@@ -193,7 +193,6 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: Colors.ink, borderColor: Colors.ink },
   chipText: { fontSize: 12.5, fontFamily: Fonts.semiBold, color: Colors.inkSoft },
   chipTextActive: { color: '#fff' },
-  error: { fontSize: 12, color: Colors.danger, fontFamily: Fonts.regular, marginTop: 8 },
   errBox: { alignItems: 'center', marginTop: 40, gap: 12 },
   errTxt: { fontSize: 13, color: Colors.danger, fontFamily: Fonts.regular },
   retryBtn: {

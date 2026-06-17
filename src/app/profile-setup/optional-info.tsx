@@ -5,7 +5,9 @@ import { SelectModal, type SelectOption } from '@/components/ui/SelectModal';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { profileApi } from '@/lib/api/profile';
+import { toast } from '@/lib/toast';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useSafeBack } from '@/lib/useSafeBack';
 import { Lock, Sparkles } from 'lucide-react-native';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -28,6 +30,7 @@ export default function OptionalInfoScreen() {
     mode?: string; currentHeight?: string; currentJob?: string; currentEducation?: string;
   }>();
   const isEdit = mode === 'edit';
+  const safeBack = useSafeBack('/profile-edit');
   const [height, setHeight] = useState(typeof currentHeight === 'string' ? currentHeight : '');
   const [job, setJob] = useState(typeof currentJob === 'string' ? currentJob : '');
   const [education, setEducation] = useState<SelectOption | null>(() => {
@@ -37,24 +40,22 @@ export default function OptionalInfoScreen() {
     return null;
   });
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
 
   const hasSomething = height.trim() || job.trim() || education;
 
   const handleSave = async () => {
     if (!session?.accessToken || !hasSomething) return;
     setSaving(true);
-    setError('');
     try {
       await profileApi.updateProfile(session.accessToken, {
         height_cm: height ? Number(height) : undefined,
         job: job.trim() || undefined,
         education: education?.name || undefined,
       });
-      if (isEdit) router.back();
+      if (isEdit) safeBack();
       else router.push('/profile-setup/about-me' as any);
     } catch (e: any) {
-      setError(e.message ?? 'خطا در ذخیره');
+      toast.error(e.message ?? 'خطا در ذخیره');
     } finally {
       setSaving(false);
     }
@@ -106,7 +107,6 @@ export default function OptionalInfoScreen() {
           </View>
         </Card>
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
         <View style={{ height: 100 }} />
       </ScrollView>
 
@@ -165,7 +165,6 @@ const styles = StyleSheet.create({
     paddingVertical: 5, borderRadius: Radius.pill,
   },
   lockText: { fontSize: 11, color: Colors.muted, fontFamily: Fonts.semiBold },
-  error: { fontSize: 12, color: Colors.danger, fontFamily: Fonts.regular, marginTop: 8 },
   bottomBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     padding: Spacing.lg, borderTopWidth: 1, borderTopColor: Colors.lineSoft,

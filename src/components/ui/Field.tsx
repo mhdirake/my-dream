@@ -13,9 +13,10 @@ interface FieldProps {
   keyboardType?: 'default' | 'phone-pad' | 'email-address' | 'numeric';
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   autoCorrect?: boolean;
+  maxLength?: number;
 }
 
-export function Field({ label, value, placeholder, hint, error, suffix, secureTextEntry, onChangeText, keyboardType, autoCapitalize, autoCorrect }: FieldProps) {
+export function Field({ label, value, placeholder, hint, error, suffix, secureTextEntry, onChangeText, keyboardType, autoCapitalize, autoCorrect, maxLength }: FieldProps) {
   return (
     <View style={styles.wrap}>
       {label && <Text style={styles.label}>{label}</Text>}
@@ -30,6 +31,7 @@ export function Field({ label, value, placeholder, hint, error, suffix, secureTe
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
           autoCorrect={autoCorrect}
+          maxLength={maxLength}
         />
         {suffix && <Text style={styles.suffix}>{suffix}</Text>}
       </View>
