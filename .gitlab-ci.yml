@@ -1,13 +1,41 @@
 stages:
-  - deploy
+  - build-web
+  - build-android
 
-deploy-production:
-  stage: deploy
+variables:
+  NODE_ENV: production
+
+build-web:
+  stage: build-web
   tags:
     - runner01
   only:
     - main
   script:
     - docker compose down
-    - docker compose up -d
+    - docker compose up -d --build
     - echo "Deployment complete!"
+
+
+build-android:
+  stage: build-android
+  image: reactnativecommunity/react-native-android:latest
+
+  before_script:
+    - apt-get update && apt-get install -y openjdk-17-jdk
+    - npm ci
+
+  script:
+    # Generate native android project if not committed
+    - npx expo prebuild --platform android --non-interactive
+
+    # Build APK
+    - cd android
+    - chmod +x gradlew
+    - ./gradlew assembleRelease
+
+  artifacts:
+    name: "android-apk-$CI_COMMIT_REF_SLUG-$CI_PIPELINE_ID"
+    expire_in: 90 days
+    paths:
+      - android/app/build/outputs/apk/release/*.apk
