@@ -19,23 +19,29 @@ build-web:
 
 build-android:
   stage: build-android
-  image: reactnativecommunity/react-native-android:latest
-
-  before_script:
-    - apt-get update && apt-get install -y openjdk-17-jdk
-    - npm ci
-
+  tags:
+    - runner01
   script:
-    # Generate native android project if not committed
-    - npx expo prebuild --platform android --non-interactive
+    # Build APK inside a container
+    - |
+      docker run --rm \
+        -v "$CI_PROJECT_DIR:/app" \
+        -w /app \
+        docker.iranserver.com/node:26-bullseye bash -c '
+          apt-get update &&
+          apt-get install -y openjdk-17-jdk wget unzip &&
+          npm ci &&
+          npx expo prebuild --platform android --non-interactive &&
+          cd android &&
+          chmod +x gradlew &&
+          ./gradlew assembleRelease
+        '
 
-    # Build APK
-    - cd android
-    - chmod +x gradlew
-    - ./gradlew assembleRelease
+    - mkdir -p artifacts
+    - cp android/app/build/outputs/apk/release/*.apk artifacts/
 
   artifacts:
-    name: "android-apk-$CI_COMMIT_REF_SLUG-$CI_PIPELINE_ID"
+    name: "apk-$CI_COMMIT_REF_SLUG-$CI_PIPELINE_ID"
     expire_in: 90 days
     paths:
-      - android/app/build/outputs/apk/release/*.apk
+      - artifacts/*.apk
