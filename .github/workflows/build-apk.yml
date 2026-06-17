@@ -14,8 +14,18 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 22.13.1
           cache: npm
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.expo
+          key: android-build-${{ runner.os }}-${{ hashFiles('package-lock.json', 'app.json', 'eas.json') }}
+          restore-keys: |
+            android-build-${{ runner.os }}-
 
       - uses: expo/expo-github-action@v8
         with:
