@@ -10,8 +10,8 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
-  Bell, Camera, ChevronLeft, Coins, Eye, Pencil, Settings,
-  Shield, Star, User, Users, type LucideIcon,
+  Bell, Brain, Camera, ChevronLeft, Coins, Eye, LayoutGrid,
+  Pencil, Settings, Shield, Star, User, Users, type LucideIcon,
 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, Alert, Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -23,13 +23,15 @@ const BASE = process.env.EXPO_PUBLIC_API_URL ?? '';
 type MenuItem = { icon: LucideIcon; iconColor: string; label: string; sub: string; route?: string };
 
 const MENU_ITEMS: MenuItem[] = [
-  { icon: Pencil,   iconColor: Colors.purple,   label: 'ویرایش پروفایل',  sub: 'اطلاعات، عکس، Bio',    route: '/profile-edit' },
-  { icon: Bell,     iconColor: Colors.trust,    label: 'اعلان‌ها',         sub: 'مدیریت اعلان‌ها'       },
-  { icon: Shield,   iconColor: Colors.ok,       label: 'حریم خصوصی',      sub: 'Safe Mode، Trust Gate' },
-  { icon: Star,     iconColor: Colors.goldDeep, label: 'اشتراک و ارتقا',  sub: 'Silver · Gold'         },
-  { icon: Coins,    iconColor: Colors.goldDeep, label: 'کیف پول و سکه',   sub: 'سکه‌های من'             },
-  { icon: Users,    iconColor: Colors.accent,   label: 'معرفی به دوستان', sub: 'پاداش بگیر'            },
-  { icon: Settings, iconColor: Colors.inkSoft,  label: 'تنظیمات',         sub: 'حساب، امنیت'           },
+  { icon: Pencil,      iconColor: Colors.purple,   label: 'ویرایش پروفایل',    sub: 'اطلاعات، عکس، Bio',          route: '/profile-edit' },
+  { icon: LayoutGrid,  iconColor: Colors.accent,   label: 'پیش‌نمایش پروفایل', sub: 'درصد تکمیل و موارد ناقص',   route: '/profile-setup/profile-preview' },
+  { icon: Brain,       iconColor: Colors.purple,   label: 'تست شخصیت',          sub: 'Personality Check · Gold Badge', route: '/profile-setup/personality-test-intro' },
+  { icon: Bell,        iconColor: Colors.trust,    label: 'اعلان‌ها',           sub: 'مدیریت اعلان‌ها'             },
+  { icon: Shield,      iconColor: Colors.ok,       label: 'حریم خصوصی',        sub: 'Safe Mode، Trust Gate'       },
+  { icon: Star,        iconColor: Colors.goldDeep, label: 'اشتراک و ارتقا',    sub: 'Silver · Gold',              route: '/subscription' },
+  { icon: Coins,       iconColor: Colors.goldDeep, label: 'کیف پول و سکه',     sub: 'سکه‌های من'                   },
+  { icon: Users,       iconColor: Colors.accent,   label: 'معرفی به دوستان',   sub: 'پاداش بگیر'                  },
+  { icon: Settings,    iconColor: Colors.inkSoft,  label: 'تنظیمات',           sub: 'حساب، امنیت'                 },
 ];
 
 function CompletionRing({ value }: { value: number }) {
