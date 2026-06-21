@@ -233,7 +233,7 @@ const styles = StyleSheet.create({
 
   periodRow: {
     flexDirection: 'row', gap: 8, paddingHorizontal: Spacing.xl,
-    paddingBottom: Spacing.lg, backgroundColor: Colors.surface,
+    paddingVertical: Spacing.lg, backgroundColor: Colors.surface,
     borderBottomWidth: 1, borderBottomColor: Colors.hair,
   },
   periodTab: {

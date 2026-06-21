@@ -10,7 +10,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
-  Bell, Brain, Camera, ChevronLeft, Coins, Eye, LayoutGrid,
+  AlertTriangle, Bell, Brain, Camera, ChevronLeft, Coins, Eye, LayoutGrid,
   Pencil, Settings, Shield, Star, User, Users, type LucideIcon,
 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
@@ -23,13 +23,14 @@ const BASE = process.env.EXPO_PUBLIC_API_URL ?? '';
 type MenuItem = { icon: LucideIcon; iconColor: string; label: string; sub: string; route?: string };
 
 const MENU_ITEMS: MenuItem[] = [
-  { icon: Pencil,      iconColor: Colors.purple,   label: 'ویرایش پروفایل',    sub: 'اطلاعات، عکس، Bio',          route: '/profile-edit' },
+  { icon: Pencil,      iconColor: Colors.purple,   label: 'ویرایش پروفایل',    sub: 'اطلاعات، عکس، بیو',          route: '/profile-edit' },
   { icon: LayoutGrid,  iconColor: Colors.accent,   label: 'پیش‌نمایش پروفایل', sub: 'درصد تکمیل و موارد ناقص',   route: '/profile-setup/profile-preview' },
-  { icon: Brain,       iconColor: Colors.purple,   label: 'تست شخصیت',          sub: 'Personality Check · Gold Badge', route: '/profile-setup/personality-test-intro' },
-  { icon: Bell,        iconColor: Colors.trust,    label: 'اعلان‌ها',           sub: 'مدیریت اعلان‌ها'             },
-  { icon: Shield,      iconColor: Colors.ok,       label: 'حریم خصوصی',        sub: 'Safe Mode، Trust Gate'       },
-  { icon: Star,        iconColor: Colors.goldDeep, label: 'اشتراک و ارتقا',    sub: 'Silver · Gold',              route: '/subscription' },
-  { icon: Coins,       iconColor: Colors.goldDeep, label: 'کیف پول و سکه',     sub: 'سکه‌های من'                   },
+  { icon: Brain,       iconColor: Colors.purple,   label: 'تست شخصیت',          sub: 'تست شخصیت · بج طلایی',      route: '/profile-setup/personality-test-intro' },
+  { icon: Bell,        iconColor: Colors.trust,    label: 'اعلان‌ها',           sub: 'مدیریت اعلان‌ها',            route: '/notifications' },
+  { icon: Shield,      iconColor: Colors.ok,       label: 'حریم خصوصی',        sub: 'حالت امن · کنترل پیام',      route: '/settings/privacy' },
+  { icon: Star,        iconColor: Colors.goldDeep, label: 'اشتراک و ارتقا',    sub: 'نقره‌ای · طلایی',            route: '/subscription' },
+  { icon: Coins,       iconColor: Colors.goldDeep, label: 'کیف پول و سکه',     sub: 'سکه‌های من',                  route: '/gifts/wallet' },
+  { icon: AlertTriangle, iconColor: Colors.danger,  label: 'محدودیت‌ها',         sub: 'وضعیت حساب',                 route: '/settings/restrictions' },
   { icon: Users,       iconColor: Colors.accent,   label: 'معرفی به دوستان',   sub: 'پاداش بگیر'                  },
   { icon: Settings,    iconColor: Colors.inkSoft,  label: 'تنظیمات',           sub: 'حساب، امنیت'                 },
 ];
@@ -142,7 +143,9 @@ export default function MeScreen() {
 
   const photoUrl = absoluteUrl(profile?.profile_photo?.urls.medium);
   const completion = profile?.profile_completion_percent ?? 0;
-  const planLabel = profile?.active_subscription?.plan ?? 'Basic';
+  const PLAN_FA: Record<string, string> = { basic: 'پایه', silver: 'نقره‌ای', gold: 'طلایی' };
+  const rawPlan = (profile?.active_subscription?.plan ?? 'basic').toLowerCase();
+  const planLabel = PLAN_FA[rawPlan] ?? 'پایه';
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -213,12 +216,12 @@ export default function MeScreen() {
           ) : null}
 
           <View style={styles.subBadge}>
-            <Text style={styles.subBadgeTxt}>{planLabel}</Text>
-            {!profile?.active_subscription ? (
-              <TouchableOpacity>
-                <Text style={styles.upgradeLink}>ارتقا</Text>
-              </TouchableOpacity>
-            ) : null}
+            <Text style={styles.subBadgeTxt}>اشتراک: {planLabel}</Text>
+            <TouchableOpacity onPress={() => router.push('/subscription' as never)}>
+              <Text style={styles.upgradeLink}>
+                {profile?.active_subscription ? 'مدیریت اشتراک' : 'ارتقا و خرید اشتراک'}
+              </Text>
+            </TouchableOpacity>
           </View>
         </Card>
 

@@ -65,6 +65,11 @@ export type ClientProfile = {
   active_subscription: { plan: string; expires_at: string } | null;
   coins?: number;
   prompt_answers?: { id: number; answer: string; prompt: { id: number; text: string; body?: string } }[];
+  is_restricted?: boolean;
+  is_banned?: boolean;
+  restricted_until?: string | null;
+  restriction_badge?: string | null;
+  status?: string;
 };
 
 export const profileApi = {
