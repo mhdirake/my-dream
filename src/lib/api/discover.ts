@@ -21,7 +21,7 @@ export type DiscoverProfile = {
   liked_by_me: boolean;
 };
 
-export type InteractionType = 'like' | 'pass' | 'skip';
+export type InteractionType = 'like' | 'pass' | 'skip' | 'anonymous_interest';
 
 export type ProfileView = {
   id: number;

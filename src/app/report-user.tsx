@@ -18,7 +18,18 @@ type ReportCategory = { id: number; name: string; slug: string; description: str
 
 export default function ReportUserScreen() {
   const { session } = useAuth();
-  const params = useLocalSearchParams<{ userId: string; userName?: string }>();
+  const params = useLocalSearchParams<{
+    userId: string;
+    userName?: string;
+    conversationPublicId?: string;
+    messageId?: string;
+    context?: string;
+  }>();
+
+  const isMessageReport =
+    params.context === 'message' &&
+    !!params.conversationPublicId &&
+    !!params.messageId;
 
   const [categories, setCategories] = useState<ReportCategory[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -40,29 +51,45 @@ export default function ReportUserScreen() {
       return;
     }
 
-    Alert.alert(
-      'ارسال گزارش',
-      `گزارش شما درباره ${params.userName ?? `کاربر #${params.userId}`} ثبت می‌شود. پس از بررسی اقدام لازم انجام خواهد شد.`,
-      [
-        { text: 'لغو', style: 'cancel' },
-        { text: 'ارسال', style: 'destructive', onPress: doSubmit },
-      ],
-    );
+    const target = params.userName ?? `کاربر #${params.userId}`;
+    const msg = isMessageReport
+      ? `گزارش پیام از ${target} ثبت می‌شود. پس از بررسی اقدام لازم انجام خواهد شد.`
+      : `گزارش شما درباره ${target} ثبت می‌شود. پس از بررسی اقدام لازم انجام خواهد شد.`;
+
+    Alert.alert('ارسال گزارش', msg, [
+      { text: 'لغو', style: 'cancel' },
+      { text: 'ارسال', style: 'destructive', onPress: doSubmit },
+    ]);
   };
 
   const doSubmit = async () => {
     if (!session?.accessToken || !selectedId) return;
     setSending(true);
     try {
-      await api.post(
-        `/api/client/users/${params.userId}/reports`,
-        {
-          report_category_id: selectedId,
-          context: 'profile',
-          description: description.trim() || undefined,
-        },
-        session.accessToken,
-      );
+      if (isMessageReport) {
+        await api.post(
+          '/api/client/reports',
+          {
+            reported_user_id: Number(params.userId),
+            report_category_id: selectedId,
+            context: 'message',
+            conversation_public_id: params.conversationPublicId,
+            message_id: params.messageId,
+            description: description.trim() || undefined,
+          },
+          session.accessToken,
+        );
+      } else {
+        await api.post(
+          `/api/client/users/${params.userId}/reports`,
+          {
+            report_category_id: selectedId,
+            context: 'profile',
+            description: description.trim() || undefined,
+          },
+          session.accessToken,
+        );
+      }
       toast.success('گزارش با موفقیت ثبت شد');
       router.back();
     } catch (e: any) {
@@ -78,7 +105,7 @@ export default function ReportUserScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
-      <AppBar title="گزارش تخلف" back />
+      <AppBar title={isMessageReport ? 'گزارش پیام' : 'گزارش تخلف'} back />
 
       {loading ? (
         <View style={styles.center}>
@@ -92,7 +119,7 @@ export default function ReportUserScreen() {
             <View style={styles.userRow}>
               <Flag size={16} color={Colors.danger} strokeWidth={2} />
               <Text style={styles.userTxt}>
-                گزارش تخلف برای{' '}
+                {isMessageReport ? 'گزارش پیام از ' : 'گزارش تخلف برای '}
                 <Text style={styles.userName}>
                   {params.userName ?? `کاربر #${params.userId}`}
                 </Text>

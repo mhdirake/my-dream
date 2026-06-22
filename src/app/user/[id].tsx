@@ -3,6 +3,7 @@ import { TemplateMessageModal } from '@/components/TemplateMessageModal';
 import { Badge } from '@/components/ui/Badge';
 import { Colors, Fonts } from '@/constants/colors';
 import { discoverApi } from '@/lib/api/discover';
+import { toast } from '@/lib/toast';
 import { profileApi, type ClientProfile, type UserProfile } from '@/lib/api/profile';
 import { profileCache } from '@/lib/cache/profileCache';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -30,6 +31,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Animated,
   Modal,
   Pressable,
@@ -331,19 +333,38 @@ export default function ProfileViewScreen() {
     goBack();
   };
   const handleAnon = () => {
-    // TODO: anonymous interest (coin spend)
+    if (!session || !profile) return;
+    Alert.alert(
+      'علاقه ناشناس',
+      `علاقه ناشناس به ${profile.first_name} فرستاده می‌شه. هویتت فاش نمی‌شه.`,
+      [
+        { text: 'لغو', style: 'cancel' },
+        {
+          text: 'ارسال',
+          onPress: () => {
+            discoverApi.interact(session.accessToken, profile.id, 'anonymous_interest')
+              .then(() => toast.success('علاقه ناشناس فرستاده شد!'))
+              .catch((e: any) => toast.error(e.message ?? 'خطا'));
+          },
+        },
+      ],
+    );
   };
   const handleInsight = () => {
-    // TODO: AI Insight (coin spend)
+    router.push({ pathname: '/ai-insight/user' as any, params: { userId: String(profile?.id), userName: profile?.first_name } });
   };
   const handleBlock = () => {
-    // TODO: block user
+    Alert.alert('بلاک کاربر', 'این قابلیت به زودی اضافه می‌شه.', [{ text: 'باشه' }]);
   };
   const handleReport = () => {
-    // TODO: report sheet (CH-12 / PV-8 report)
+    if (!profile) return;
+    router.push({
+      pathname: '/report-user' as any,
+      params: { userId: String(profile.id), userName: profile.first_name },
+    });
   };
   const handleShare = () => {
-    // TODO: share profile
+    Alert.alert('اشتراک‌گذاری', 'این قابلیت به زودی اضافه می‌شه.', [{ text: 'باشه' }]);
   };
 
   return (

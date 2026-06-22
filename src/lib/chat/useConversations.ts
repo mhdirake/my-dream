@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Conversation, chatApi } from '@/lib/api/chat';
 import { useCentrifugo } from './useCentrifugo';
 
-const POLL_INTERVAL = 8000;
+const POLL_INTERVAL = 10000;
 
 export interface ConversationsHook {
   conversations: Conversation[];
@@ -11,12 +11,10 @@ export interface ConversationsHook {
   loading: boolean;
   refreshing: boolean;
   refresh: () => void;
-  updateConversation: (updated: Conversation) => void;
+  resetUnread: (publicId: string) => void;
 }
 
-export function useConversations(
-  token: string | undefined,
-): ConversationsHook {
+export function useConversations(token: string | undefined): ConversationsHook {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [pendingIncoming, setPendingIncoming] = useState<Conversation[]>([]);
   const [pendingOutgoing, setPendingOutgoing] = useState<Conversation[]>([]);
@@ -55,40 +53,42 @@ export function useConversations(
     fetchConversations().finally(() => setRefreshing(false));
   }, [fetchConversations]);
 
-  const updateConversation = useCallback((updated: Conversation) => {
-    realtimeRef.current = true;
-    if (updated.status === 'accepted') {
-      setConversations(prev => {
-        const idx = prev.findIndex(c => c.id === updated.id);
-        if (idx === -1) return [updated, ...prev];
-        const next = [...prev];
-        next[idx] = updated;
-        return next;
-      });
-      // Remove from pending if it was there
-      setPendingIncoming(prev => prev.filter(c => c.id !== updated.id));
-      setPendingOutgoing(prev => prev.filter(c => c.id !== updated.id));
-    } else if (updated.status === 'pending') {
-      setPendingIncoming(prev => {
-        if (prev.some(c => c.id === updated.id)) return prev;
-        return [updated, ...prev];
-      });
-    }
+  // Called when user opens a specific conversation to clear its local unread badge
+  const resetUnread = useCallback((publicId: string) => {
+    setConversations(prev =>
+      prev.map(c => c.public_id === publicId ? { ...c, unread_count: 0 } : c),
+    );
   }, []);
 
-  // Subscribe to user channel for conversation-level events
-  const { subscribeConversation: _ } = useCentrifugo({
-    authToken: token,
-    onUserEvent: useCallback((data) => {
-      if (
-        data.event === 'conversation_request.created' ||
-        data.event === 'conversation.accepted'
-      ) {
-        realtimeRef.current = true;
+  const onUserEvent = useCallback((data: { event: string; [k: string]: unknown }) => {
+    if (
+      data.event === 'conversation_request.created' ||
+      data.event === 'conversation.accepted'
+    ) {
+      realtimeRef.current = true;
+      fetchConversations();
+      return;
+    }
+
+    // New message for this user on a conversation not currently open
+    if (data.event === 'conversation.unread.updated') {
+      realtimeRef.current = true;
+      const convPublicId = data.conversation_id as string | undefined;
+      if (convPublicId) {
+        setConversations(prev =>
+          prev.map(c =>
+            c.public_id === convPublicId
+              ? { ...c, unread_count: (c.unread_count ?? 0) + 1 }
+              : c,
+          ),
+        );
+        // Also refresh to get latest last_message_preview
         fetchConversations();
       }
-    }, [fetchConversations]),
-  });
+    }
+  }, [fetchConversations]);
+
+  useCentrifugo({ authToken: token, onUserEvent });
 
   return {
     conversations,
@@ -97,6 +97,6 @@ export function useConversations(
     loading,
     refreshing,
     refresh,
-    updateConversation,
+    resetUnread,
   };
 }

@@ -5,8 +5,9 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { useConversations } from '@/lib/chat/useConversations';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { Check, Clock, PenLine, Search, X } from 'lucide-react-native';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -42,11 +43,14 @@ type Tab = 'all' | 'requests';
 export default function ChatScreen() {
   const { session, user } = useAuth();
   const { bottom } = useSafeAreaInsets();
-  const { conversations, pendingIncoming, pendingOutgoing, loading, refreshing, refresh } = useConversations(
+  const { conversations, pendingIncoming, pendingOutgoing, loading, refreshing, refresh, resetUnread } = useConversations(
     session?.accessToken,
   );
   const [tab, setTab] = useState<Tab>('all');
   const [responding, setResponding] = useState<number | null>(null);
+
+  // Soft refresh when returning from a chat screen
+  useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
 
   const myId = user?.id ?? -1;
 
@@ -56,10 +60,13 @@ export default function ChatScreen() {
 
   const openConversation = (c: Conversation) => {
     const other = otherUser(c);
+    resetUnread(c.public_id);
     router.push({
       pathname: '/chat/[id]',
       params: {
         id: String(c.id),
+        publicId: c.public_id,
+        otherId: String(other.id),
         name: other.first_name,
         avatar: photoUrl(other) ?? '',
         status: c.status,
@@ -87,7 +94,10 @@ export default function ChatScreen() {
   };
 
   const requestsList = [...pendingIncoming, ...pendingOutgoing];
-  const displayed = tab === 'all' ? conversations : requestsList;
+  const activeConversations = conversations.filter(
+    c => c.status === 'accepted' || c.status === 'locked',
+  );
+  const displayed = tab === 'all' ? activeConversations : requestsList;
   const pendingCount = requestsList.length;
 
   return (
@@ -161,6 +171,7 @@ export default function ChatScreen() {
                 <ActiveRow
                   key={c.id}
                   conversation={c}
+                  myId={myId}
                   other={otherUser(c)}
                   onPress={() => openConversation(c)}
                 />
@@ -186,34 +197,58 @@ export default function ChatScreen() {
   );
 }
 
+const MSG_TYPE_PREFIX: Record<string, string> = {
+  image: '🖼 ',
+  voice: '🎤 ',
+  gift: '🎁 ',
+  sticker: '😊 ',
+  gif: 'GIF · ',
+};
+
 // ── Active conversation row ───────────────────────────────────────
 
 function ActiveRow({
   conversation: c,
+  myId,
   other,
   onPress,
 }: {
   conversation: Conversation;
+  myId: number;
   other: ConversationUser;
   onPress: () => void;
 }) {
-  const lastMsg = c.messages[c.messages.length - 1];
-  const lastBody = lastMsg?.body ?? '...';
+  const unread = c.unread_count ?? 0;
+  const hasUnread = unread > 0;
   const lastTime = timeAgo(c.last_message_at);
+  const isLastMine = c.last_message_sender_user_id === myId;
+
+  const typePrefix = c.last_message_type ? (MSG_TYPE_PREFIX[c.last_message_type] ?? '') : '';
+  const preview = c.last_message_preview
+    ? `${isLastMine ? 'شما: ' : ''}${typePrefix}${c.last_message_preview}`
+    : '...';
 
   return (
-    <Pressable style={styles.chatRow} onPress={onPress}>
+    <Pressable
+      style={({ pressed }) => [styles.chatRow, pressed && { backgroundColor: Colors.ph2 }]}
+      onPress={onPress}
+    >
       <Avatar size={50} name={other.first_name} photoUrl={photoUrl(other)} />
       <View style={styles.chatInfo}>
         <View style={styles.chatTop}>
-          <Text style={styles.chatName}>{other.first_name}</Text>
-          <Text style={styles.chatTime}>{lastTime}</Text>
+          <Text style={[styles.chatName, hasUnread && styles.chatNameUnread]}>{other.first_name}</Text>
+          <View style={styles.chatTopRight}>
+            <Text style={[styles.chatTime, hasUnread && styles.chatTimeUnread]}>{lastTime}</Text>
+            {hasUnread && (
+              <View style={styles.unreadBadge}>
+                <Text style={styles.unreadTxt}>{unread > 99 ? '۹۹+' : String(unread)}</Text>
+              </View>
+            )}
+          </View>
         </View>
-        <View style={styles.chatBottom}>
-          <Text style={styles.chatLast} numberOfLines={1}>
-            {lastBody}
-          </Text>
-        </View>
+        <Text style={[styles.chatLast, hasUnread && styles.chatLastUnread]} numberOfLines={1}>
+          {preview}
+        </Text>
       </View>
     </Pressable>
   );
@@ -238,8 +273,7 @@ function PendingRow({
   onReject: () => void;
   onPress: () => void;
 }) {
-  const firstMsg = c.messages[0];
-  const msgBody = firstMsg?.body ?? '';
+  const msgBody = c.last_message_preview ?? '';
   const lastTime = timeAgo(c.last_message_at);
 
   return (
@@ -381,16 +415,21 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   chatInfo: { flex: 1 },
-  chatTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  chatName: { fontSize: 14.5, fontFamily: Fonts.extraBold, color: Colors.ink },
+  chatTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  chatTopRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  chatName: { fontSize: 14.5, fontFamily: Fonts.semiBold, color: Colors.ink },
+  chatNameUnread: { fontFamily: Fonts.extraBold },
   chatTime: { fontSize: 10.5, color: Colors.muted, fontFamily: Fonts.regular },
-  chatBottom: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 4,
+  chatTimeUnread: { color: Colors.accent, fontFamily: Fonts.semiBold },
+  chatLast: { fontSize: 12.5, color: Colors.muted, fontFamily: Fonts.regular },
+  chatLastUnread: { color: Colors.inkSoft, fontFamily: Fonts.semiBold },
+  unreadBadge: {
+    minWidth: 18, height: 18, borderRadius: 9,
+    backgroundColor: Colors.accent,
+    alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 5,
   },
-  chatLast: { fontSize: 12.5, color: Colors.inkSoft, flex: 1, fontFamily: Fonts.regular },
+  unreadTxt: { fontSize: 10, fontFamily: Fonts.bold, color: '#fff' },
 
   // Pending card
   pendingCard: {

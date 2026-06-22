@@ -31,8 +31,8 @@ const MENU_ITEMS: MenuItem[] = [
   { icon: Star,        iconColor: Colors.goldDeep, label: 'اشتراک و ارتقا',    sub: 'نقره‌ای · طلایی',            route: '/subscription' },
   { icon: Coins,       iconColor: Colors.goldDeep, label: 'کیف پول و سکه',     sub: 'سکه‌های من',                  route: '/gifts/wallet' },
   { icon: AlertTriangle, iconColor: Colors.danger,  label: 'محدودیت‌ها',         sub: 'وضعیت حساب',                 route: '/settings/restrictions' },
-  { icon: Users,       iconColor: Colors.accent,   label: 'معرفی به دوستان',   sub: 'پاداش بگیر'                  },
-  { icon: Settings,    iconColor: Colors.inkSoft,  label: 'تنظیمات',           sub: 'حساب، امنیت'                 },
+  { icon: Users,       iconColor: Colors.accent,   label: 'معرفی به دوستان',   sub: 'پاداش بگیر',                 route: '/referrals' },
+  { icon: Settings,    iconColor: Colors.inkSoft,  label: 'تنظیمات',           sub: 'حساب، امنیت',                route: '/settings/index' },
 ];
 
 function CompletionRing({ value }: { value: number }) {

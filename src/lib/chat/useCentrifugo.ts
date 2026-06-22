@@ -11,13 +11,16 @@ type ChannelHandler = (data: CentrifugoEvent) => void;
 
 interface UseCentrifugoOptions {
   authToken: string | undefined;
-  onUserEvent?: ChannelHandler;   // events on user:{id} channel
+  onUserEvent?: ChannelHandler;
 }
 
 export function useCentrifugo({ authToken, onUserEvent }: UseCentrifugoOptions) {
   const clientRef = useRef<Centrifuge | null>(null);
   const userSubRef = useRef<Subscription | null>(null);
-  const convSubsRef = useRef<Map<number, Subscription>>(new Map());
+  const convSubsRef = useRef<Map<string, Subscription>>(new Map());
+  // Use a ref for the callback so it never causes connect() to re-run
+  const onUserEventRef = useRef<ChannelHandler | undefined>(onUserEvent);
+  onUserEventRef.current = onUserEvent;
 
   const connect = useCallback(async () => {
     if (!authToken || clientRef.current) return;
@@ -28,12 +31,11 @@ export function useCentrifugo({ authToken, onUserEvent }: UseCentrifugoOptions) 
       const client = new Centrifuge(ws_url, { token });
       clientRef.current = client;
 
-      // Subscribe to user channel for global events (new conversation requests, etc.)
       const userSub = client.newSubscription(channels.user);
       userSubRef.current = userSub;
 
       userSub.on('publication', ({ data }) => {
-        onUserEvent?.(data as CentrifugoEvent);
+        onUserEventRef.current?.(data as CentrifugoEvent);
       });
 
       userSub.subscribe();
@@ -41,18 +43,18 @@ export function useCentrifugo({ authToken, onUserEvent }: UseCentrifugoOptions) 
     } catch {
       // silent — polling fallback stays active
     }
-  }, [authToken, onUserEvent]);
+  }, [authToken]); // onUserEvent intentionally excluded — read via ref to avoid reconnect loop
 
   const subscribeConversation = useCallback(
-    (conversationId: number, handler: ChannelHandler): (() => void) => {
+    (publicId: string, handler: ChannelHandler): (() => void) => {
       const client = clientRef.current;
-      if (!client || convSubsRef.current.has(conversationId)) {
+      if (!client || convSubsRef.current.has(publicId)) {
         return () => {};
       }
 
-      const channel = `conversation:${conversationId}`;
+      const channel = `conversation:${publicId}`;
       const sub = client.newSubscription(channel);
-      convSubsRef.current.set(conversationId, sub);
+      convSubsRef.current.set(publicId, sub);
 
       sub.on('publication', ({ data }) => {
         handler(data as CentrifugoEvent);
@@ -64,13 +66,12 @@ export function useCentrifugo({ authToken, onUserEvent }: UseCentrifugoOptions) 
         sub.unsubscribe();
         sub.removeAllListeners();
         client.removeSubscription(sub);
-        convSubsRef.current.delete(conversationId);
+        convSubsRef.current.delete(publicId);
       };
     },
     [],
   );
 
-  // Connect on mount, disconnect on unmount
   useEffect(() => {
     connect();
 
