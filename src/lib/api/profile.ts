@@ -62,7 +62,7 @@ export type ClientProfile = {
   languages: { id: number; title: string; slug: string; pivot?: { is_primary: number | boolean } }[];
   dealbreakers: { id: number; body: string; moderation_status: string }[];
   badges: { id: number; title?: string; label?: string; slug?: string; icon?: string }[];
-  active_subscription: { plan: string; expires_at: string } | null;
+  active_subscription: { plan: { id: number; name: string; slug: string }; expires_at: string } | null;
   coins?: number;
   prompt_answers?: { id: number; answer: string; prompt: { id: number; text: string; body?: string } }[];
   is_restricted?: boolean;

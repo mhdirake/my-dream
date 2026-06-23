@@ -7,7 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
   ArrowLeft, CheckCheck, Clock,
-  Lock, MoreVertical, Pencil, Send, Trash2, User, X,
+  Lock, MoreVertical, Pencil, Send, User, X,
 } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -80,6 +80,7 @@ export default function ConversationScreen() {
   useEffect(() => {
     if (messages.length > prevLengthRef.current) {
       prevLengthRef.current = messages.length;
+      listRef.current?.scrollToOffset({ offset: 0, animated: true });
     }
   }, [messages.length]);
 
@@ -338,7 +339,7 @@ export default function ConversationScreen() {
         <View style={[styles.inputBar, !canChat && styles.inputBarDisabled]}>
           {!canChat ? (
             <View style={styles.inputLocked}>
-              <Lock size={14} color={Colors.muted} strokeWidth={2} />
+              <Lock size={14} color={Colors.muted} strokeWidth={1.8} />
               <Text style={styles.inputLockedTxt}>
                 {isPending ? 'در انتظار تأیید…' : isExpired ? 'درخواست منقضی شده' : isRejected ? 'درخواست رد شده' : 'چت قفل است'}
               </Text>
@@ -354,24 +355,24 @@ export default function ConversationScreen() {
                 multiline
                 maxLength={2000}
                 textAlign="right"
+                textAlignVertical="top"
               />
               <TouchableOpacity
-                style={[styles.sendBtn, (!text.trim() || sending) && styles.sendBtnOff]}
+                style={[styles.sendBtn, !!text.trim() && styles.sendBtnActive]}
                 onPress={handleSend}
                 disabled={!text.trim() || sending}
-                activeOpacity={0.85}
+                activeOpacity={0.8}
               >
                 {sending ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
                   <>
-                    <LinearGradient
-                      colors={text.trim() ? Colors.gradColors : [Colors.ph2, Colors.ph2]}
-                      style={StyleSheet.absoluteFill}
-                    />
+                    {!!text.trim() && (
+                      <LinearGradient colors={Colors.gradColors as [string, string]} style={StyleSheet.absoluteFill} />
+                    )}
                     {editingId
                       ? <Pencil size={17} color={text.trim() ? '#fff' : Colors.muted} strokeWidth={2} />
-                      : <Send size={18} color={text.trim() ? '#fff' : Colors.muted} strokeWidth={2} />
+                      : <Send style={[styles.sendBtnIcon]} size={18} color={text.trim() ? '#fff' : Colors.muted} strokeWidth={2} />
                     }
                   </>
                 )}
@@ -519,34 +520,45 @@ const styles = StyleSheet.create({
   // Input bar
   inputBar: {
     flexDirection: 'row', alignItems: 'flex-end', gap: 8,
-    paddingHorizontal: 12, paddingVertical: 8,
-    borderTopWidth: 1, borderTopColor: Colors.hair,
+    paddingHorizontal: 12, paddingTop: 8, paddingBottom: 10,
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Colors.hair,
     backgroundColor: Colors.surface,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 4,
   },
-  inputBarDisabled: { backgroundColor: Colors.ph2 },
+  inputBarDisabled: { backgroundColor: Colors.ph2, shadowOpacity: 0 },
   input: {
     flex: 1,
     minHeight: 44,
-    maxHeight: 120,
+    maxHeight: 128,
     backgroundColor: Colors.bg,
     borderRadius: 22,
-    borderWidth: 1,
-    borderColor: Colors.lineSoft,
+    borderWidth: 1.5,
+    borderColor: Colors.hair,
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    fontSize: 14,
+    paddingTop: 11,
+    paddingBottom: 11,
+    fontSize: 14.5,
     fontFamily: Fonts.regular,
     color: Colors.ink,
-    textAlignVertical: 'center',
   },
   sendBtn: {
     width: 44, height: 44, borderRadius: 22,
     overflow: 'hidden', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: Colors.ph2,
   },
-  sendBtnOff: {},
+  sendBtnIcon: {
+    zIndex: 1
+  },
+  sendBtnActive: { backgroundColor: 'transparent' },
   inputLocked: {
     flex: 1, height: 44, flexDirection: 'row', alignItems: 'center',
-    gap: 8, paddingHorizontal: 16,
+    justifyContent: 'center', gap: 8, paddingHorizontal: 16,
+    backgroundColor: Colors.bg, borderRadius: 22,
+    borderWidth: 1.5, borderColor: Colors.hair,
   },
-  inputLockedTxt: { fontSize: 13.5, fontFamily: Fonts.regular, color: Colors.muted },
+  inputLockedTxt: { fontSize: 13, fontFamily: Fonts.regular, color: Colors.muted },
 });

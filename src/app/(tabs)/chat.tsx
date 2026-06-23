@@ -20,12 +20,8 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const MEDIA_BASE = process.env.EXPO_PUBLIC_MEDIA_URL ?? process.env.EXPO_PUBLIC_API_URL ?? '';
-
 function photoUrl(user: ConversationUser | undefined) {
-  if (!user?.profile_photo_path) return null;
-  const p = user.profile_photo_path;
-  return p.startsWith('http') ? p : `${MEDIA_BASE}/${p}`;
+  return user?.profile_photo?.urls?.thumbnail ?? null;
 }
 
 function timeAgo(iso: string | null | undefined) {

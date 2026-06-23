@@ -1,11 +1,24 @@
 import { api } from './client';
 
+export type ConversationUserPhoto = {
+  urls: {
+    original: string;
+    thumbnail: string;
+    small: string;
+    medium: string;
+    large: string;
+  };
+};
+
 export type ConversationUser = {
   id: number;
   username: string;
   first_name: string;
   last_name: string | null;
-  profile_photo_path: string | null;
+  is_restricted?: boolean;
+  restriction_badge?: string | null;
+  gold_badge?: { active: boolean; active_until: string | null };
+  profile_photo: ConversationUserPhoto | null;
 };
 
 export type MessageType =

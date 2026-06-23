@@ -84,16 +84,15 @@ export function useChatMessages(
   useEffect(() => {
     if (!conversationPublicId) return;
     const unsubscribe = subscribeConversation(conversationPublicId, data => {
-      if (data.event === 'message.created' && data.message) {
-        pushMessage(data.message as Message);
-      } else if (data.event === 'message.deleted' && data.message_id) {
+      if (data.event === 'message.created' && data.payload) {
+        pushMessage(data.payload as Message);
+      } else if (data.event === 'message.deleted' && data.payload) {
+        const msg = data.payload as { message_id: string };
         setMessages(prev =>
-          prev.map(m =>
-            m.message_id === (data.message_id as string) ? { ...m, is_deleted: true } : m,
-          ),
+          prev.map(m => m.message_id === msg.message_id ? { ...m, is_deleted: true } : m),
         );
-      } else if (data.event === 'message.updated' && data.message) {
-        const updated = data.message as Message;
+      } else if (data.event === 'message.updated' && data.payload) {
+        const updated = data.payload as Message;
         setMessages(prev => prev.map(m => m.message_id === updated.message_id ? updated : m));
       }
     });

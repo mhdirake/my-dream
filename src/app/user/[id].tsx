@@ -301,7 +301,7 @@ export default function ProfileViewScreen() {
   // ── Derived data ─────────────────────────────────────────────────────────
   const age = calcAge(profile.birth_date);
   const photoUrl = profile.profile_photo?.urls.large;
-  const plan = (myProfile?.active_subscription?.plan ?? 'basic').toLowerCase() as 'basic' | 'silver' | 'gold';
+  const plan = (myProfile?.active_subscription?.plan?.slug ?? 'basic').toLowerCase() as 'basic' | 'silver' | 'gold';
   const isAtLeastSilver = plan === 'silver' || plan === 'gold';
   const isGold = plan === 'gold';
 

@@ -5,11 +5,12 @@ import { GiftModal } from '@/components/GiftModal';
 import { TemplateMessageModal } from '@/components/TemplateMessageModal';
 import { Colors, Fonts } from '@/constants/colors';
 import { DiscoverProfile, discoverApi } from '@/lib/api/discover';
+import { notificationsApi } from '@/lib/api/notifications';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { profileCache } from '@/lib/cache/profileCache';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import {
   Bell, Gift, Heart, MessageCircle,
   Search, ShieldCheck, Sparkles, User,
@@ -516,11 +517,13 @@ function FloatingHeader({
   onModeChange,
   safeMode,
   onToggleSafe,
+  hasUnread,
 }: {
   mode: Mode;
   onModeChange: (m: Mode) => void;
   safeMode: boolean;
   onToggleSafe: () => void;
+  hasUnread: boolean;
 }) {
   return (
     <View style={styles.floatingHeader}>
@@ -536,10 +539,10 @@ function FloatingHeader({
           <TouchableOpacity style={styles.iconBtn}>
             <Search size={17} color={Colors.ink} strokeWidth={2} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn}>
+          <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/notifications' as never)}>
             <View>
               <Bell size={17} color={Colors.ink} strokeWidth={2} />
-              <View style={styles.notifDot} />
+              {hasUnread && <View style={styles.notifDot} />}
             </View>
           </TouchableOpacity>
         </View>
@@ -589,6 +592,16 @@ export default function DiscoverScreen() {
   const [profiles, setProfiles] = useState<DiscoverProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [safeMode, setSafeMode] = useState(false);
+  const [hasUnread, setHasUnread] = useState(false);
+
+  const fetchUnread = useCallback(() => {
+    if (!session?.accessToken) return;
+    notificationsApi.list(session.accessToken, 1, true)
+      .then(r => setHasUnread(r.unread_count > 0))
+      .catch(() => {});
+  }, [session?.accessToken]);
+
+  useFocusEffect(useCallback(() => { fetchUnread(); }, [fetchUnread]));
 
   const fetchProfiles = useCallback(
     (safe: boolean) => {
@@ -628,6 +641,7 @@ export default function DiscoverScreen() {
         onModeChange={setMode}
         safeMode={safeMode}
         onToggleSafe={toggleSafe}
+        hasUnread={hasUnread}
       />
       <View style={styles.content}>
         {mode === 'swipe' && (

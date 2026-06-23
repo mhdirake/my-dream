@@ -111,7 +111,7 @@ export default function ViewedMeScreen() {
         profileApi.getProfile(session.accessToken),
       ]);
       setViews(viewsData);
-      const plan = profileData.active_subscription?.plan?.toLowerCase();
+      const plan = profileData.active_subscription?.plan?.slug;
       setIsUnlocked(plan === 'silver' || plan === 'gold');
     } catch {
       // ignore

@@ -47,26 +47,35 @@ export function useCentrifugo({ authToken, onUserEvent }: UseCentrifugoOptions) 
 
   const subscribeConversation = useCallback(
     (publicId: string, handler: ChannelHandler): (() => void) => {
-      const client = clientRef.current;
-      if (!client || convSubsRef.current.has(publicId)) {
-        return () => {};
-      }
+      let cancelled = false;
+      let sub: Subscription | null = null;
 
-      const channel = `conversation:${publicId}`;
-      const sub = client.newSubscription(channel);
-      convSubsRef.current.set(publicId, sub);
+      const trySubscribe = () => {
+        if (cancelled) return;
+        const client = clientRef.current;
+        if (!client) {
+          setTimeout(trySubscribe, 300);
+          return;
+        }
+        if (convSubsRef.current.has(publicId)) return;
 
-      sub.on('publication', ({ data }) => {
-        handler(data as CentrifugoEvent);
-      });
+        const channel = `conversation:${publicId}`;
+        sub = client.newSubscription(channel);
+        convSubsRef.current.set(publicId, sub);
+        sub.on('publication', ({ data }) => handler(data as CentrifugoEvent));
+        sub.subscribe();
+      };
 
-      sub.subscribe();
+      trySubscribe();
 
       return () => {
-        sub.unsubscribe();
-        sub.removeAllListeners();
-        client.removeSubscription(sub);
-        convSubsRef.current.delete(publicId);
+        cancelled = true;
+        if (sub) {
+          sub.unsubscribe();
+          sub.removeAllListeners();
+          clientRef.current?.removeSubscription(sub);
+          convSubsRef.current.delete(publicId);
+        }
       };
     },
     [],

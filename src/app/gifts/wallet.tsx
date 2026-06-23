@@ -80,7 +80,7 @@ export default function WalletScreen() {
               <View style={styles.subRow}>
                 <Text style={styles.subLabel}>اشتراک فعال:</Text>
                 <Text style={styles.subVal}>
-                  {sub.plan === 'gold' ? 'طلایی' : sub.plan === 'silver' ? 'نقره‌ای' : 'پایه'}
+                  {sub.plan.slug === 'gold' ? 'طلایی' : sub.plan.slug === 'silver' ? 'نقره‌ای' : 'پایه'}
                 </Text>
                 <Text style={styles.subExpiry}> · تا {formatDate(sub.expires_at)}</Text>
               </View>

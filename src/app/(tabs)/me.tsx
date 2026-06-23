@@ -144,7 +144,7 @@ export default function MeScreen() {
   const photoUrl = absoluteUrl(profile?.profile_photo?.urls.medium);
   const completion = profile?.profile_completion_percent ?? 0;
   const PLAN_FA: Record<string, string> = { basic: 'پایه', silver: 'نقره‌ای', gold: 'طلایی' };
-  const rawPlan = (profile?.active_subscription?.plan ?? 'basic').toLowerCase();
+  const rawPlan = (profile?.active_subscription?.plan?.slug ?? 'basic').toLowerCase();
   const planLabel = PLAN_FA[rawPlan] ?? 'پایه';
 
   return (

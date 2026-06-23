@@ -73,7 +73,8 @@ export function useConversations(token: string | undefined): ConversationsHook {
     // New message for this user on a conversation not currently open
     if (data.event === 'conversation.unread.updated') {
       realtimeRef.current = true;
-      const convPublicId = data.conversation_id as string | undefined;
+      const p = data.payload as { conversation_id?: string } | undefined;
+      const convPublicId = p?.conversation_id;
       if (convPublicId) {
         setConversations(prev =>
           prev.map(c =>
