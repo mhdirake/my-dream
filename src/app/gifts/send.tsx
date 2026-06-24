@@ -172,7 +172,7 @@ export default function SendGiftScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
-  content: { padding: Spacing.xl, gap: 14 },
+  content: { padding: Spacing.lg, gap: 14 },
 
   giftCard: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   giftEmoji: { fontSize: 40 },

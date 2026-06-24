@@ -1,7 +1,7 @@
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
-import { Colors, Fonts } from '@/constants/colors';
+import { Colors, Fonts, Spacing } from '@/constants/colors';
 import { ApiError } from '@/lib/api/client';
 import { onboardingApi } from '@/lib/api/onboarding';
 import type { ClientProfile } from '@/lib/api/profile';
@@ -11,7 +11,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   AlertTriangle, Bell, Brain, Camera, ChevronLeft, Coins, Eye, LayoutGrid,
-  Pencil, Settings, Shield, Star, User, Users, type LucideIcon,
+  Pencil, Settings, Shield, Sparkles, Star, User, Users, type LucideIcon,
 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, Alert, Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -19,6 +19,7 @@ import { router } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const BASE = process.env.EXPO_PUBLIC_API_URL ?? '';
+const toPersian = (n: number) => String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
 
 type MenuItem = { icon: LucideIcon; iconColor: string; label: string; sub: string; route?: string };
 
@@ -26,13 +27,15 @@ const MENU_ITEMS: MenuItem[] = [
   { icon: Pencil,      iconColor: Colors.purple,   label: 'ویرایش پروفایل',    sub: 'اطلاعات، عکس، بیو',          route: '/profile-edit' },
   { icon: LayoutGrid,  iconColor: Colors.accent,   label: 'پیش‌نمایش پروفایل', sub: 'درصد تکمیل و موارد ناقص',   route: '/profile-setup/profile-preview' },
   { icon: Brain,       iconColor: Colors.purple,   label: 'تست شخصیت',          sub: 'تست شخصیت · بج طلایی',      route: '/profile-setup/personality-test-intro' },
+  { icon: Sparkles,   iconColor: Colors.purple,   label: 'آنالیز هوش مصنوعی', sub: 'تحلیل شخصیتی من',            route: '/ai-insight/self' },
+  { icon: Shield,     iconColor: Colors.trust,    label: 'احراز هویت',         sub: 'تأیید پایه · AI · جامعه',    route: '/verification' },
   { icon: Bell,        iconColor: Colors.trust,    label: 'اعلان‌ها',           sub: 'مدیریت اعلان‌ها',            route: '/notifications' },
   { icon: Shield,      iconColor: Colors.ok,       label: 'حریم خصوصی',        sub: 'حالت امن · کنترل پیام',      route: '/settings/privacy' },
   { icon: Star,        iconColor: Colors.goldDeep, label: 'اشتراک و ارتقا',    sub: 'نقره‌ای · طلایی',            route: '/subscription' },
   { icon: Coins,       iconColor: Colors.goldDeep, label: 'کیف پول و سکه',     sub: 'سکه‌های من',                  route: '/gifts/wallet' },
   { icon: AlertTriangle, iconColor: Colors.danger,  label: 'محدودیت‌ها',         sub: 'وضعیت حساب',                 route: '/settings/restrictions' },
   { icon: Users,       iconColor: Colors.accent,   label: 'معرفی به دوستان',   sub: 'پاداش بگیر',                 route: '/referrals' },
-  { icon: Settings,    iconColor: Colors.inkSoft,  label: 'تنظیمات',           sub: 'حساب، امنیت',                route: '/settings/index' },
+  { icon: Settings,    iconColor: Colors.inkSoft,  label: 'تنظیمات',           sub: 'حساب، امنیت',                route: '/settings' },
 ];
 
 function CompletionRing({ value }: { value: number }) {
@@ -151,13 +154,6 @@ export default function MeScreen() {
     <SafeAreaView style={styles.root} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: bottom + 92 }]}>
 
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>من</Text>
-          <TouchableOpacity style={styles.iconBtn}>
-            <Settings size={18} color={Colors.ink} strokeWidth={1.9} />
-          </TouchableOpacity>
-        </View>
-
         <Card style={styles.profileCard}>
           <View style={styles.profileTop}>
             <TouchableOpacity onPress={handleChangePhoto} style={styles.avatarOuter} activeOpacity={0.85}>
@@ -186,8 +182,9 @@ export default function MeScreen() {
             <View style={styles.profileInfo}>
               <View style={styles.nameRow}>
                 <Text style={styles.name}>{displayName}</Text>
-                <Badge kind="ai" label="" />
-                <Badge kind="community" label="" />
+                {profile?.badges?.some(b => b.slug?.includes('ai')) && <Badge kind="ai" label="" />}
+                {profile?.badges?.some(b => b.slug?.includes('community')) && <Badge kind="community" label="" />}
+                {profile?.badges?.some(b => b.slug?.includes('gold')) && <Badge kind="gold" label="" />}
               </View>
               <Text style={styles.sub}>
                 @{user?.username ?? '—'}
@@ -227,9 +224,9 @@ export default function MeScreen() {
 
         <View style={styles.statsRow}>
           {[
-            { n: '۰', l: 'لایک دریافتی' },
-            { n: '۰', l: 'مَچ'           },
-            { n: '۰', l: 'گفت‌وگو'       },
+            { n: toPersian(profile?.likes_count ?? 0), l: 'لایک دریافتی' },
+            { n: toPersian(profile?.profile_quality_score ?? 0), l: 'امتیاز پروفایل' },
+            { n: toPersian(profile?.profile_completion_percent ?? 0) + '٪', l: 'تکمیل پروفایل' },
           ].map((s, i, arr) => (
             <View key={s.l} style={[styles.statItem, i === arr.length - 1 && styles.statItemLast]}>
               <Text style={styles.statN}>{s.n}</Text>
@@ -284,19 +281,7 @@ export default function MeScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
-  content: { padding: 16 },
-
-  header: {
-    height: 54, flexDirection: 'row',
-    alignItems: 'center', justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  headerTitle: { fontSize: 18, fontFamily: Fonts.extraBold, color: Colors.ink },
-  iconBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.8)',
-    alignItems: 'center', justifyContent: 'center',
-  },
+  content: { padding: Spacing.lg },
 
   profileCard: { gap: 12 },
   profileTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },

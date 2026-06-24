@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   stepBar: { flex: 1, height: 6, borderRadius: Radius.pill },
   stepBarFilled: { backgroundColor: Colors.accent },
   stepBarEmpty: { backgroundColor: 'rgba(36,33,42,0.08)' },
-  content: { padding: Spacing.xl, paddingBottom: 30 },
+  content: { padding: Spacing.lg, paddingBottom: 30 },
   title: {
     fontSize: 19, fontFamily: Fonts.extraBold, color: Colors.ink,
     letterSpacing: -0.3, marginBottom: 4,

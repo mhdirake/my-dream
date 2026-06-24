@@ -192,7 +192,7 @@ export default function GoldBadgeScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  content: { padding: Spacing.xl },
+  content: { padding: Spacing.lg },
 
   hero: {
     alignItems: 'center', paddingVertical: Spacing.xxl,

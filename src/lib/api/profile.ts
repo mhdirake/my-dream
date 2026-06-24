@@ -65,6 +65,9 @@ export type ClientProfile = {
   active_subscription: { plan: { id: number; name: string; slug: string }; expires_at: string } | null;
   coins?: number;
   prompt_answers?: { id: number; answer: string; prompt: { id: number; text: string; body?: string } }[];
+  likes_count?: number;
+  profile_quality_score?: number;
+  valid_reports_count?: number;
   is_restricted?: boolean;
   is_banned?: boolean;
   restricted_until?: string | null;

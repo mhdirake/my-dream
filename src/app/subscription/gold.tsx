@@ -102,7 +102,7 @@ export default function GoldDetailScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#0E0B1A' },
-  content: { padding: Spacing.xl },
+  content: { padding: Spacing.lg },
 
   hero: { alignItems: 'center', paddingVertical: Spacing.xxl, marginBottom: Spacing.xl },
   heroIcon: {

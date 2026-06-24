@@ -258,7 +258,7 @@ export default function GiftSubScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  content: { padding: Spacing.xl, gap: 14 },
+  content: { padding: Spacing.lg, gap: 14 },
 
   tabRow: {
     flexDirection: 'row', backgroundColor: Colors.ph2,

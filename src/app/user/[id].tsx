@@ -1,7 +1,7 @@
 import { GiftModal } from '@/components/GiftModal';
 import { TemplateMessageModal } from '@/components/TemplateMessageModal';
 import { Badge } from '@/components/ui/Badge';
-import { Colors, Fonts } from '@/constants/colors';
+import { Colors, Fonts, Spacing } from '@/constants/colors';
 import { discoverApi } from '@/lib/api/discover';
 import { toast } from '@/lib/toast';
 import { profileApi, type ClientProfile, type UserProfile } from '@/lib/api/profile';
@@ -290,8 +290,17 @@ export default function ProfileViewScreen() {
         </View>
         <View style={styles.center}>
           <Text style={styles.emptyTxt}>پروفایل یافت نشد</Text>
-          <TouchableOpacity onPress={goBack} style={{ marginTop: 12 }}>
-            <Text style={[styles.emptyTxt, { color: Colors.accent }]}>بازگشت</Text>
+          <Text style={[styles.emptyTxt, { fontSize: 12, color: Colors.muted }]}>
+            اتصال اینترنت را بررسی کن
+          </Text>
+          <TouchableOpacity
+            onPress={fetchProfile}
+            style={styles.retryBtn}
+          >
+            <Text style={styles.retryBtnTxt}>تلاش دوباره</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={goBack} style={{ marginTop: 8 }}>
+            <Text style={[styles.emptyTxt, { color: Colors.muted, fontSize: 12 }]}>بازگشت</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -741,8 +750,13 @@ export default function ProfileViewScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
   emptyTxt: { fontSize: 14, color: Colors.muted, fontFamily: Fonts.regular },
+  retryBtn: {
+    marginTop: 4, paddingHorizontal: 24, paddingVertical: 9,
+    backgroundColor: Colors.accentSoft, borderRadius: 20,
+  },
+  retryBtnTxt: { fontSize: 13, fontFamily: Fonts.semiBold, color: Colors.accent },
   loadingHeader: { paddingTop: 12, paddingHorizontal: 12 },
   backBtnDark: {
     width: 40, height: 40, borderRadius: 20,
@@ -797,7 +811,7 @@ const styles = StyleSheet.create({
 
   // ── Scroll ────────────────────────────────────────────────────────────────
   scroll: { flex: 1 },
-  scrollContent: { padding: 16, gap: 16 },
+  scrollContent: { padding: Spacing.lg, gap: 16 },
 
   section: { gap: 10 },
   sectionTitle: { fontSize: 11.5, fontFamily: Fonts.bold, color: Colors.muted, letterSpacing: 0.3 },

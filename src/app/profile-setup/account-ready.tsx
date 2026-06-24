@@ -103,7 +103,7 @@ function ProgressRing({ value }: { value: number }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
-  content: { flex: 1, padding: Spacing.xl },
+  content: { flex: 1, padding: Spacing.lg },
   ringWrap: { alignItems: 'center', marginBottom: 20, marginTop: 8 },
   ring: {
     width: 124, height: 124, borderRadius: 62,

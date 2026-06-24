@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
   stepText: { fontSize: 11, color: Colors.muted, fontFamily: Fonts.regular },
   progressTrack: { height: 5, borderRadius: Radius.pill, backgroundColor: 'rgba(36,33,42,0.08)' },
   progressFill: { height: 5, borderRadius: Radius.pill, backgroundColor: Colors.purple },
-  content: { padding: Spacing.xl, paddingTop: 24 },
+  content: { padding: Spacing.lg, paddingTop: 24 },
   questionNum: { fontSize: 11, color: Colors.muted, fontFamily: Fonts.regular, marginBottom: 8 },
   question: {
     fontSize: 17, fontFamily: Fonts.bold, color: Colors.ink,

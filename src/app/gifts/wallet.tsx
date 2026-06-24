@@ -145,7 +145,7 @@ export default function WalletScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  content: { padding: Spacing.xl, gap: 16 },
+  content: { padding: Spacing.lg, gap: 16 },
 
   balanceCard: {
     borderRadius: Radius.xl, padding: Spacing.xl, overflow: 'hidden',

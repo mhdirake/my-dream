@@ -1,8 +1,9 @@
 import { Avatar } from '@/components/ui/Avatar';
-import { Colors, Fonts, Radius } from '@/constants/colors';
+import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { ProfileView, discoverApi } from '@/lib/api/discover';
 import { profileApi } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { toast } from '@/lib/toast';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { ArrowLeft, Eye, Lock, Sparkles } from 'lucide-react-native';
@@ -102,9 +103,11 @@ export default function ViewedMeScreen() {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   const load = useCallback(async () => {
     if (!session) return;
+    setLoadError(false);
     try {
       const [viewsData, profileData] = await Promise.all([
         discoverApi.getProfileViews(session.accessToken),
@@ -114,7 +117,8 @@ export default function ViewedMeScreen() {
       const plan = profileData.active_subscription?.plan?.slug;
       setIsUnlocked(plan === 'silver' || plan === 'gold');
     } catch {
-      // ignore
+      setLoadError(true);
+      toast.error('خطا در بارگذاری');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -147,6 +151,14 @@ export default function ViewedMeScreen() {
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator color={Colors.accent} />
+        </View>
+      ) : loadError ? (
+        <View style={styles.center}>
+          <Eye size={44} color={Colors.ph} strokeWidth={1.4} />
+          <Text style={styles.emptyTitle}>خطا در بارگذاری</Text>
+          <TouchableOpacity onPress={() => { setLoading(true); load(); }} style={styles.retryBtn}>
+            <Text style={styles.retryTxt}>تلاش دوباره</Text>
+          </TouchableOpacity>
         </View>
       ) : isUnlocked ? (
         <FlatList
@@ -199,11 +211,17 @@ const styles = StyleSheet.create({
   countTxt: { fontSize: 12, fontFamily: Fonts.bold, color: Colors.accent },
 
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 },
+  emptyTitle: { fontSize: 14, fontFamily: Fonts.bold, color: Colors.ink },
   emptyTxt: { fontSize: 14, fontFamily: Fonts.bold, color: Colors.ink },
   emptySub: { fontSize: 12, fontFamily: Fonts.regular, color: Colors.muted },
+  retryBtn: {
+    marginTop: 4, paddingHorizontal: Spacing.xl, paddingVertical: Spacing.sm,
+    backgroundColor: Colors.accentSoft, borderRadius: Radius.lg,
+  },
+  retryTxt: { fontSize: 13, fontFamily: Fonts.semiBold, color: Colors.accent },
 
   // Unlocked list
-  list: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 100 },
+  list: { paddingHorizontal: Spacing.lg, paddingTop: 8, paddingBottom: 100 },
   viewRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -222,7 +240,7 @@ const styles = StyleSheet.create({
   },
 
   // Locked state
-  lockedWrap: { flex: 1, padding: 16, gap: 0 },
+  lockedWrap: { flex: 1, padding: Spacing.lg, gap: 0 },
   upsellCard: {
     flexDirection: 'row',
     alignItems: 'center',

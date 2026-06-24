@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
   stepCounter: { fontSize: 11, color: Colors.muted, fontFamily: Fonts.regular },
   progressTrack: { height: 5, borderRadius: Radius.pill, backgroundColor: 'rgba(36,33,42,0.08)' },
   progressFill: { height: 5, borderRadius: Radius.pill, backgroundColor: Colors.ok },
-  content: { padding: Spacing.xl, paddingBottom: 30 },
+  content: { padding: Spacing.lg, paddingBottom: 30 },
   title: { fontSize: 19, fontFamily: Fonts.extraBold, color: Colors.ink, letterSpacing: -0.3, marginBottom: 4 },
   subRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   sub: { fontSize: 12, color: Colors.muted, fontFamily: Fonts.regular },

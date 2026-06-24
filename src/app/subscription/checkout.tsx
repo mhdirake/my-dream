@@ -175,7 +175,7 @@ export default function CheckoutScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
-  content: { padding: Spacing.xl },
+  content: { padding: Spacing.lg },
 
   summaryCard: { marginBottom: Spacing.xl },
   summaryLabel: { fontSize: 11, color: Colors.muted, fontFamily: Fonts.regular, marginBottom: 4 },

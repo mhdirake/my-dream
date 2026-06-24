@@ -30,6 +30,8 @@ export type MessageType =
   | 'gift'
   | 'template_first_message';
 
+export type Reaction = { reaction: string; user_id: number };
+
 export type Message = {
   message_id: string;
   client_message_id: string;
@@ -49,6 +51,15 @@ export type Message = {
   is_edited: boolean;
   is_deleted: boolean;
   created_at: string;
+  reactions?: Reaction[];
+  my_reaction?: string | null;
+  delivered_at?: string | null;
+  read_at?: string | null;
+};
+
+export type MessageSearchResult = {
+  items: Message[];
+  next_cursor: string | null;
 };
 
 export type Conversation = {
@@ -151,6 +162,43 @@ export const chatApi = {
       token,
     ),
 
+  setReaction: (token: string, conversationId: number, messageId: string, reaction: string) =>
+    api.put(
+      `/api/client/conversations/${conversationId}/messages/${messageId}/reaction`,
+      { reaction },
+      token,
+    ),
+
+  removeReaction: (token: string, conversationId: number, messageId: string) =>
+    api.delete(`/api/client/conversations/${conversationId}/messages/${messageId}/reaction`, token),
+
+  searchMessages: async (
+    token: string,
+    conversationId: number,
+    query: string,
+    cursor?: string,
+    limit = 20,
+  ): Promise<MessageSearchResult> => {
+    const params = new URLSearchParams({ query, limit: String(limit) });
+    if (cursor) params.set('cursor', cursor);
+    const res = await api.get<MessageSearchResult>(
+      `/api/client/conversations/${conversationId}/messages/search?${params}`,
+      token,
+    );
+    return res;
+  },
+
+  getMessageContext: async (token: string, conversationId: number, messageId: string): Promise<{ items: Message[] }> => {
+    const res = await api.get<{ items: Message[] }>(
+      `/api/client/conversations/${conversationId}/messages/${messageId}/context`,
+      token,
+    );
+    return res;
+  },
+
+  heartbeat: (token: string) =>
+    api.post('/api/client/presence/heartbeat', {}, token),
+
   getPresence: async (token: string, userId: number) => {
     const res = await api.get<{ data: { is_online: boolean; last_seen_at: string | null } }>(
       `/api/client/presence/users/${userId}`,
@@ -186,7 +234,7 @@ export const chatApi = {
     const res = await api.get<{
       token: string;
       ws_url: string;
-      channels: { user: string };
+      channels: { user: string; conversations: string[] };
       expires_in: number;
     }>('/api/client/realtime/token', token);
     return res;

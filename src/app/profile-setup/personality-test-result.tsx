@@ -177,7 +177,7 @@ export default function PersonalityTestResultScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  content: { padding: Spacing.xl },
+  content: { padding: Spacing.lg },
   hero: { alignItems: 'center', paddingVertical: Spacing.xl, marginBottom: Spacing.lg },
   heroLabel: {
     fontSize: 11, fontFamily: Fonts.regular, color: Colors.muted,

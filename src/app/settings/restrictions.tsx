@@ -206,7 +206,7 @@ export default function RestrictionsScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  content: { padding: Spacing.xl, gap: 12 },
+  content: { padding: Spacing.lg, gap: 12 },
 
   statusCard: {
     flexDirection: 'row', alignItems: 'center', gap: 14,

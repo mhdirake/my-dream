@@ -68,7 +68,7 @@ export default function GiftsScreen() {
         setGifts(giftList);
         setCoins(profile.coins ?? 0);
       })
-      .catch(() => {})
+      .catch(() => toast.error('خطا در بارگذاری هدایا'))
       .finally(() => setLoading(false));
   }, [session?.accessToken]);
 
@@ -256,7 +256,7 @@ export default function GiftsScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
-  content: { padding: Spacing.xl },
+  content: { padding: Spacing.lg },
 
   header: {
     height: 54, flexDirection: 'row',

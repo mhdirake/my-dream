@@ -184,7 +184,7 @@ export default function ReferralsScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  content: { padding: Spacing.xl, gap: 12 },
+  content: { padding: Spacing.lg, gap: 12 },
 
   codeCard: { gap: 8, alignItems: 'center' },
   codeLabel: { fontSize: 11, color: Colors.muted, fontFamily: Fonts.regular },

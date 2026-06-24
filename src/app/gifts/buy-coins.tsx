@@ -135,7 +135,7 @@ export default function BuyCoinsScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
-  content: { padding: Spacing.xl, gap: 12 },
+  content: { padding: Spacing.lg, gap: 12 },
 
   header: { alignItems: 'center', marginBottom: 8 },
   coinWrap: {

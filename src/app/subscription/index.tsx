@@ -246,7 +246,7 @@ const styles = StyleSheet.create({
   periodDiscount: { fontSize: 9.5, fontFamily: Fonts.regular, color: Colors.muted, marginTop: 2 },
   periodDiscountActive: { color: Colors.gold },
 
-  content: { padding: Spacing.xl, gap: 16 },
+  content: { padding: Spacing.lg, gap: 16 },
 
   planCard: {
     borderRadius: Radius.xl, padding: Spacing.xl,

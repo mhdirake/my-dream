@@ -9,7 +9,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Flag } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator, Alert, ScrollView,
+  ActivityIndicator, ScrollView,
   StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -50,16 +50,7 @@ export default function ReportUserScreen() {
       toast.error('یک دلیل انتخاب کن');
       return;
     }
-
-    const target = params.userName ?? `کاربر #${params.userId}`;
-    const msg = isMessageReport
-      ? `گزارش پیام از ${target} ثبت می‌شود. پس از بررسی اقدام لازم انجام خواهد شد.`
-      : `گزارش شما درباره ${target} ثبت می‌شود. پس از بررسی اقدام لازم انجام خواهد شد.`;
-
-    Alert.alert('ارسال گزارش', msg, [
-      { text: 'لغو', style: 'cancel' },
-      { text: 'ارسال', style: 'destructive', onPress: doSubmit },
-    ]);
+    doSubmit();
   };
 
   const doSubmit = async () => {
@@ -195,7 +186,7 @@ export default function ReportUserScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  content: { padding: Spacing.xl, gap: 10 },
+  content: { padding: Spacing.lg, gap: 10 },
 
   userRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   userTxt: { fontSize: 13, color: Colors.inkSoft, fontFamily: Fonts.regular, flex: 1 },

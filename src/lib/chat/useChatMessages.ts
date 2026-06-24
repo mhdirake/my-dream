@@ -1,14 +1,49 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Message, chatApi } from '@/lib/api/chat';
-import { useCentrifugo } from './useCentrifugo';
+import { useCallback, useEffect, useState } from 'react';
+import { Message, Reaction, chatApi } from '@/lib/api/chat';
+import { useCentrifugoCtx } from './CentrifugoContext';
+
+// Go service publishes PascalCase until JSON tags are fixed on the backend.
+// This normalizer accepts both PascalCase and snake_case so the fix is backward-compatible.
+function normalizeMessage(raw: Record<string, unknown>): Message {
+  const str = (a: unknown, b: unknown, fallback = '') =>
+    ((a ?? b ?? fallback) as string);
+  const num = (a: unknown, b: unknown) =>
+    Number(a ?? b ?? 0);
+  const bool = (a: unknown, b: unknown) =>
+    Boolean(a ?? b ?? false);
+
+  return {
+    message_id:          str(raw.message_id,          raw.MessageID),
+    client_message_id:   str(raw.client_message_id,   raw.ClientMessageID),
+    conversation_id:     str(raw.conversation_id,      raw.ConversationID),
+    conversation_type:   str(raw.conversation_type,    raw.ConversationType) as 'direct' | 'group',
+    sender_user_id:      num(raw.sender_user_id,       raw.SenderUserID),
+    message_type:        str(raw.message_type,         raw.MessageType) as Message['message_type'],
+    body_text:           str(raw.body_text,            raw.BodyText),
+    caption:             str(raw.caption,              raw.Caption),
+    media_url:           str(raw.media_url,            raw.MediaURL),
+    sticker_id:          str(raw.sticker_id,           raw.StickerID),
+    gif_id:              str(raw.gif_id,               raw.GIFID),
+    gift_id:             num(raw.gift_id,              raw.GiftID),
+    sent_gift_id:        num(raw.sent_gift_id,         raw.SentGiftID),
+    reply_to_message_id: (raw.reply_to_message_id ?? raw.ReplyToMessageID ?? null) as string | null,
+    status:              str(raw.status,               raw.Status, 'sent'),
+    is_edited:           bool(raw.is_edited,           raw.IsEdited),
+    is_deleted:          bool(raw.is_deleted,          raw.IsDeleted),
+    created_at:          str(raw.created_at,           raw.CreatedAt),
+    reactions:           (raw.reactions ?? raw.Reactions ?? []) as Reaction[],
+    my_reaction:         (raw.my_reaction ?? raw.MyReaction ?? null) as string | null,
+    delivered_at:        (raw.delivered_at ?? raw.DeliveredAt ?? null) as string | null,
+    read_at:             (raw.read_at ?? raw.ReadAt ?? null) as string | null,
+  };
+}
+
 function uuidv4(): string {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
     const r = (Math.random() * 16) | 0;
     return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
   });
 }
-
-const POLL_INTERVAL = 5000;
 
 export interface ChatMessagesHook {
   messages: Message[];
@@ -20,6 +55,11 @@ export interface ChatMessagesHook {
   hasMore: boolean;
   deleteMsg: (messageId: string) => Promise<void>;
   editMsg: (messageId: string, newBody: string) => Promise<void>;
+  setReaction: (messageId: string, reaction: string) => Promise<void>;
+  removeReaction: (messageId: string) => Promise<void>;
+  loadContext: (messageId: string) => Promise<string | null>;
+  highlightId: string | null;
+  clearHighlight: () => void;
 }
 
 export function useChatMessages(
@@ -31,13 +71,15 @@ export function useChatMessages(
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const realtimeRef = useRef(false);
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+
+  const { isConnectedRef, subscribeConversation, onConnect } = useCentrifugoCtx();
 
   const fetchMessages = useCallback(async () => {
     if (!token || !conversationId) return;
     try {
       const data = await chatApi.getMessages(token, conversationId);
-      setMessages(data);
+      setMessages([...data].reverse());
       setHasMore(data.length >= 50);
     } catch {
       // silent
@@ -46,13 +88,11 @@ export function useChatMessages(
 
   useEffect(() => {
     fetchMessages().finally(() => setLoading(false));
-
-    const id = setInterval(() => {
-      if (!realtimeRef.current) fetchMessages();
-    }, POLL_INTERVAL);
-
-    return () => clearInterval(id);
   }, [fetchMessages]);
+
+  useEffect(() => {
+    return onConnect(() => fetchMessages());
+  }, [onConnect, fetchMessages]);
 
   const loadMore = useCallback(async () => {
     if (!token || !conversationId || messages.length === 0) return;
@@ -61,7 +101,7 @@ export function useChatMessages(
     try {
       const older = await chatApi.getMessages(token, conversationId, oldest);
       if (older.length === 0) { setHasMore(false); return; }
-      setMessages(prev => [...older, ...prev]);
+      setMessages(prev => [...[...older].reverse(), ...prev]);
       setHasMore(older.length >= 50);
     } catch {
       // silent
@@ -69,34 +109,66 @@ export function useChatMessages(
   }, [token, conversationId, messages]);
 
   const pushMessage = useCallback((msg: Message) => {
-    realtimeRef.current = true;
     setMessages(prev => {
-      // deduplicate by message_id or client_message_id
       if (prev.some(m => m.message_id === msg.message_id)) return prev;
-      // replace optimistic placeholder that has matching client_message_id
       const withoutOptimistic = prev.filter(m => m.client_message_id !== msg.client_message_id);
       return [...withoutOptimistic, msg];
     });
   }, []);
 
-  const { subscribeConversation } = useCentrifugo({ authToken: token || undefined });
-
+  // Centrifugo conversation channel
   useEffect(() => {
     if (!conversationPublicId) return;
-    const unsubscribe = subscribeConversation(conversationPublicId, data => {
-      if (data.event === 'message.created' && data.payload) {
-        pushMessage(data.payload as Message);
-      } else if (data.event === 'message.deleted' && data.payload) {
-        const msg = data.payload as { message_id: string };
+    return subscribeConversation(conversationPublicId, data => {
+      const raw = data.payload as Record<string, unknown> | undefined;
+      if (!raw) return;
+
+      if (data.event === 'message.created') {
+        pushMessage(normalizeMessage(raw));
+
+      } else if (data.event === 'message.deleted') {
+        const id = (raw.message_id ?? raw.MessageID) as string;
         setMessages(prev =>
-          prev.map(m => m.message_id === msg.message_id ? { ...m, is_deleted: true } : m),
+          prev.map(m => m.message_id === id ? { ...m, is_deleted: true } : m),
         );
-      } else if (data.event === 'message.updated' && data.payload) {
-        const updated = data.payload as Message;
+
+      } else if (data.event === 'message.updated') {
+        const updated = normalizeMessage(raw);
         setMessages(prev => prev.map(m => m.message_id === updated.message_id ? updated : m));
+
+      } else if (data.event === 'message.reaction') {
+        const msgId = (raw.message_id ?? raw.MessageID) as string;
+        const reaction = (raw.reaction ?? raw.Reaction) as string;
+        const userId = Number(raw.user_id ?? raw.UserID);
+        const action = (raw.action ?? raw.Action) as 'set' | 'remove';
+        setMessages(prev => prev.map(m => {
+          if (m.message_id !== msgId) return m;
+          const existing = m.reactions ?? [];
+          let next: Reaction[];
+          if (action === 'remove') {
+            next = existing.filter(r => !(r.reaction === reaction && r.user_id === userId));
+          } else {
+            const already = existing.some(r => r.reaction === reaction && r.user_id === userId);
+            next = already ? existing : [...existing, { reaction, user_id: userId }];
+          }
+          return { ...m, reactions: next };
+        }));
+
+      } else if (data.event === 'message.read') {
+        const msgId = (raw.message_id ?? raw.MessageID) as string;
+        const readAt = (raw.read_at ?? raw.ReadAt) as string;
+        setMessages(prev => prev.map(m =>
+          m.message_id === msgId ? { ...m, read_at: readAt } : m,
+        ));
+
+      } else if (data.event === 'message.delivered') {
+        const msgId = (raw.message_id ?? raw.MessageID) as string;
+        const deliveredAt = (raw.delivered_at ?? raw.DeliveredAt) as string;
+        setMessages(prev => prev.map(m =>
+          m.message_id === msgId ? { ...m, delivered_at: deliveredAt } : m,
+        ));
       }
     });
-    return unsubscribe;
   }, [conversationPublicId, subscribeConversation, pushMessage]);
 
   const send = useCallback(async (body: string, myId: number) => {
@@ -123,17 +195,17 @@ export function useChatMessages(
       is_edited: false,
       is_deleted: false,
       created_at: new Date().toISOString(),
+      reactions: [],
+      my_reaction: null,
     };
 
     setMessages(prev => [...prev, optimistic]);
 
     try {
       await chatApi.sendMessage(token, conversationId, body, clientMessageId);
-      if (!realtimeRef.current) {
+      if (!isConnectedRef.current) {
         const fresh = await chatApi.getMessages(token, conversationId);
-        setMessages(fresh);
-      } else {
-        // server push via Centrifugo will replace optimistic via pushMessage
+        setMessages([...fresh].reverse());
       }
     } catch (err) {
       setMessages(prev => prev.filter(m => m.client_message_id !== clientMessageId));
@@ -159,10 +231,73 @@ export function useChatMessages(
     try {
       await chatApi.editMessage(token, conversationId, messageId, newBody);
     } catch {
-      // rollback — re-fetch to get original
       fetchMessages();
     }
   }, [token, conversationId, fetchMessages]);
 
-  return { messages, loading, sending, send, pushMessage, loadMore, hasMore, deleteMsg, editMsg };
+  const setReaction = useCallback(async (messageId: string, reaction: string) => {
+    // optimistic: toggle
+    setMessages(prev => prev.map(m => {
+      if (m.message_id !== messageId) return m;
+      const myPrev = m.my_reaction;
+      const existing = m.reactions ?? [];
+      let next: Reaction[];
+      if (myPrev === reaction) {
+        // remove
+        next = existing.filter(r => r.reaction !== reaction || r.user_id !== -1);
+        return { ...m, reactions: next, my_reaction: null };
+      }
+      if (myPrev) {
+        next = existing.filter(r => r.reaction !== myPrev);
+      } else {
+        next = existing;
+      }
+      return { ...m, reactions: [...next, { reaction, user_id: -1 }], my_reaction: reaction };
+    }));
+
+    try {
+      await chatApi.setReaction(token, conversationId, messageId, reaction);
+    } catch {
+      fetchMessages();
+    }
+  }, [token, conversationId, fetchMessages]);
+
+  const removeReaction = useCallback(async (messageId: string) => {
+    setMessages(prev => prev.map(m => {
+      if (m.message_id !== messageId) return m;
+      const myPrev = m.my_reaction;
+      const next = (m.reactions ?? []).filter(r => r.reaction !== myPrev);
+      return { ...m, reactions: next, my_reaction: null };
+    }));
+    try {
+      await chatApi.removeReaction(token, conversationId, messageId);
+    } catch {
+      fetchMessages();
+    }
+  }, [token, conversationId, fetchMessages]);
+
+  const loadContext = useCallback(async (messageId: string): Promise<string | null> => {
+    try {
+      const res = await chatApi.getMessageContext(token, conversationId, messageId);
+      if (res.items?.length) {
+        setMessages([...res.items].reverse());
+        setHasMore(true);
+        setHighlightId(messageId);
+        return messageId;
+      }
+    } catch {
+      // silent
+    }
+    return null;
+  }, [token, conversationId]);
+
+  const clearHighlight = useCallback(() => setHighlightId(null), []);
+
+  return {
+    messages, loading, sending,
+    send, pushMessage, loadMore, hasMore,
+    deleteMsg, editMsg,
+    setReaction, removeReaction,
+    loadContext, highlightId, clearHighlight,
+  };
 }

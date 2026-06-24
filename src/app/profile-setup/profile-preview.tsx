@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   editBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   editTxt: { fontSize: 12.5, fontFamily: Fonts.semiBold, color: Colors.accent },
-  content: { padding: Spacing.xl },
+  content: { padding: Spacing.lg },
   completionCard: { marginBottom: Spacing.lg },
   completionRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   completionLabel: { fontSize: 11, color: Colors.muted, fontFamily: Fonts.regular, marginBottom: 4 },

@@ -1,13 +1,14 @@
 import { Avatar } from '@/components/ui/Avatar';
-import { Colors, Fonts, Radius } from '@/constants/colors';
+import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { Conversation, ConversationUser, chatApi } from '@/lib/api/chat';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { toast } from '@/lib/toast';
 import { useConversations } from '@/lib/chat/useConversations';
+import * as Notifications from 'expo-notifications';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { useFocusEffect } from 'expo-router';
-import { Check, Clock, PenLine, Search, X } from 'lucide-react-native';
-import { useCallback, useState } from 'react';
+import { Check, Clock, Search, X } from 'lucide-react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -15,6 +16,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -39,16 +41,36 @@ type Tab = 'all' | 'requests';
 export default function ChatScreen() {
   const { session, user } = useAuth();
   const { bottom } = useSafeAreaInsets();
+  const myId = user?.id ?? -1;
+
+  const handleNewMessage = useCallback(async (conv: Conversation) => {
+    const other = conv.first_user_id === myId ? conv.second_user : conv.first_user;
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: other.first_name,
+        body: conv.last_message_preview ?? 'پیام جدید 💬',
+        data: { conversationId: conv.id, publicId: conv.public_id, name: other.first_name },
+      },
+      trigger: null,
+    });
+  }, [myId]);
+
   const { conversations, pendingIncoming, pendingOutgoing, loading, refreshing, refresh, resetUnread } = useConversations(
     session?.accessToken,
+    handleNewMessage,
   );
   const [tab, setTab] = useState<Tab>('all');
   const [responding, setResponding] = useState<number | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const searchRef = useRef<TextInput>(null);
 
-  // Soft refresh when returning from a chat screen
-  useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
-
-  const myId = user?.id ?? -1;
+  useEffect(() => {
+    if (searchOpen) {
+      const t = setTimeout(() => searchRef.current?.focus(), 50);
+      return () => clearTimeout(t);
+    }
+  }, [searchOpen]);
 
   function otherUser(c: Conversation): ConversationUser {
     return c.first_user_id === myId ? c.second_user : c.first_user;
@@ -83,7 +105,7 @@ export default function ChatScreen() {
         refresh();
       }
     } catch {
-      // ignore
+      toast.error(action === 'accepted' ? 'خطا در پذیرش درخواست' : 'خطا در رد درخواست');
     } finally {
       setResponding(null);
     }
@@ -93,22 +115,53 @@ export default function ChatScreen() {
   const activeConversations = conversations.filter(
     c => c.status === 'accepted' || c.status === 'locked',
   );
-  const displayed = tab === 'all' ? activeConversations : requestsList;
+
+  const q = query.trim().toLowerCase();
+  const filtered = (tab === 'all' ? activeConversations : requestsList).filter(c => {
+    if (!q) return true;
+    const other = otherUser(c);
+    return (other.first_name ?? '').toLowerCase().includes(q) ||
+           (other.last_name ?? '').toLowerCase().includes(q) ||
+           (other.username ?? '').toLowerCase().includes(q);
+  });
+  const displayed = filtered;
   const pendingCount = requestsList.length;
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>پیام‌ها</Text>
-        <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.iconBtn} activeOpacity={0.7}>
-            <Search size={17} color={Colors.ink} strokeWidth={2} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn} activeOpacity={0.7}>
-            <PenLine size={17} color={Colors.ink} strokeWidth={2} />
-          </TouchableOpacity>
-        </View>
+        {searchOpen ? (
+          <>
+            <TextInput
+              ref={searchRef}
+              style={styles.searchInput}
+              placeholder="جستجو در مکالمات…"
+              placeholderTextColor={Colors.muted}
+              value={query}
+              onChangeText={setQuery}
+              returnKeyType="search"
+            />
+            <TouchableOpacity
+              style={styles.iconBtn}
+              activeOpacity={0.7}
+              onPress={() => { setSearchOpen(false); setQuery(''); }}
+            >
+              <X size={17} color={Colors.ink} strokeWidth={2} />
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            <Text style={styles.headerTitle}>پیام‌ها</Text>
+            <TouchableOpacity
+              style={styles.iconBtn}
+              activeOpacity={0.7}
+              onPress={() => setSearchOpen(true)}
+            >
+              <Search size={17} color={Colors.ink} strokeWidth={2} />
+            </TouchableOpacity>
+          </>
+        )}
       </View>
 
       {/* Tabs */}
@@ -144,15 +197,25 @@ export default function ChatScreen() {
         </View>
       ) : displayed.length === 0 ? (
         <View style={styles.center}>
-          <Text style={styles.emptyEmoji}>{tab === 'all' ? '💬' : '📨'}</Text>
-          <Text style={styles.emptyTxt}>
-            {tab === 'all' ? 'هنوز مکالمه‌ای نداری' : 'درخواست جدیدی نداری'}
-          </Text>
-          <Text style={styles.emptySub}>
-            {tab === 'all'
-              ? 'وقتی کسی قبول کنه اینجا میاد'
-              : 'درخواست‌های جدید اینجا نشون داده میشن'}
-          </Text>
+          {q ? (
+            <>
+              <Text style={styles.emptyEmoji}>🔍</Text>
+              <Text style={styles.emptyTxt}>نتیجه‌ای پیدا نشد</Text>
+              <Text style={styles.emptySub}>«{query}» در هیچ مکالمه‌ای نیست</Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.emptyEmoji}>{tab === 'all' ? '💬' : '📨'}</Text>
+              <Text style={styles.emptyTxt}>
+                {tab === 'all' ? 'هنوز مکالمه‌ای نداری' : 'درخواست جدیدی نداری'}
+              </Text>
+              <Text style={styles.emptySub}>
+                {tab === 'all'
+                  ? 'وقتی کسی قبول کنه اینجا میاد'
+                  : 'درخواست‌های جدید اینجا نشون داده میشن'}
+              </Text>
+            </>
+          )}
         </View>
       ) : (
         <ScrollView
@@ -236,9 +299,14 @@ function ActiveRow({
           <View style={styles.chatTopRight}>
             <Text style={[styles.chatTime, hasUnread && styles.chatTimeUnread]}>{lastTime}</Text>
             {hasUnread && (
-              <View style={styles.unreadBadge}>
+              <LinearGradient
+                colors={Colors.gradColors}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.unreadBadge}
+              >
                 <Text style={styles.unreadTxt}>{unread > 99 ? '۹۹+' : String(unread)}</Text>
-              </View>
+              </LinearGradient>
             )}
           </View>
         </View>
@@ -344,10 +412,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
+    gap: 8,
     justifyContent: 'space-between',
   },
   headerTitle: { fontSize: 18, fontFamily: Fonts.extraBold, color: Colors.ink },
-  headerActions: { flexDirection: 'row', gap: 8 },
+  searchInput: {
+    flex: 1,
+    height: 36,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 14,
+    fontSize: 14,
+    fontFamily: Fonts.regular,
+    color: Colors.ink,
+    textAlign: 'right',
+    borderWidth: 1,
+    borderColor: Colors.hair,
+  },
   iconBtn: {
     width: 36,
     height: 36,
@@ -399,7 +480,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
 
-  list: { paddingHorizontal: 10, paddingBottom: 100 },
+  list: { paddingHorizontal: Spacing.lg, paddingBottom: 100 },
 
   // Active row
   chatRow: {
@@ -408,7 +489,10 @@ const styles = StyleSheet.create({
     gap: 11,
     padding: 11,
     borderRadius: Radius.lg,
-    marginBottom: 2,
+    marginBottom: 6,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.hair,
   },
   chatInfo: { flex: 1 },
   chatTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
@@ -421,7 +505,6 @@ const styles = StyleSheet.create({
   chatLastUnread: { color: Colors.inkSoft, fontFamily: Fonts.semiBold },
   unreadBadge: {
     minWidth: 18, height: 18, borderRadius: 9,
-    backgroundColor: Colors.accent,
     alignItems: 'center', justifyContent: 'center',
     paddingHorizontal: 5,
   },

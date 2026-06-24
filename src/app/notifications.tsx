@@ -263,12 +263,12 @@ const styles = StyleSheet.create({
 
   groupHeader: {
     fontSize: 10.5, fontFamily: Fonts.extraBold, color: Colors.muted,
-    paddingHorizontal: Spacing.xl, paddingTop: 20, paddingBottom: 6,
+    paddingHorizontal: Spacing.lg, paddingTop: 20, paddingBottom: 6,
   },
 
   row: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 12,
-    paddingHorizontal: Spacing.xl, paddingVertical: 14,
+    paddingHorizontal: Spacing.lg, paddingVertical: 14,
     borderBottomWidth: 1, borderBottomColor: Colors.hair,
     position: 'relative',
   },

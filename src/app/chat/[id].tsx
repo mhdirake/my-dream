@@ -2,21 +2,23 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { chatApi } from '@/lib/api/chat';
 import { useChatMessages } from '@/lib/chat/useChatMessages';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { toast } from '@/lib/toast';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
-  ArrowLeft, CheckCheck, Clock,
-  Lock, MoreVertical, Pencil, Send, User, X,
+  ArrowLeft, Check, CheckCheck, Clock,
+  Lock, MoreVertical, Pencil, Search, Send, User, X,
 } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
+  ScrollView,
   Share,
   StyleSheet,
   Text,
@@ -31,6 +33,14 @@ function formatTime(iso: string) {
 }
 
 const TYPING_DEBOUNCE = 3000;
+
+function formatLastSeen(iso: string): string {
+  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (diff < 60) return 'همین الان';
+  if (diff < 3600) return `${Math.floor(diff / 60)} دقیقه پیش`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} ساعت پیش`;
+  return `${Math.floor(diff / 86400)} روز پیش`;
+}
 
 export default function ConversationScreen() {
   const { id, publicId, name, avatar, status, otherId } = useLocalSearchParams<{
@@ -50,10 +60,28 @@ export default function ConversationScreen() {
   const {
     messages, loading, sending, send,
     loadMore, hasMore, deleteMsg, editMsg,
+    setReaction, removeReaction,
+    loadContext, highlightId, clearHighlight,
   } = useChatMessages(conversationId, publicId ?? '', token);
 
   const [text, setText] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [msgMenu, setMsgMenu] = useState<{ id: string; sender: number; body: string; myReaction?: string | null } | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  // Presence
+  const [isOnline, setIsOnline] = useState(false);
+  const [lastSeen, setLastSeen] = useState<string | null>(null);
+  const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Message search
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<import('@/lib/api/chat').Message[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const searchRef = useRef<TextInput>(null);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const listRef = useRef<FlatList>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const markedReadRef = useRef(false);
@@ -75,14 +103,18 @@ export default function ConversationScreen() {
     }
   }, [messages, token, conversationId, myId]);
 
-  // Auto-scroll to bottom when new messages arrive
-  const prevLengthRef = useRef(0);
+  // Auto-scroll to bottom when a new message arrives (not when old ones are prepended)
+  const lastMsgIdRef = useRef<string | null>(null);
+  const initialScrollDoneRef = useRef(false);
+  const loadingMoreRef = useRef(false);
   useEffect(() => {
-    if (messages.length > prevLengthRef.current) {
-      prevLengthRef.current = messages.length;
-      listRef.current?.scrollToOffset({ offset: 0, animated: true });
-    }
-  }, [messages.length]);
+    const last = messages[messages.length - 1];
+    if (!last || last.message_id === lastMsgIdRef.current) return;
+    const animated = initialScrollDoneRef.current;
+    lastMsgIdRef.current = last.message_id;
+    initialScrollDoneRef.current = true;
+    listRef.current?.scrollToEnd({ animated });
+  }, [messages]);
 
   // Debounced typing signal
   const sendTypingSignal = useCallback(() => {
@@ -98,10 +130,72 @@ export default function ConversationScreen() {
     if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
   }, []);
 
+  // Presence: fetch on open, heartbeat every 30s
+  useEffect(() => {
+    if (!token || !otherId) return;
+    const uid = Number(otherId);
+    chatApi.getPresence(token, uid)
+      .then(p => { if (p) { setIsOnline(p.is_online); setLastSeen(p.last_seen_at ?? null); } })
+      .catch(() => {});
+    chatApi.heartbeat(token).catch(() => {});
+    heartbeatRef.current = setInterval(() => {
+      chatApi.heartbeat(token).catch(() => {});
+    }, 30_000);
+    return () => {
+      if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+    };
+  }, [token, otherId]);
+
+  // Search debounce
+  useEffect(() => {
+    if (!searchOpen) { setSearchResults([]); return; }
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    if (!searchQuery.trim()) { setSearchResults([]); return; }
+    searchDebounceRef.current = setTimeout(async () => {
+      setSearchLoading(true);
+      try {
+        const res = await chatApi.searchMessages(token, conversationId, searchQuery.trim());
+        setSearchResults((res.items ?? []).reverse());
+      } catch {
+        // silent
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 400);
+    return () => { if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current); };
+  }, [searchQuery, searchOpen, token, conversationId]);
+
+  // Focus search input when panel opens
+  useEffect(() => {
+    if (searchOpen) {
+      const t = setTimeout(() => searchRef.current?.focus(), 80);
+      return () => clearTimeout(t);
+    }
+  }, [searchOpen]);
+
+  // Scroll to highlighted message
+  useEffect(() => {
+    if (!highlightId) return;
+    const idx = messages.findIndex(m => m.message_id === highlightId);
+    if (idx >= 0) {
+      setTimeout(() => listRef.current?.scrollToIndex({ index: idx, animated: true, viewPosition: 0.5 }), 200);
+    }
+    const t = setTimeout(clearHighlight, 2000);
+    return () => clearTimeout(t);
+  }, [highlightId, messages, clearHighlight]);
+
   const handleTextChange = (val: string) => {
     setText(val);
     if (val.length > 0) sendTypingSignal();
   };
+
+  const handleScroll = useCallback(({ nativeEvent }: { nativeEvent: { contentOffset: { y: number } } }) => {
+    if (!hasMore || loadingMoreRef.current) return;
+    if (nativeEvent.contentOffset.y < 100) {
+      loadingMoreRef.current = true;
+      loadMore().finally(() => { loadingMoreRef.current = false; });
+    }
+  }, [hasMore, loadMore]);
 
   const cancelEdit = useCallback(() => {
     setEditingId(null);
@@ -118,7 +212,7 @@ export default function ConversationScreen() {
       try {
         await editMsg(editingId, body);
       } catch {
-        // rollback already handled inside editMsg
+        toast.error('ویرایش پیام ناموفق بود');
       }
       return;
     }
@@ -127,67 +221,15 @@ export default function ConversationScreen() {
       await send(body, myId);
     } catch {
       setText(body);
+      toast.error('ارسال پیام ناموفق بود');
     }
   };
 
-  const handleMore = () => {
-    Alert.alert(name ?? '...', undefined, [
-      otherId
-        ? { text: 'مشاهده پروفایل', onPress: () => router.push({ pathname: '/user/[id]', params: { id: otherId } } as never) }
-        : undefined,
-      { text: 'گزارش', onPress: () => router.push({ pathname: '/report-user', params: { userId: otherId ?? '', userName: name ?? '' } } as never) },
-      { text: 'انصراف', style: 'cancel' },
-    ].filter(Boolean) as any);
-  };
+  const handleMore = () => setMenuOpen(true);
 
-  const handleMessageLongPress = useCallback((messageId: string, senderId: number, bodyText: string) => {
-    const isMine = senderId === myId;
-    if (isMine) {
-      Alert.alert('پیام', undefined, [
-        {
-          text: 'ویرایش',
-          onPress: () => { setEditingId(messageId); setText(bodyText); },
-        },
-        {
-          text: 'حذف',
-          style: 'destructive',
-          onPress: () =>
-            Alert.alert('حذف پیام', 'پیام برای همه حذف می‌شود.', [
-              { text: 'لغو', style: 'cancel' },
-              { text: 'حذف', style: 'destructive', onPress: () => deleteMsg(messageId) },
-            ]),
-        },
-        bodyText
-          ? { text: 'اشتراک‌گذاری', onPress: () => Share.share({ message: bodyText }).catch(() => {}) }
-          : undefined,
-        { text: 'انصراف', style: 'cancel' },
-      ].filter(Boolean) as any);
-    } else {
-      Alert.alert('پیام', undefined, [
-        {
-          text: 'گزارش پیام',
-          style: 'destructive',
-          onPress: () => router.push({
-            pathname: '/report-user',
-            params: {
-              userId: otherId ?? String(senderId),
-              userName: name ?? '',
-              conversationPublicId: publicId ?? '',
-              messageId,
-              context: 'message',
-            },
-          } as never),
-        },
-        bodyText
-          ? { text: 'اشتراک‌گذاری', onPress: () => Share.share({ message: bodyText }).catch(() => {}) }
-          : undefined,
-        { text: 'انصراف', style: 'cancel' },
-      ].filter(Boolean) as any);
-    }
-  }, [myId, otherId, name, publicId, deleteMsg]);
-
-  // Reversed list — newest at bottom (FlatList inverted renders bottom → top)
-  const reversed = [...messages].reverse();
+  const handleMessageLongPress = useCallback((messageId: string, senderId: number, bodyText: string, myReaction?: string | null) => {
+    setMsgMenu({ id: messageId, sender: senderId, body: bodyText, myReaction });
+  }, []);
 
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
@@ -212,19 +254,45 @@ export default function ConversationScreen() {
                 <User size={16} color={Colors.muted} strokeWidth={1.5} />
               </View>
             )}
+            {isOnline && <View style={styles.onlineDot} />}
           </View>
           <View>
             <Text style={styles.headerName}>{name ?? '...'}</Text>
-            {isPending && (
-              <Text style={styles.headerSub}>در انتظار تأیید</Text>
-            )}
+            <Text style={styles.headerSub}>
+              {isPending ? 'در انتظار تأیید' :
+               isOnline ? 'آنلاین' :
+               lastSeen ? `آخرین بازدید: ${formatLastSeen(lastSeen)}` : ''}
+            </Text>
           </View>
         </Pressable>
 
-        <TouchableOpacity style={styles.iconBtn} onPress={handleMore}>
-          <MoreVertical size={20} color={Colors.ink} strokeWidth={2} />
-        </TouchableOpacity>
+        <View style={styles.headerIcons}>
+          <TouchableOpacity style={styles.iconBtn} onPress={() => setSearchOpen(s => !s)}>
+            <Search size={18} color={searchOpen ? Colors.accent : Colors.ink} strokeWidth={2} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.iconBtn} onPress={handleMore}>
+            <MoreVertical size={20} color={Colors.ink} strokeWidth={2} />
+          </TouchableOpacity>
+        </View>
       </View>
+
+      {/* Search panel */}
+      {searchOpen && (
+        <View style={styles.searchPanel}>
+          <TouchableOpacity onPress={() => { setSearchOpen(false); setSearchQuery(''); }}>
+            <X size={18} color={Colors.muted} strokeWidth={2} />
+          </TouchableOpacity>
+          <TextInput
+            ref={searchRef}
+            style={styles.searchInput}
+            placeholder="جستجو در گفتگو..."
+            placeholderTextColor={Colors.muted}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            returnKeyType="search"
+          />
+        </View>
+      )}
 
       <KeyboardAvoidingView
         style={styles.flex}
@@ -235,55 +303,134 @@ export default function ConversationScreen() {
           <View style={styles.center}>
             <ActivityIndicator color={Colors.accent} />
           </View>
+        ) : searchOpen && searchQuery.trim() ? (
+          /* Search results */
+          searchLoading ? (
+            <View style={styles.center}><ActivityIndicator color={Colors.accent} /></View>
+          ) : searchResults.length === 0 ? (
+            <View style={styles.searchEmpty}>
+              <Text style={styles.searchEmptyTxt}>نتیجه‌ای پیدا نشد</Text>
+            </View>
+          ) : (
+            <ScrollView style={styles.searchResults} keyboardShouldPersistTaps="handled">
+              {searchResults.map(item => (
+                <TouchableOpacity
+                  key={item.message_id}
+                  style={styles.searchResultItem}
+                  onPress={async () => {
+                    setSearchOpen(false);
+                    setSearchQuery('');
+                    await loadContext(item.message_id);
+                  }}
+                >
+                  <Text style={styles.searchResultBody} numberOfLines={2}>{item.body_text || item.caption}</Text>
+                  <Text style={styles.searchResultTime}>{formatTime(item.created_at)}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          )
         ) : (
           <FlatList
             ref={listRef}
-            data={reversed}
-            inverted
+            data={messages}
             keyExtractor={m => m.message_id}
+            onScroll={handleScroll}
+            scrollEventThrottle={200}
+            maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
             renderItem={({ item }) => {
               if (item.is_deleted) return null;
               const isMine = item.sender_user_id === myId;
               const isSending = item.status === 'sending';
+              const isHighlighted = item.message_id === highlightId;
+
+              // Tick icon: clock=sending, single check=sent, double grey=delivered, double accent=read
+              const TickIcon = isSending ? Clock : item.read_at ? CheckCheck : item.delivered_at ? CheckCheck : item.status === 'sent' ? Check : CheckCheck;
+              const tickColor = isSending ? 'rgba(255,255,255,0.4)'
+                : item.read_at ? '#fff'
+                : item.delivered_at ? 'rgba(255,255,255,0.55)'
+                : 'rgba(255,255,255,0.55)';
+
+              // Reaction summary: group by emoji
+              const reactionGroups: Record<string, number> = {};
+              for (const r of item.reactions ?? []) {
+                reactionGroups[r.reaction] = (reactionGroups[r.reaction] ?? 0) + 1;
+              }
+              const reactionEntries: [string, number][] = Object.entries(reactionGroups);
+
+              const BubbleContainer = isMine ? View : LinearGradient;
+              const gradProps = isMine ? {} : {
+                colors: Colors.gradSoftColors,
+                start: { x: 0, y: 0 },
+                end: { x: 1, y: 1 },
+              };
+              const bubbleContent = (
+                <>
+                  {item.message_type !== 'text' && item.message_type !== 'template_first_message' && (
+                    <Text style={[styles.msgTypeBadge, isMine && { color: 'rgba(255,255,255,0.7)' }]}>
+                      {item.message_type === 'gift' ? '🎁' :
+                       item.message_type === 'image' ? '🖼' :
+                       item.message_type === 'voice' ? '🎤' :
+                       item.message_type === 'sticker' ? '😊' :
+                       item.message_type === 'gif' ? 'GIF' : ''}
+                    </Text>
+                  )}
+                  <Text style={[styles.bubbleTxt, isMine ? styles.bubbleTxtMine : styles.bubbleTxtTheirs]}>
+                    {item.body_text || item.caption}
+                  </Text>
+                  {reactionEntries.length > 0 && (
+                    <View style={styles.reactionsRow}>
+                      {reactionEntries.map(([emoji, count]) => (
+                        <TouchableOpacity
+                          key={emoji}
+                          style={[
+                            styles.reactionChip,
+                            isMine ? styles.reactionChipOnMine : styles.reactionChipOnTheirs,
+                            item.my_reaction === emoji && styles.reactionChipActive,
+                          ]}
+                          onPress={() => {
+                            if (item.my_reaction === emoji) removeReaction(item.message_id);
+                            else setReaction(item.message_id, emoji);
+                          }}
+                        >
+                          <Text style={styles.reactionEmoji}>{emoji}</Text>
+                          {count > 1 && (
+                            <Text style={[styles.reactionCount, isMine && styles.reactionCountMine]}>
+                              {count}
+                            </Text>
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+                  <View style={styles.bubbleMeta}>
+                    <Text style={[styles.bubbleTime, isMine ? styles.bubbleTimeMine : styles.bubbleTimeTheirs]}>
+                      {formatTime(item.created_at)}
+                    </Text>
+                    {isMine && <TickIcon size={10} color={tickColor} strokeWidth={2.5} />}
+                  </View>
+                </>
+              );
 
               return (
-                <View style={[styles.msgWrap, isMine ? styles.msgWrapMine : styles.msgWrapTheirs]}>
+                <View style={[styles.msgWrap, isHighlighted && styles.msgHighlight]}>
                   <Pressable
-                    onLongPress={() => handleMessageLongPress(item.message_id, item.sender_user_id, item.body_text || item.caption)}
+                    style={isMine ? styles.bubblePressMine : styles.bubblePressTheirs}
+                    onLongPress={() => handleMessageLongPress(item.message_id, item.sender_user_id, item.body_text || item.caption, item.my_reaction)}
                     delayLongPress={400}
                   >
-                    <View style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}>
-                      {item.message_type !== 'text' && item.message_type !== 'template_first_message' && (
-                        <Text style={[styles.msgTypeBadge, isMine && { color: 'rgba(255,255,255,0.7)' }]}>
-                          {item.message_type === 'gift' ? '🎁' :
-                           item.message_type === 'image' ? '🖼' :
-                           item.message_type === 'voice' ? '🎤' :
-                           item.message_type === 'sticker' ? '😊' :
-                           item.message_type === 'gif' ? 'GIF' : ''}
-                        </Text>
-                      )}
-                      <Text style={[styles.bubbleTxt, isMine ? styles.bubbleTxtMine : styles.bubbleTxtTheirs]}>
-                        {item.body_text || item.caption}
-                      </Text>
-                      <View style={styles.bubbleMeta}>
-                        <Text style={[styles.bubbleTime, isMine ? styles.bubbleTimeMine : styles.bubbleTimeTheirs]}>
-                          {formatTime(item.created_at)}
-                        </Text>
-                        {isMine && (
-                          isSending
-                            ? <Clock size={10} color="rgba(255,255,255,0.5)" strokeWidth={2} />
-                            : <CheckCheck size={10} color={isMine ? 'rgba(255,255,255,0.65)' : Colors.muted} strokeWidth={2} />
-                        )}
-                      </View>
-                    </View>
+                    <BubbleContainer
+                      {...(gradProps as any)}
+                      style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}
+                    >
+                      {bubbleContent}
+                    </BubbleContainer>
                   </Pressable>
                 </View>
               );
             }}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
-            onEndReached={hasMore ? loadMore : undefined}
-            onEndReachedThreshold={0.3}
+            onScrollToIndexFailed={() => {}}
             ListEmptyComponent={
               canChat ? (
                 <View style={styles.emptyWrap}>
@@ -350,7 +497,7 @@ export default function ConversationScreen() {
                 style={styles.input}
                 value={text}
                 onChangeText={handleTextChange}
-                placeholder={editingId ? 'ویرایش پیام…' : 'پیام بنویس…'}
+                placeholder={editingId ? 'ویرایش' : 'پیام'}
                 placeholderTextColor={Colors.muted}
                 multiline
                 maxLength={2000}
@@ -381,6 +528,119 @@ export default function ConversationScreen() {
           )}
         </View>
       </KeyboardAvoidingView>
+
+      {/* Message long-press menu */}
+      <Modal visible={!!msgMenu} transparent animationType="fade" onRequestClose={() => { setMsgMenu(null); setConfirmDeleteId(null); }}>
+        <Pressable style={styles.menuOverlay} onPress={() => { setMsgMenu(null); setConfirmDeleteId(null); }}>
+          <View style={styles.menuSheet}>
+            <View style={styles.menuHandle} />
+            {confirmDeleteId ? (
+              <>
+                <Text style={styles.msgMenuTitle}>پیام برای همه حذف می‌شود</Text>
+                <TouchableOpacity style={[styles.menuRow, styles.menuRowDanger]} activeOpacity={0.7}
+                  onPress={() => { deleteMsg(confirmDeleteId); setConfirmDeleteId(null); setMsgMenu(null); }}>
+                  <Text style={[styles.menuRowTxt, styles.menuRowTxtDanger]}>تأیید حذف</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.menuRow, styles.menuCancel]} activeOpacity={0.7}
+                  onPress={() => setConfirmDeleteId(null)}>
+                  <Text style={styles.menuCancelTxt}>بازگشت</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                {/* Reaction picker — shown for all messages */}
+                {(() => {
+                  const EMOJIS = ['❤️', '😂', '👍', '😮', '😢', '🔥'];
+                  const curReaction = msgMenu?.myReaction;
+                  return (
+                    <View style={styles.reactionPicker}>
+                      {EMOJIS.map(emoji => (
+                        <TouchableOpacity
+                          key={emoji}
+                          style={[styles.reactionPickerBtn, curReaction === emoji && styles.reactionPickerBtnActive]}
+                          onPress={() => {
+                            if (!msgMenu) return;
+                            if (curReaction === emoji) removeReaction(msgMenu.id);
+                            else setReaction(msgMenu.id, emoji);
+                            setMsgMenu(null);
+                          }}
+                        >
+                          <Text style={styles.reactionPickerEmoji}>{emoji}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  );
+                })()}
+
+                {msgMenu?.sender === myId ? (
+                  <>
+                    <TouchableOpacity style={styles.menuRow} activeOpacity={0.7}
+                      onPress={() => { setEditingId(msgMenu!.id); setText(msgMenu!.body); setMsgMenu(null); }}>
+                      <Text style={styles.menuRowTxt}>ویرایش پیام</Text>
+                    </TouchableOpacity>
+                    {!!msgMenu?.body && (
+                      <TouchableOpacity style={styles.menuRow} activeOpacity={0.7}
+                        onPress={() => { Share.share({ message: msgMenu!.body }).catch(() => {}); setMsgMenu(null); }}>
+                        <Text style={styles.menuRowTxt}>اشتراک‌گذاری</Text>
+                      </TouchableOpacity>
+                    )}
+                    <TouchableOpacity style={[styles.menuRow, styles.menuRowDanger]} activeOpacity={0.7}
+                      onPress={() => setConfirmDeleteId(msgMenu!.id)}>
+                      <Text style={[styles.menuRowTxt, styles.menuRowTxtDanger]}>حذف پیام</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <>
+                    {!!msgMenu?.body && (
+                      <TouchableOpacity style={styles.menuRow} activeOpacity={0.7}
+                        onPress={() => { Share.share({ message: msgMenu!.body }).catch(() => {}); setMsgMenu(null); }}>
+                        <Text style={styles.menuRowTxt}>اشتراک‌گذاری</Text>
+                      </TouchableOpacity>
+                    )}
+                    <TouchableOpacity style={[styles.menuRow, styles.menuRowDanger]} activeOpacity={0.7}
+                      onPress={() => { setMsgMenu(null); setTimeout(() => router.push({ pathname: '/report-user', params: { userId: otherId ?? String(msgMenu?.sender), userName: name ?? '', conversationPublicId: publicId ?? '', messageId: msgMenu?.id, context: 'message' } } as never), 100); }}>
+                      <Text style={[styles.menuRowTxt, styles.menuRowTxtDanger]}>گزارش پیام</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+
+                <TouchableOpacity style={[styles.menuRow, styles.menuCancel]} activeOpacity={0.7}
+                  onPress={() => setMsgMenu(null)}>
+                  <Text style={styles.menuCancelTxt}>انصراف</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* More menu */}
+      <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
+        <Pressable style={styles.menuOverlay} onPress={() => setMenuOpen(false)}>
+          <View style={styles.menuSheet}>
+            <View style={styles.menuHandle} />
+            {otherId && (
+              <TouchableOpacity
+                style={styles.menuRow}
+                activeOpacity={0.7}
+                onPress={() => { setMenuOpen(false); setTimeout(() => router.push({ pathname: '/user/[id]', params: { id: otherId } } as never), 100); }}
+              >
+                <Text style={styles.menuRowTxt}>مشاهده پروفایل</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              style={[styles.menuRow, styles.menuRowDanger]}
+              activeOpacity={0.7}
+              onPress={() => { setMenuOpen(false); setTimeout(() => router.push({ pathname: '/report-user', params: { userId: otherId ?? '', userName: name ?? '' } } as never), 100); }}
+            >
+              <Text style={[styles.menuRowTxt, styles.menuRowTxtDanger]}>گزارش تخلف</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.menuRow, styles.menuCancel]} activeOpacity={0.7} onPress={() => setMenuOpen(false)}>
+              <Text style={styles.menuCancelTxt}>انصراف</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -436,12 +696,11 @@ const styles = StyleSheet.create({
   emptySub: { fontSize: 12, fontFamily: Fonts.regular, color: Colors.muted },
 
   // Message rows
-  msgWrap: { flexDirection: 'row', marginVertical: 3 },
-  msgWrapMine: { justifyContent: 'flex-end' },
-  msgWrapTheirs: { justifyContent: 'flex-start' },
+  msgWrap: { marginVertical: 3 },
+  bubblePressMine: { marginLeft: 'auto', maxWidth: '78%' },
+  bubblePressTheirs: { marginRight: 'auto', maxWidth: '78%' },
 
   bubble: {
-    maxWidth: '78%',
     borderRadius: 18,
     paddingHorizontal: 13,
     paddingVertical: 8,
@@ -456,10 +715,12 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 4,
   },
   bubbleTheirs: {
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.hair,
     borderBottomLeftRadius: 4,
+    shadowColor: Colors.purple,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 2,
   },
   msgTypeBadge: {
     fontSize: 11, color: Colors.muted, marginBottom: 3,
@@ -534,6 +795,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 44,
     maxHeight: 128,
+    textAlign: 'right',
     backgroundColor: Colors.bg,
     borderRadius: 22,
     borderWidth: 1.5,
@@ -561,4 +823,111 @@ const styles = StyleSheet.create({
     borderWidth: 1.5, borderColor: Colors.hair,
   },
   inputLockedTxt: { fontSize: 13, fontFamily: Fonts.regular, color: Colors.muted },
+
+  msgMenuTitle: {
+    fontSize: 13, fontFamily: Fonts.regular, color: Colors.muted,
+    textAlign: 'center', paddingHorizontal: Spacing.xl, paddingBottom: Spacing.md,
+  },
+
+  // More menu
+  menuOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  menuSheet: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl,
+    paddingBottom: 32, paddingTop: 10,
+    overflow: 'hidden',
+  },
+  menuHandle: {
+    width: 36, height: 4, borderRadius: 2,
+    backgroundColor: Colors.hair, alignSelf: 'center', marginBottom: 12,
+  },
+  menuRow: {
+    paddingHorizontal: Spacing.xl, paddingVertical: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.hair,
+  },
+  menuRowDanger: { },
+  menuRowTxt: { fontSize: 15, fontFamily: Fonts.semiBold, color: Colors.ink, textAlign: 'right' },
+  menuRowTxtDanger: { color: Colors.danger },
+  menuCancel: { borderBottomWidth: 0, marginTop: 4 },
+  menuCancelTxt: { fontSize: 15, fontFamily: Fonts.semiBold, color: Colors.muted, textAlign: 'right' },
+
+  // Header extras
+  headerIcons: { flexDirection: 'row', alignItems: 'center' },
+  onlineDot: {
+    position: 'absolute', bottom: 1, right: 1,
+    width: 10, height: 10, borderRadius: 5,
+    backgroundColor: Colors.ok,
+    borderWidth: 2, borderColor: Colors.surface,
+  },
+
+  // Reaction row inside bubble
+  reactionsRow: {
+    flexDirection: 'row', flexWrap: 'wrap',
+    gap: 4, marginTop: 6,
+  },
+  reactionChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    paddingHorizontal: 7, paddingVertical: 3,
+    borderRadius: 10, borderWidth: 1,
+  },
+  reactionChipOnMine: {
+    backgroundColor: 'rgba(255,255,255,0.18)', borderColor: 'rgba(255,255,255,0.35)',
+  },
+  reactionChipOnTheirs: {
+    backgroundColor: 'rgba(0,0,0,0.07)', borderColor: 'rgba(0,0,0,0.12)',
+  },
+  reactionChipActive: {
+    backgroundColor: 'rgba(255,255,255,0.4)', borderColor: '#fff',
+  },
+  reactionChipMine: { borderColor: Colors.accent, backgroundColor: Colors.accentSoft },
+  reactionEmoji: { fontSize: 13 },
+  reactionCount: { fontSize: 11, fontFamily: Fonts.semiBold, color: Colors.ink },
+  reactionCountMine: { color: 'rgba(255,255,255,0.9)' },
+
+  // Reaction picker in menu
+  reactionPicker: {
+    flexDirection: 'row', justifyContent: 'space-around',
+    paddingHorizontal: Spacing.md, paddingVertical: Spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.hair,
+  },
+  reactionPickerBtn: {
+    width: 44, height: 44, borderRadius: 22,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: Colors.ph2,
+  },
+  reactionPickerBtnActive: { backgroundColor: Colors.accentSoft },
+  reactionPickerEmoji: { fontSize: 22 },
+
+  // Search panel
+  searchPanel: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 12, paddingVertical: 8,
+    backgroundColor: Colors.surface,
+    borderBottomWidth: 1, borderBottomColor: Colors.hair,
+  },
+  searchInput: {
+    flex: 1, height: 38, borderRadius: 19,
+    backgroundColor: Colors.bg, borderWidth: 1.5, borderColor: Colors.hair,
+    paddingHorizontal: 14, fontSize: 13.5,
+    fontFamily: Fonts.regular, color: Colors.ink, textAlign: 'right',
+  },
+  searchResults: {
+    flex: 1, backgroundColor: Colors.bg,
+  },
+  searchResultItem: {
+    padding: Spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.hair,
+  },
+  searchResultBody: { fontSize: 13, fontFamily: Fonts.regular, color: Colors.ink },
+  searchResultTime: { fontSize: 10.5, fontFamily: Fonts.regular, color: Colors.muted, marginTop: 2 },
+  searchEmpty: {
+    alignItems: 'center', paddingTop: 40, gap: 8,
+  },
+  searchEmptyTxt: { fontSize: 14, fontFamily: Fonts.bold, color: Colors.inkSoft },
+
+  // Message highlight
+  msgHighlight: { backgroundColor: Colors.accentSoft + '55' },
 });

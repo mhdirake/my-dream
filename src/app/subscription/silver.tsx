@@ -101,7 +101,7 @@ export default function SilverDetailScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
-  content: { padding: Spacing.xl },
+  content: { padding: Spacing.lg },
 
   hero: {
     borderRadius: Radius.xl, overflow: 'hidden', padding: Spacing.xxl,

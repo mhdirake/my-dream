@@ -65,7 +65,7 @@ export default function PersonalityTestIntroScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
-  content: { padding: Spacing.xl, alignItems: 'center' },
+  content: { padding: Spacing.lg, alignItems: 'center' },
   illustration: {
     width: 100, height: 100, borderRadius: 50, overflow: 'hidden',
     marginTop: Spacing.xxl, marginBottom: Spacing.xl, alignSelf: 'center',

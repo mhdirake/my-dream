@@ -2,12 +2,14 @@ import { AppBar } from '@/components/ui/AppBar';
 import { Card } from '@/components/ui/Card';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { toast } from '@/lib/toast';
 import { router } from 'expo-router';
 import {
   AlertTriangle, ChevronLeft, Lock, LogOut,
   MessageCircle, Shield, Trash2, type LucideIcon,
 } from 'lucide-react-native';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useState } from 'react';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 type SettingItem = {
@@ -22,17 +24,9 @@ type SettingItem = {
 
 export default function SettingsScreen() {
   const { logout } = useAuth();
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
 
-  const handleDeleteAccount = () => {
-    Alert.alert(
-      'حذف حساب',
-      'این عمل غیرقابل بازگشت است. تمام اطلاعات، مکالمات و سکه‌هایت حذف خواهند شد.',
-      [
-        { text: 'لغو', style: 'cancel' },
-        { text: 'حذف', style: 'destructive', onPress: () => Alert.alert('به زودی', 'این قابلیت به زودی اضافه می‌شود.') },
-      ],
-    );
-  };
+  const handleDeleteAccount = () => setDeleteConfirm(true);
 
   const SECTIONS: { title: string; items: SettingItem[] }[] = [
     {
@@ -65,7 +59,7 @@ export default function SettingsScreen() {
           icon: Lock, iconColor: Colors.purple,
           label: 'تغییر رمز عبور',
           sub: 'از طریق Keycloak',
-          onPress: () => Alert.alert('به زودی', 'این قابلیت به زودی اضافه می‌شود.'),
+          onPress: () => toast.info('این قابلیت به زودی اضافه می‌شود'),
         },
         {
           icon: LogOut, iconColor: Colors.danger,
@@ -87,6 +81,27 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView style={styles.root}>
       <AppBar title="تنظیمات" back />
+
+      <Modal visible={deleteConfirm} transparent animationType="fade" onRequestClose={() => setDeleteConfirm(false)}>
+        <Pressable style={styles.overlay} onPress={() => setDeleteConfirm(false)}>
+          <View style={styles.dialog}>
+            <Text style={styles.dialogTitle}>حذف حساب</Text>
+            <Text style={styles.dialogBody}>
+              این عمل غیرقابل بازگشت است. تمام اطلاعات، مکالمات و سکه‌هایت حذف خواهند شد.
+            </Text>
+            <TouchableOpacity
+              style={styles.dialogDangerBtn}
+              onPress={() => { setDeleteConfirm(false); toast.info('این قابلیت به زودی اضافه می‌شود'); }}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.dialogDangerTxt}>حذف حساب</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.dialogCancelBtn} onPress={() => setDeleteConfirm(false)} activeOpacity={0.8}>
+              <Text style={styles.dialogCancelTxt}>لغو</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {SECTIONS.map(section => (
@@ -130,7 +145,7 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
-  content: { padding: Spacing.xl, gap: 6 },
+  content: { padding: Spacing.lg, gap: 6 },
 
   sectionTitle: {
     fontSize: 11, fontFamily: Fonts.extraBold, color: Colors.muted,
@@ -155,4 +170,28 @@ const styles = StyleSheet.create({
     fontSize: 11, color: Colors.muted, fontFamily: Fonts.regular,
     textAlign: 'center', marginTop: Spacing.xl,
   },
+
+  overlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center', justifyContent: 'center', padding: Spacing.xl,
+  },
+  dialog: {
+    backgroundColor: Colors.surface, borderRadius: Radius.xl,
+    padding: Spacing.xl, width: '100%', gap: Spacing.md,
+  },
+  dialogTitle: { fontSize: 16, fontFamily: Fonts.extraBold, color: Colors.ink, textAlign: 'center' },
+  dialogBody: {
+    fontSize: 13, fontFamily: Fonts.regular, color: Colors.inkSoft,
+    lineHeight: 20, textAlign: 'center',
+  },
+  dialogDangerBtn: {
+    backgroundColor: Colors.danger, borderRadius: Radius.lg,
+    paddingVertical: 13, alignItems: 'center', marginTop: 4,
+  },
+  dialogDangerTxt: { fontSize: 14, fontFamily: Fonts.bold, color: '#fff' },
+  dialogCancelBtn: {
+    backgroundColor: Colors.ph2, borderRadius: Radius.lg,
+    paddingVertical: 13, alignItems: 'center',
+  },
+  dialogCancelTxt: { fontSize: 14, fontFamily: Fonts.semiBold, color: Colors.ink },
 });

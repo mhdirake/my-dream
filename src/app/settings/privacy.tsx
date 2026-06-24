@@ -175,7 +175,7 @@ export default function PrivacyScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  content: { padding: Spacing.xl, gap: 10 },
+  content: { padding: Spacing.lg, gap: 10 },
 
   sectionTitle: {
     fontSize: 11, fontFamily: Fonts.extraBold, color: Colors.muted,

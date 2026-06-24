@@ -94,7 +94,7 @@ export default function GiftDetailScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#0E0B1A' },
-  content: { flex: 1, alignItems: 'center', paddingHorizontal: Spacing.xl, paddingTop: 20 },
+  content: { flex: 1, alignItems: 'center', paddingHorizontal: Spacing.lg, paddingTop: 20 },
 
   glowWrap: { alignItems: 'center', justifyContent: 'center', marginBottom: 20, marginTop: 10 },
   glow: {

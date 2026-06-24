@@ -309,7 +309,7 @@ function SentSection({ items }: { items: SentAnonInterest[] }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
-  content: { padding: Spacing.xl },
+  content: { padding: Spacing.lg },
 
   header: {
     height: 54, flexDirection: 'row',
