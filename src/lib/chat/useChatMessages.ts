@@ -80,7 +80,7 @@ export function useChatMessages(
     try {
       const data = await chatApi.getMessages(token, conversationId);
       setMessages([...data].reverse());
-      setHasMore(data.length >= 50);
+      setHasMore(data.length >= 100);
     } catch {
       // silent
     }
@@ -102,7 +102,7 @@ export function useChatMessages(
       const older = await chatApi.getMessages(token, conversationId, oldest);
       if (older.length === 0) { setHasMore(false); return; }
       setMessages(prev => [...[...older].reverse(), ...prev]);
-      setHasMore(older.length >= 50);
+      setHasMore(older.length >= 100);
     } catch {
       // silent
     }
@@ -136,36 +136,35 @@ export function useChatMessages(
         const updated = normalizeMessage(raw);
         setMessages(prev => prev.map(m => m.message_id === updated.message_id ? updated : m));
 
-      } else if (data.event === 'message.reaction') {
-        const msgId = (raw.message_id ?? raw.MessageID) as string;
-        const reaction = (raw.reaction ?? raw.Reaction) as string;
-        const userId = Number(raw.user_id ?? raw.UserID);
-        const action = (raw.action ?? raw.Action) as 'set' | 'remove';
+      } else if (data.event === 'message.reaction.updated') {
+        const msgId = raw.message_id as string;
+        const reaction = raw.reaction as string;
+        const userId = Number(raw.user_id);
         setMessages(prev => prev.map(m => {
           if (m.message_id !== msgId) return m;
           const existing = m.reactions ?? [];
-          let next: Reaction[];
-          if (action === 'remove') {
-            next = existing.filter(r => !(r.reaction === reaction && r.user_id === userId));
-          } else {
-            const already = existing.some(r => r.reaction === reaction && r.user_id === userId);
-            next = already ? existing : [...existing, { reaction, user_id: userId }];
-          }
-          return { ...m, reactions: next };
+          const already = existing.some(r => r.reaction === reaction && r.user_id === userId);
+          return { ...m, reactions: already ? existing : [...existing, { reaction, user_id: userId }] };
+        }));
+
+      } else if (data.event === 'message.reaction.removed') {
+        const msgId = raw.message_id as string;
+        const userId = Number(raw.user_id);
+        setMessages(prev => prev.map(m => {
+          if (m.message_id !== msgId) return m;
+          return { ...m, reactions: (m.reactions ?? []).filter(r => r.user_id !== userId) };
         }));
 
       } else if (data.event === 'message.read') {
-        const msgId = (raw.message_id ?? raw.MessageID) as string;
-        const readAt = (raw.read_at ?? raw.ReadAt) as string;
+        const msgId = raw.message_id as string;
         setMessages(prev => prev.map(m =>
-          m.message_id === msgId ? { ...m, read_at: readAt } : m,
+          m.message_id === msgId ? { ...m, read_at: new Date().toISOString() } : m,
         ));
 
       } else if (data.event === 'message.delivered') {
-        const msgId = (raw.message_id ?? raw.MessageID) as string;
-        const deliveredAt = (raw.delivered_at ?? raw.DeliveredAt) as string;
+        const msgId = raw.message_id as string;
         setMessages(prev => prev.map(m =>
-          m.message_id === msgId ? { ...m, delivered_at: deliveredAt } : m,
+          m.message_id === msgId ? { ...m, delivered_at: new Date().toISOString() } : m,
         ));
       }
     });

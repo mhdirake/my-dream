@@ -1,9 +1,10 @@
 import { Avatar } from '@/components/ui/Avatar';
+import { useChatToast } from '@/components/ui/ChatToast';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { Conversation, ConversationUser, chatApi } from '@/lib/api/chat';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { toast } from '@/lib/toast';
 import { useConversations } from '@/lib/chat/useConversations';
+import { toast } from '@/lib/toast';
 import * as Notifications from 'expo-notifications';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -11,6 +12,7 @@ import { Check, Clock, Search, X } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -42,9 +44,12 @@ export default function ChatScreen() {
   const { session, user } = useAuth();
   const { bottom } = useSafeAreaInsets();
   const myId = user?.id ?? -1;
+  const { showChatToast } = useChatToast();
 
   const handleNewMessage = useCallback(async (conv: Conversation) => {
     const other = conv.first_user_id === myId ? conv.second_user : conv.first_user;
+    showChatToast(conv, other);
+    if (Platform.OS === 'web') return;
     await Notifications.scheduleNotificationAsync({
       content: {
         title: other.first_name,
@@ -53,7 +58,7 @@ export default function ChatScreen() {
       },
       trigger: null,
     });
-  }, [myId]);
+  }, [myId, showChatToast]);
 
   const { conversations, pendingIncoming, pendingOutgoing, loading, refreshing, refresh, resetUnread } = useConversations(
     session?.accessToken,

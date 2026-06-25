@@ -32,6 +32,79 @@ function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
 }
 
+function MsgLimitCard() {
+  return (
+    <View style={msgLimitStyles.card}>
+      <View style={msgLimitStyles.row}>
+        <View style={msgLimitStyles.iconWrap}>
+          <Lock size={17} color={Colors.goldDeep} strokeWidth={2} />
+        </View>
+        <Text style={msgLimitStyles.title}>سقف پیام روزانه</Text>
+      </View>
+      <Text style={msgLimitStyles.body}>
+        به سقف پیام روزانه رسیدی. می‌تونی پاسخ‌ها رو ببینی و فردا دوباره پیام بفرستی.
+      </Text>
+      <TouchableOpacity
+        style={msgLimitStyles.btn}
+        activeOpacity={0.85}
+        onPress={() => router.push('/subscription' as never)}
+      >
+        <Text style={msgLimitStyles.btnTxt}>ارتقا به Silver — ۵۰۰ پیام در روز</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const msgLimitStyles = StyleSheet.create({
+  card: {
+    marginHorizontal: 4,
+    marginTop: 12,
+    marginBottom: 4,
+    backgroundColor: Colors.goldSoft,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: `${Colors.gold}55`,
+    padding: Spacing.md,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  iconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: Colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: {
+    fontFamily: Fonts.extraBold,
+    fontSize: 13.5,
+    color: Colors.ink,
+  },
+  body: {
+    fontFamily: Fonts.regular,
+    fontSize: 12,
+    color: Colors.inkSoft,
+    lineHeight: 20,
+    marginBottom: Spacing.md,
+  },
+  btn: {
+    backgroundColor: Colors.gold,
+    borderRadius: Radius.pill,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  btnTxt: {
+    fontFamily: Fonts.bold,
+    fontSize: 12.5,
+    color: Colors.ink,
+  },
+});
+
 const TYPING_DEBOUNCE = 3000;
 
 function formatLastSeen(iso: string): string {
@@ -67,6 +140,7 @@ export default function ConversationScreen() {
   const [text, setText] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [limitReached, setLimitReached] = useState(false);
   const [msgMenu, setMsgMenu] = useState<{ id: string; sender: number; body: string; myReaction?: string | null } | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
@@ -107,13 +181,25 @@ export default function ConversationScreen() {
   const lastMsgIdRef = useRef<string | null>(null);
   const initialScrollDoneRef = useRef(false);
   const loadingMoreRef = useRef(false);
+  const [listReady, setListReady] = useState(false);
+
+  // onContentSizeChange fires after FlatList has measured content — reliable for initial scroll
+  const handleContentSizeChange = useCallback(() => {
+    if (initialScrollDoneRef.current) return;
+    if (messages.length === 0) return;
+    listRef.current?.scrollToEnd({ animated: false });
+    initialScrollDoneRef.current = true;
+    lastMsgIdRef.current = messages[messages.length - 1]?.message_id ?? null;
+    setListReady(true);
+  }, [messages.length]);
+
+  // For subsequent new messages (after initial load)
   useEffect(() => {
+    if (!initialScrollDoneRef.current) return;
     const last = messages[messages.length - 1];
     if (!last || last.message_id === lastMsgIdRef.current) return;
-    const animated = initialScrollDoneRef.current;
     lastMsgIdRef.current = last.message_id;
-    initialScrollDoneRef.current = true;
-    listRef.current?.scrollToEnd({ animated });
+    listRef.current?.scrollToEnd({ animated: true });
   }, [messages]);
 
   // Debounced typing signal
@@ -219,9 +305,14 @@ export default function ConversationScreen() {
 
     try {
       await send(body, myId);
-    } catch {
-      setText(body);
-      toast.error('ارسال پیام ناموفق بود');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '';
+      if (msg.includes('limit exceeded') || msg.includes('Daily messages')) {
+        setLimitReached(true);
+      } else {
+        setText(body);
+        toast.error('ارسال پیام ناموفق بود');
+      }
     }
   };
 
@@ -337,6 +428,8 @@ export default function ConversationScreen() {
             onScroll={handleScroll}
             scrollEventThrottle={200}
             maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+            onContentSizeChange={handleContentSizeChange}
+            style={!listReady && { opacity: 0 }}
             renderItem={({ item }) => {
               if (item.is_deleted) return null;
               const isMine = item.sender_user_id === myId;
@@ -440,6 +533,7 @@ export default function ConversationScreen() {
                 </View>
               ) : null
             }
+            ListFooterComponent={limitReached ? <MsgLimitCard /> : null}
           />
         )}
 
@@ -483,12 +577,12 @@ export default function ConversationScreen() {
           </View>
         )}
 
-        <View style={[styles.inputBar, !canChat && styles.inputBarDisabled]}>
-          {!canChat ? (
+        <View style={[styles.inputBar, (!canChat || limitReached) && styles.inputBarDisabled]}>
+          {!canChat || limitReached ? (
             <View style={styles.inputLocked}>
               <Lock size={14} color={Colors.muted} strokeWidth={1.8} />
               <Text style={styles.inputLockedTxt}>
-                {isPending ? 'در انتظار تأیید…' : isExpired ? 'درخواست منقضی شده' : isRejected ? 'درخواست رد شده' : 'چت قفل است'}
+                {limitReached ? 'سقف پیام روزانه' : isPending ? 'در انتظار تأیید…' : isExpired ? 'درخواست منقضی شده' : isRejected ? 'درخواست رد شده' : 'چت قفل است'}
               </Text>
             </View>
           ) : (
@@ -683,7 +777,7 @@ const styles = StyleSheet.create({
 
   listContent: {
     padding: Spacing.md,
-    paddingBottom: Spacing.sm,
+    paddingBottom: 80,
     flexGrow: 1,
   },
 

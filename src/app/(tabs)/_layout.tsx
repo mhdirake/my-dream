@@ -1,5 +1,7 @@
 import { Colors, Fonts } from '@/constants/colors';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { ChatToastProvider } from '@/components/ui/ChatToast';
+import { UnreadProvider, useUnreadCtx } from '@/lib/chat/UnreadContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Redirect, Tabs } from 'expo-router';
 import { Compass, Gift, Heart, MessageCircle, User } from 'lucide-react-native';
@@ -8,7 +10,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabsLayout() {
   const { isAuthenticated, isLoading } = useAuth();
-  const insets = useSafeAreaInsets();
 
   if (isLoading) {
     return (
@@ -21,6 +22,19 @@ export default function TabsLayout() {
   if (!isAuthenticated) {
     return <Redirect href="/onboarding" />;
   }
+
+  return (
+    <UnreadProvider>
+      <ChatToastProvider>
+        <TabsNav />
+      </ChatToastProvider>
+    </UnreadProvider>
+  );
+}
+
+function TabsNav() {
+  const insets = useSafeAreaInsets();
+  const { totalUnread } = useUnreadCtx();
 
   return (
     <Tabs
@@ -81,6 +95,8 @@ export default function TabsLayout() {
         options={{
           title: 'پیام',
           tabBarLabel: 'پیام',
+          tabBarBadge: totalUnread > 0 ? (totalUnread > 99 ? '99+' : totalUnread) : undefined,
+          tabBarBadgeStyle: { backgroundColor: Colors.accent, fontSize: 10, minWidth: 18, height: 18 },
           tabBarIcon: ({ focused }) => (
             <TabIcon icon={MessageCircle} focused={focused} />
           ),

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Conversation, chatApi } from '@/lib/api/chat';
 import { useCentrifugoCtx } from './CentrifugoContext';
+import { useUnreadCtx } from './UnreadContext';
 
 export interface ConversationsHook {
   conversations: Conversation[];
@@ -23,10 +24,16 @@ export function useConversations(
   const [refreshing, setRefreshing] = useState(false);
 
   const { addUserEventHandler, onConnect } = useCentrifugoCtx();
+  const { setTotalUnread } = useUnreadCtx();
 
   const conversationsRef = useRef<Conversation[]>([]);
   const onNewMessageRef = useRef(onNewMessage);
   useEffect(() => { onNewMessageRef.current = onNewMessage; }, [onNewMessage]);
+
+  // Sync totalUnread whenever conversations change — avoids setState-in-updater
+  useEffect(() => {
+    setTotalUnread(conversations.reduce((sum, c) => sum + (c.unread_count ?? 0), 0));
+  }, [conversations, setTotalUnread]);
 
   const fetchConversations = useCallback(async () => {
     if (!token) return;
@@ -80,7 +87,7 @@ export function useConversations(
           ),
         );
 
-        // Refresh to get updated last_message_preview, then fire OS notification
+        // Refresh to get updated last_message_preview, then fire in-app notification
         fetchConversations().then(() => {
           const conv = conversationsRef.current.find(c => c.public_id === convPublicId);
           if (conv) onNewMessageRef.current?.(conv);

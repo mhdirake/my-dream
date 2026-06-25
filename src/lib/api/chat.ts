@@ -112,7 +112,7 @@ export const chatApi = {
     token: string,
     conversationId: number,
     beforeMessageId?: string,
-    limit = 50,
+    limit = 100,
   ): Promise<Message[]> => {
     const params = new URLSearchParams({ limit: String(limit) });
     if (beforeMessageId) params.set('before_message_id', beforeMessageId);

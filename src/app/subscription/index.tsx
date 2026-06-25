@@ -59,13 +59,20 @@ export default function PlansScreen() {
   const { session } = useAuth();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentSlug, setCurrentSlug] = useState<string>('basic');
   const [period, setPeriod] = useState<'monthly' | 'quarterly' | 'yearly'>('monthly');
 
   useEffect(() => {
     if (!session?.accessToken) return;
-    api.get<{ data: Plan[] }>('/api/lookups/subscription-plans', session.accessToken)
-      .then(res => setPlans(res.data))
-      .catch(e => toast.error(e.message ?? 'خطا در بارگذاری پلن‌ها'))
+    Promise.all([
+      api.get<{ data: Plan[] }>('/api/lookups/subscription-plans', session.accessToken),
+      api.get<{ data: { active_subscription: { plan: { slug: string } } | null } }>('/api/client/profile', session.accessToken),
+    ])
+      .then(([plansRes, profileRes]) => {
+        setPlans(plansRes.data);
+        setCurrentSlug(profileRes.data?.active_subscription?.plan?.slug ?? 'basic');
+      })
+      .catch(e => toast.error(e.message ?? 'خطا در بارگذاری'))
       .finally(() => setLoading(false));
   }, [session?.accessToken]);
 
@@ -119,7 +126,9 @@ export default function PlansScreen() {
                 <LimitRow label="پیام روزانه" val={`${limitLabel(basic.limits.messages)} · فقط متن`} />
               </View>
               <View style={styles.planFooter}>
-                <Text style={styles.currentPlanTxt}>پلن فعلی شما</Text>
+                {currentSlug === 'basic'
+                  ? <Text style={styles.currentPlanTxt}>پلن فعلی شما</Text>
+                  : null}
               </View>
             </Card>
           )}
@@ -158,12 +167,18 @@ export default function PlansScreen() {
                   <LimitRow label="تطابق سبک زندگی" val="✓" light />
                   <LimitRow label="علاقه ناشناس" val={limitLabel(silver.limits.anonymous_interests)} light />
                 </View>
-                <TouchableOpacity
-                  style={styles.silverBtn}
-                  onPress={() => router.push('/subscription/silver' as any)}
-                >
-                  <Text style={styles.silverBtnTxt}>بیشتر بدونم</Text>
-                </TouchableOpacity>
+                {currentSlug === 'silver' ? (
+                  <View style={[styles.planFooter, { marginTop: 10 }]}>
+                    <Text style={[styles.currentPlanTxt, { color: 'rgba(255,255,255,0.8)' }]}>پلن فعلی شما</Text>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.silverBtn}
+                    onPress={() => router.push('/subscription/silver' as any)}
+                  >
+                    <Text style={styles.silverBtnTxt}>بیشتر بدونم</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
           )}
@@ -192,14 +207,20 @@ export default function PlansScreen() {
                 <LimitRow label="تست شخصیت + AI Match" val="✓" gold />
                 <LimitRow label="علاقه ناشناس" val={limitLabel(gold.limits.anonymous_interests)} gold />
               </View>
-              <Pressable
-                style={styles.goldBtn}
-                onPress={() => router.push('/subscription/gold' as any)}
-              >
-                <LinearGradient colors={['#F5B84B', '#D9982E']} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
-                <Star size={14} color="#3A2C0A" strokeWidth={2} />
-                <Text style={styles.goldBtnTxt}>بیشتر بدونم</Text>
-              </Pressable>
+              {currentSlug === 'gold' ? (
+                <View style={[styles.planFooter, { marginTop: 10 }]}>
+                  <Text style={[styles.currentPlanTxt, { color: Colors.goldDeep }]}>پلن فعلی شما</Text>
+                </View>
+              ) : (
+                <Pressable
+                  style={styles.goldBtn}
+                  onPress={() => router.push('/subscription/gold' as any)}
+                >
+                  <LinearGradient colors={['#F5B84B', '#D9982E']} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+                  <Star size={14} color="#3A2C0A" strokeWidth={2} />
+                  <Text style={styles.goldBtnTxt}>بیشتر بدونم</Text>
+                </Pressable>
+              )}
             </View>
           )}
 
