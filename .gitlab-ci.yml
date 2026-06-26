@@ -53,8 +53,6 @@ warm-android-cache:
   rules:
     - if: '$WARM_ANDROID_CACHE == "1"'
     - if: '$CI_COMMIT_BRANCH == "main"'
-      when: manual
-      allow_failure: true
   script:
     - rm -rf "$ANDROID_BUILDX_CACHE_NEW_DIR"
     - |
