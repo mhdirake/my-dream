@@ -142,6 +142,20 @@ RUN --mount=type=cache,id=mydream-expo,target=/root/.expo,sharing=locked \
     "    }" \
     "  } catch (ignored) {}" \
     "}" \
+    "gradle.beforeProject { project ->" \
+    "  project.buildscript.repositories {" \
+    "    maven { url = uri(googleMirror) }" \
+    "    maven { url = uri(centralMirror) }" \
+    "    google()" \
+    "    mavenCentral()" \
+    "  }" \
+    "  project.repositories {" \
+    "    maven { url = uri(googleMirror) }" \
+    "    maven { url = uri(centralMirror) }" \
+    "    google()" \
+    "    mavenCentral()" \
+    "  }" \
+    "}" \
     "allprojects {" \
     "  repositories {" \
     "    maven { url = uri(googleMirror) }" \
