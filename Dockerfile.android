@@ -1,9 +1,11 @@
 ARG UBUNTU_IMAGE=docker.iranserver.com/ubuntu:24.04
 ARG NODE_VERSION=22.13.1
+ARG ANDROID_REPOSITORY_URL=https://redirector.gvt1.com/edgedl/android/repository
 
 FROM ${UBUNTU_IMAGE} AS android-base
 
 ARG NODE_VERSION
+ARG ANDROID_REPOSITORY_URL
 
 ENV ANDROID_HOME=/opt/android-sdk \
   ANDROID_SDK_ROOT=/opt/android-sdk \
@@ -29,15 +31,29 @@ RUN apt-get update \
   && node --version \
   && npm --version \
   && mkdir -p "$ANDROID_HOME/cmdline-tools" \
-  && curl -fsSL https://redirector.gvt1.com/edgedl/android/repository/commandlinetools-linux-14742923_latest.zip -o /tmp/cmdline-tools.zip \
+  && curl -fsSL "${ANDROID_REPOSITORY_URL}/commandlinetools-linux-14742923_latest.zip" -o /tmp/cmdline-tools.zip \
   && unzip -q /tmp/cmdline-tools.zip -d "$ANDROID_HOME/cmdline-tools" \
   && mv "$ANDROID_HOME/cmdline-tools/cmdline-tools" "$ANDROID_HOME/cmdline-tools/latest" \
   && rm /tmp/cmdline-tools.zip \
-  && yes | sdkmanager --licenses >/dev/null \
-  && sdkmanager \
-    "platform-tools" \
-    "platforms;android-36" \
-    "build-tools;36.0.0"
+  && curl -fsSL "${ANDROID_REPOSITORY_URL}/platform-tools_r36.0.0-linux.zip" -o /tmp/platform-tools.zip \
+  && unzip -q /tmp/platform-tools.zip -d "$ANDROID_HOME" \
+  && rm /tmp/platform-tools.zip \
+  && mkdir -p "$ANDROID_HOME/platforms" "$ANDROID_HOME/build-tools" "$ANDROID_HOME/licenses" \
+  && curl -fsSL "${ANDROID_REPOSITORY_URL}/platform-36_r01.zip" -o /tmp/platform-36.zip \
+  && unzip -q /tmp/platform-36.zip -d /tmp/platform-36 \
+  && mv /tmp/platform-36/* "$ANDROID_HOME/platforms/android-36" \
+  && rm -rf /tmp/platform-36 /tmp/platform-36.zip \
+  && curl -fsSL "${ANDROID_REPOSITORY_URL}/build-tools_r36_linux.zip" -o /tmp/build-tools-36.zip \
+  && unzip -q /tmp/build-tools-36.zip -d /tmp/build-tools-36 \
+  && mv /tmp/build-tools-36/* "$ANDROID_HOME/build-tools/36.0.0" \
+  && rm -rf /tmp/build-tools-36 /tmp/build-tools-36.zip \
+  && printf '%s\n' \
+    '8933bad161af4178b1185d1a37fbf41ea5269c55' \
+    'd56f5187479451eabf01fb78af6dfcb131a6481e' \
+    '24333f8a63b6825ea9c5514f83c2829b004d1fee' \
+    > "$ANDROID_HOME/licenses/android-sdk-license" \
+  && find "$ANDROID_HOME/platforms/android-36" -maxdepth 1 -type f -name android.jar | grep -q . \
+  && find "$ANDROID_HOME/build-tools/36.0.0" -maxdepth 1 -type f -name aapt2 | grep -q .
 
 WORKDIR /app
 
