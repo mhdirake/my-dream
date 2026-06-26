@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.7
 ARG NODE_IMAGE=docker.iranserver.com/node:22.13.1-bookworm
 
 FROM ${NODE_IMAGE} AS android-base
@@ -33,18 +34,20 @@ WORKDIR /app
 FROM android-base AS deps
 COPY package*.json ./
 
-ARG NPM_USER
-ARG NPM_PASS
 ARG NPM_INSTALL_MODE=online
 RUN --mount=type=cache,id=mydream-npm,target=/root/.npm,sharing=locked \
+  --mount=type=secret,id=npm_user,required=false \
+  --mount=type=secret,id=npm_pass,required=false \
   set -eu; \
   npm_flags="--prefer-offline"; \
   if [ "$NPM_INSTALL_MODE" = "offline" ]; then \
     npm_flags="$npm_flags --offline"; \
   fi; \
-  if [ -n "${NPM_USER:-}" ] && [ -n "${NPM_PASS:-}" ]; then \
-    pass64="$(printf '%s' "$NPM_PASS" | base64 | tr -d '\n')"; \
-    printf "registry=https://nexus.gosafir.com/repository/npm-group/\n//nexus.gosafir.com/repository/npm-group/:username=%s\n//nexus.gosafir.com/repository/npm-group/:_password=%s\n//nexus.gosafir.com/repository/npm-group/:email=ci@example.com\n" "$NPM_USER" "$pass64" > /tmp/npmrc; \
+  if [ -s /run/secrets/npm_user ] && [ -s /run/secrets/npm_pass ]; then \
+    npm_user="$(cat /run/secrets/npm_user)"; \
+    npm_pass="$(cat /run/secrets/npm_pass)"; \
+    pass64="$(printf '%s' "$npm_pass" | base64 | tr -d '\n')"; \
+    printf "registry=https://nexus.gosafir.com/repository/npm-group/\n//nexus.gosafir.com/repository/npm-group/:username=%s\n//nexus.gosafir.com/repository/npm-group/:_password=%s\n//nexus.gosafir.com/repository/npm-group/:email=ci@example.com\n" "$npm_user" "$pass64" > /tmp/npmrc; \
     NPM_CONFIG_USERCONFIG=/tmp/npmrc npm ci $npm_flags; \
     rm -f /tmp/npmrc; \
   else \

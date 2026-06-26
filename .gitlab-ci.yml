@@ -34,8 +34,17 @@ build-web:
   only:
     - main
   script:
-    - docker compose build expo-web
-    - docker compose up -d --no-deps expo-web
+    - |
+      docker buildx build \
+        --file Dockerfile \
+        --target web-runtime \
+        --tag native-app-expo-web \
+        --load \
+        --secret id=npm_user,env=NPM_USER \
+        --secret id=npm_pass,env=NPM_PASS \
+        --build-arg EXPO_PUBLIC_API_URL="$EXPO_PUBLIC_API_URL" \
+        .
+    - docker compose up -d --no-build --no-deps expo-web
     - echo "Deployment complete!"
 
 warm-android-cache:
@@ -60,10 +69,10 @@ warm-android-cache:
         --output "type=local,dest=$ANDROID_ARTIFACTS_DIR" \
         $cache_from_args \
         --cache-to "type=local,dest=$ANDROID_BUILDX_CACHE_NEW_DIR,mode=max" \
+        --secret id=npm_user,env=NPM_USER \
+        --secret id=npm_pass,env=NPM_PASS \
         --build-arg NPM_INSTALL_MODE=online \
         --build-arg GRADLE_OFFLINE=false \
-        --build-arg NPM_USER="$NPM_USER" \
-        --build-arg NPM_PASS="$NPM_PASS" \
         --build-arg EXPO_PUBLIC_API_URL="$EXPO_PUBLIC_API_URL" \
         --build-arg EXPO_PUBLIC_KC_URL="$EXPO_PUBLIC_KC_URL" \
         --build-arg EXPO_PUBLIC_KC_SECRET="$EXPO_PUBLIC_KC_SECRET" \
@@ -97,10 +106,10 @@ build-android:
         --output "type=local,dest=$ANDROID_ARTIFACTS_DIR" \
         $cache_from_args \
         --cache-to "type=local,dest=$ANDROID_BUILDX_CACHE_NEW_DIR,mode=max" \
+        --secret id=npm_user,env=NPM_USER \
+        --secret id=npm_pass,env=NPM_PASS \
         --build-arg NPM_INSTALL_MODE=offline \
         --build-arg GRADLE_OFFLINE=true \
-        --build-arg NPM_USER="$NPM_USER" \
-        --build-arg NPM_PASS="$NPM_PASS" \
         --build-arg EXPO_PUBLIC_API_URL="$EXPO_PUBLIC_API_URL" \
         --build-arg EXPO_PUBLIC_KC_URL="$EXPO_PUBLIC_KC_URL" \
         --build-arg EXPO_PUBLIC_KC_SECRET="$EXPO_PUBLIC_KC_SECRET" \

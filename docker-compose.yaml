@@ -1,11 +1,10 @@
 services:
   expo-web:
+    image: native-app-expo-web
     build:
       context: .
       dockerfile: Dockerfile
       args:
-        NPM_USER: ${NPM_USER}
-        NPM_PASS: ${NPM_PASS}
         EXPO_PUBLIC_API_URL: ${EXPO_PUBLIC_API_URL}
     environment:
       KC_URL: ${KC_URL}
