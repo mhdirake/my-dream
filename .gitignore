@@ -49,3 +49,6 @@ example
 
 # markdown docs
 *.md
+
+artifacts-local
+.ci-cache/

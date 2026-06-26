@@ -1,10 +1,31 @@
 stages:
   - build-web
+  - warm-android-cache
   - build-android
 
 variables:
   COMPOSE_DOCKER_CLI_BUILD: "1"
   DOCKER_BUILDKIT: "1"
+  BUILDKIT_PROGRESS: "plain"
+  BUILDX_BUILDER: "native-app-android"
+  ANDROID_BUILDX_CACHE_DIR: ".ci-cache/android-buildx"
+  ANDROID_BUILDX_CACHE_NEW_DIR: ".ci-cache/android-buildx-new"
+  ANDROID_ARTIFACTS_DIR: "artifacts"
+
+.android-buildx-cache:
+  tags:
+    - runner01
+  cache:
+    key: "android-offline-${CI_PROJECT_ID}"
+    policy: pull-push
+    paths:
+      - .ci-cache/android-buildx/
+  resource_group: android-runner-cache
+  before_script:
+    - mkdir -p "$ANDROID_ARTIFACTS_DIR" ".ci-cache"
+    - docker buildx inspect "$BUILDX_BUILDER" >/dev/null 2>&1 || docker buildx create --name "$BUILDX_BUILDER" --driver docker-container --use
+    - docker buildx use "$BUILDX_BUILDER"
+    - docker buildx inspect --bootstrap
 
 build-web:
   stage: build-web
@@ -17,24 +38,76 @@ build-web:
     - docker compose up -d --no-deps expo-web
     - echo "Deployment complete!"
 
-
-build-android:
-  stage: build-android
-  tags:
-    - runner01
+warm-android-cache:
+  extends: .android-buildx-cache
+  stage: warm-android-cache
+  rules:
+    - if: '$WARM_ANDROID_CACHE == "1"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: manual
+      allow_failure: true
   script:
-    - mkdir -p artifacts
+    - rm -rf "$ANDROID_BUILDX_CACHE_NEW_DIR"
     - |
-      docker build \
+      cache_from_args=""
+      if [ -f "$ANDROID_BUILDX_CACHE_DIR/index.json" ]; then
+        cache_from_args="--cache-from type=local,src=$ANDROID_BUILDX_CACHE_DIR"
+      fi
+
+      docker buildx build \
         --file Dockerfile.android \
         --target android-artifacts \
-        --output type=local,dest=artifacts \
+        --output "type=local,dest=$ANDROID_ARTIFACTS_DIR" \
+        $cache_from_args \
+        --cache-to "type=local,dest=$ANDROID_BUILDX_CACHE_NEW_DIR,mode=max" \
+        --build-arg NPM_INSTALL_MODE=online \
+        --build-arg GRADLE_OFFLINE=false \
         --build-arg NPM_USER="$NPM_USER" \
         --build-arg NPM_PASS="$NPM_PASS" \
         --build-arg EXPO_PUBLIC_API_URL="$EXPO_PUBLIC_API_URL" \
         --build-arg EXPO_PUBLIC_KC_URL="$EXPO_PUBLIC_KC_URL" \
         --build-arg EXPO_PUBLIC_KC_SECRET="$EXPO_PUBLIC_KC_SECRET" \
         .
+    - rm -rf "$ANDROID_BUILDX_CACHE_DIR"
+    - mv "$ANDROID_BUILDX_CACHE_NEW_DIR" "$ANDROID_BUILDX_CACHE_DIR"
+    - ls -lah "$ANDROID_ARTIFACTS_DIR"
+  artifacts:
+    name: "android-cache-warm-$CI_COMMIT_REF_SLUG-$CI_PIPELINE_ID"
+    expire_in: 90 days
+    paths:
+      - artifacts/*.apk
+
+build-android:
+  extends: .android-buildx-cache
+  stage: build-android
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+  script:
+    - rm -rf "$ANDROID_BUILDX_CACHE_NEW_DIR"
+    - |
+      cache_from_args=""
+      if [ -f "$ANDROID_BUILDX_CACHE_DIR/index.json" ]; then
+        cache_from_args="--cache-from type=local,src=$ANDROID_BUILDX_CACHE_DIR"
+      fi
+
+      docker buildx build \
+        --network none \
+        --file Dockerfile.android \
+        --target android-artifacts \
+        --output "type=local,dest=$ANDROID_ARTIFACTS_DIR" \
+        $cache_from_args \
+        --cache-to "type=local,dest=$ANDROID_BUILDX_CACHE_NEW_DIR,mode=max" \
+        --build-arg NPM_INSTALL_MODE=offline \
+        --build-arg GRADLE_OFFLINE=true \
+        --build-arg NPM_USER="$NPM_USER" \
+        --build-arg NPM_PASS="$NPM_PASS" \
+        --build-arg EXPO_PUBLIC_API_URL="$EXPO_PUBLIC_API_URL" \
+        --build-arg EXPO_PUBLIC_KC_URL="$EXPO_PUBLIC_KC_URL" \
+        --build-arg EXPO_PUBLIC_KC_SECRET="$EXPO_PUBLIC_KC_SECRET" \
+        .
+    - rm -rf "$ANDROID_BUILDX_CACHE_DIR"
+    - mv "$ANDROID_BUILDX_CACHE_NEW_DIR" "$ANDROID_BUILDX_CACHE_DIR"
+    - ls -lah "$ANDROID_ARTIFACTS_DIR"
 
   artifacts:
     name: "apk-$CI_COMMIT_REF_SLUG-$CI_PIPELINE_ID"

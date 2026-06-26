@@ -3,6 +3,7 @@
 .claude
 .vscode
 .expo
+.ci-cache
 android
 ios
 dist

@@ -5,6 +5,8 @@ FROM ${NODE_IMAGE} AS android-base
 ENV ANDROID_HOME=/opt/android-sdk \
   ANDROID_SDK_ROOT=/opt/android-sdk \
   JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 \
+  CI=1 \
+  EXPO_NO_TELEMETRY=1 \
   PATH=/opt/android-sdk/cmdline-tools/latest/bin:/opt/android-sdk/platform-tools:$PATH
 
 RUN apt-get update \
@@ -33,15 +35,20 @@ COPY package*.json ./
 
 ARG NPM_USER
 ARG NPM_PASS
-RUN --mount=type=cache,target=/root/.npm \
+ARG NPM_INSTALL_MODE=online
+RUN --mount=type=cache,id=mydream-npm,target=/root/.npm,sharing=locked \
   set -eu; \
+  npm_flags="--prefer-offline"; \
+  if [ "$NPM_INSTALL_MODE" = "offline" ]; then \
+    npm_flags="$npm_flags --offline"; \
+  fi; \
   if [ -n "${NPM_USER:-}" ] && [ -n "${NPM_PASS:-}" ]; then \
     pass64="$(printf '%s' "$NPM_PASS" | base64 | tr -d '\n')"; \
     printf "registry=https://nexus.gosafir.com/repository/npm-group/\n//nexus.gosafir.com/repository/npm-group/:username=%s\n//nexus.gosafir.com/repository/npm-group/:_password=%s\n//nexus.gosafir.com/repository/npm-group/:email=ci@example.com\n" "$NPM_USER" "$pass64" > /tmp/npmrc; \
-    NPM_CONFIG_USERCONFIG=/tmp/npmrc npm ci; \
+    NPM_CONFIG_USERCONFIG=/tmp/npmrc npm ci $npm_flags; \
     rm -f /tmp/npmrc; \
   else \
-    npm ci; \
+    npm ci $npm_flags; \
   fi
 
 FROM deps AS android-build
@@ -50,17 +57,23 @@ COPY . .
 ARG EXPO_PUBLIC_API_URL
 ARG EXPO_PUBLIC_KC_URL
 ARG EXPO_PUBLIC_KC_SECRET
+ARG GRADLE_OFFLINE=false
 
 ENV EXPO_PUBLIC_API_URL=${EXPO_PUBLIC_API_URL} \
   EXPO_PUBLIC_KC_URL=${EXPO_PUBLIC_KC_URL} \
   EXPO_PUBLIC_KC_SECRET=${EXPO_PUBLIC_KC_SECRET}
 
-RUN --mount=type=cache,target=/root/.expo \
-  --mount=type=cache,target=/root/.gradle \
+RUN --mount=type=cache,id=mydream-expo,target=/root/.expo,sharing=locked \
+  --mount=type=cache,id=mydream-gradle,target=/root/.gradle,sharing=locked \
+  set -eu; \
+  gradle_flags="--build-cache --no-daemon"; \
+  if [ "$GRADLE_OFFLINE" = "true" ]; then \
+    gradle_flags="$gradle_flags --offline"; \
+  fi; \
   npx expo prebuild --platform android --non-interactive \
   && cd android \
   && chmod +x gradlew \
-  && ./gradlew assembleRelease --build-cache --no-daemon
+  && ./gradlew assembleRelease $gradle_flags
 
 FROM scratch AS android-artifacts
 COPY --from=android-build /app/android/app/build/outputs/apk/release/ /
