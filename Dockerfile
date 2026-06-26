@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1.7
 ARG UBUNTU_IMAGE=docker.iranserver.com/ubuntu:24.04
 ARG NODE_VERSION=22.13.1
 
