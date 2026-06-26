@@ -1,11 +1,14 @@
 ARG UBUNTU_IMAGE=docker.iranserver.com/ubuntu:24.04
 ARG NODE_VERSION=22.13.1
+ARG NODE_DOWNLOAD_BASE=https://nodejs.org/dist
 
 FROM ${UBUNTU_IMAGE} AS node-base
 
 ARG NODE_VERSION
+ARG NODE_DOWNLOAD_BASE
 
 ENV NODE_HOME=/opt/node \
+  DEBIAN_FRONTEND=noninteractive \
   PATH=/opt/node/bin:$PATH \
   CI=1 \
   EXPO_NO_TELEMETRY=1
@@ -16,13 +19,15 @@ RUN apt-get update \
     curl \
     git \
     xz-utils \
-  && curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" -o /tmp/node.tar.xz \
+  && rm -rf /var/lib/apt/lists/*
+
+RUN curl -fL --retry 5 --retry-all-errors --retry-delay 5 --connect-timeout 20 --max-time 600 \
+    "${NODE_DOWNLOAD_BASE}/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" -o /tmp/node.tar.xz \
   && mkdir -p "$NODE_HOME" \
   && tar -xJf /tmp/node.tar.xz -C "$NODE_HOME" --strip-components=1 \
   && rm /tmp/node.tar.xz \
   && node --version \
-  && npm --version \
-  && rm -rf /var/lib/apt/lists/*
+  && npm --version
 
 FROM node-base AS deps
 WORKDIR /app

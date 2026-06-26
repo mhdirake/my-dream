@@ -1,16 +1,19 @@
 ARG UBUNTU_IMAGE=docker.iranserver.com/ubuntu:24.04
 ARG NODE_VERSION=22.13.1
+ARG NODE_DOWNLOAD_BASE=https://nodejs.org/dist
 ARG GRADLE_VERSION=9.3.1
 ARG ANDROID_REPOSITORY_URL=https://redirector.gvt1.com/edgedl/android/repository
 
 FROM ${UBUNTU_IMAGE} AS android-base
 
 ARG NODE_VERSION
+ARG NODE_DOWNLOAD_BASE
 ARG GRADLE_VERSION
 ARG ANDROID_REPOSITORY_URL
 
 ENV ANDROID_HOME=/opt/android-sdk \
   ANDROID_SDK_ROOT=/opt/android-sdk \
+  DEBIAN_FRONTEND=noninteractive \
   JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 \
   NODE_HOME=/opt/node \
   GRADLE_HOME=/opt/gradle \
@@ -26,27 +29,37 @@ RUN apt-get update \
     openjdk-17-jdk-headless \
     unzip \
     xz-utils \
-  && rm -rf /var/lib/apt/lists/* \
-  && curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" -o /tmp/node.tar.xz \
+  && rm -rf /var/lib/apt/lists/*
+
+RUN curl -fL --retry 5 --retry-all-errors --retry-delay 5 --connect-timeout 20 --max-time 600 \
+    "${NODE_DOWNLOAD_BASE}/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" -o /tmp/node.tar.xz \
   && mkdir -p "$NODE_HOME" \
   && tar -xJf /tmp/node.tar.xz -C "$NODE_HOME" --strip-components=1 \
   && rm /tmp/node.tar.xz \
   && node --version \
-  && npm --version \
-  && mkdir -p "$ANDROID_HOME/cmdline-tools" \
-  && curl -fsSL "${ANDROID_REPOSITORY_URL}/commandlinetools-linux-14742923_latest.zip" -o /tmp/cmdline-tools.zip \
+  && npm --version
+
+RUN mkdir -p "$ANDROID_HOME/cmdline-tools" \
+  && curl -fL --retry 5 --retry-all-errors --retry-delay 5 --connect-timeout 20 --max-time 600 \
+    "${ANDROID_REPOSITORY_URL}/commandlinetools-linux-14742923_latest.zip" -o /tmp/cmdline-tools.zip \
   && unzip -q /tmp/cmdline-tools.zip -d "$ANDROID_HOME/cmdline-tools" \
   && mv "$ANDROID_HOME/cmdline-tools/cmdline-tools" "$ANDROID_HOME/cmdline-tools/latest" \
-  && rm /tmp/cmdline-tools.zip \
-  && curl -fsSL "${ANDROID_REPOSITORY_URL}/platform-tools_r36.0.0-linux.zip" -o /tmp/platform-tools.zip \
+  && rm /tmp/cmdline-tools.zip
+
+RUN curl -fL --retry 5 --retry-all-errors --retry-delay 5 --connect-timeout 20 --max-time 600 \
+    "${ANDROID_REPOSITORY_URL}/platform-tools_r36.0.0-linux.zip" -o /tmp/platform-tools.zip \
   && unzip -q /tmp/platform-tools.zip -d "$ANDROID_HOME" \
-  && rm /tmp/platform-tools.zip \
-  && mkdir -p "$ANDROID_HOME/platforms" "$ANDROID_HOME/build-tools" "$ANDROID_HOME/licenses" \
-  && curl -fsSL "${ANDROID_REPOSITORY_URL}/platform-36_r01.zip" -o /tmp/platform-36.zip \
+  && rm /tmp/platform-tools.zip
+
+RUN mkdir -p "$ANDROID_HOME/platforms" "$ANDROID_HOME/build-tools" "$ANDROID_HOME/licenses" \
+  && curl -fL --retry 5 --retry-all-errors --retry-delay 5 --connect-timeout 20 --max-time 600 \
+    "${ANDROID_REPOSITORY_URL}/platform-36_r01.zip" -o /tmp/platform-36.zip \
   && unzip -q /tmp/platform-36.zip -d /tmp/platform-36 \
   && mv /tmp/platform-36/* "$ANDROID_HOME/platforms/android-36" \
-  && rm -rf /tmp/platform-36 /tmp/platform-36.zip \
-  && curl -fsSL "${ANDROID_REPOSITORY_URL}/build-tools_r36_linux.zip" -o /tmp/build-tools-36.zip \
+  && rm -rf /tmp/platform-36 /tmp/platform-36.zip
+
+RUN curl -fL --retry 5 --retry-all-errors --retry-delay 5 --connect-timeout 20 --max-time 600 \
+    "${ANDROID_REPOSITORY_URL}/build-tools_r36_linux.zip" -o /tmp/build-tools-36.zip \
   && unzip -q /tmp/build-tools-36.zip -d /tmp/build-tools-36 \
   && mv /tmp/build-tools-36/* "$ANDROID_HOME/build-tools/36.0.0" \
   && rm -rf /tmp/build-tools-36 /tmp/build-tools-36.zip \
@@ -57,7 +70,8 @@ RUN apt-get update \
     > "$ANDROID_HOME/licenses/android-sdk-license" \
   && find "$ANDROID_HOME/platforms/android-36" -maxdepth 1 -type f -name android.jar | grep -q . \
   && find "$ANDROID_HOME/build-tools/36.0.0" -maxdepth 1 -type f -name aapt2 | grep -q . \
-  && curl -fL --retry 5 --retry-delay 5 --connect-timeout 20 "https://downloads.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip" -o /tmp/gradle.zip \
+  && curl -fL --retry 5 --retry-all-errors --retry-delay 5 --connect-timeout 20 --max-time 600 \
+    "https://downloads.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip" -o /tmp/gradle.zip \
   && unzip -q /tmp/gradle.zip -d /opt \
   && mv "/opt/gradle-${GRADLE_VERSION}" "$GRADLE_HOME" \
   && rm /tmp/gradle.zip \
