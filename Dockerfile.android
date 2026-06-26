@@ -1,19 +1,22 @@
 ARG UBUNTU_IMAGE=docker.iranserver.com/ubuntu:24.04
 ARG NODE_VERSION=22.13.1
+ARG GRADLE_VERSION=9.3.1
 ARG ANDROID_REPOSITORY_URL=https://redirector.gvt1.com/edgedl/android/repository
 
 FROM ${UBUNTU_IMAGE} AS android-base
 
 ARG NODE_VERSION
+ARG GRADLE_VERSION
 ARG ANDROID_REPOSITORY_URL
 
 ENV ANDROID_HOME=/opt/android-sdk \
   ANDROID_SDK_ROOT=/opt/android-sdk \
   JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 \
   NODE_HOME=/opt/node \
+  GRADLE_HOME=/opt/gradle \
   CI=1 \
   EXPO_NO_TELEMETRY=1 \
-  PATH=/opt/node/bin:/opt/android-sdk/cmdline-tools/latest/bin:/opt/android-sdk/platform-tools:$PATH
+  PATH=/opt/node/bin:/opt/gradle/bin:/opt/android-sdk/cmdline-tools/latest/bin:/opt/android-sdk/platform-tools:$PATH
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
@@ -53,7 +56,12 @@ RUN apt-get update \
     '24333f8a63b6825ea9c5514f83c2829b004d1fee' \
     > "$ANDROID_HOME/licenses/android-sdk-license" \
   && find "$ANDROID_HOME/platforms/android-36" -maxdepth 1 -type f -name android.jar | grep -q . \
-  && find "$ANDROID_HOME/build-tools/36.0.0" -maxdepth 1 -type f -name aapt2 | grep -q .
+  && find "$ANDROID_HOME/build-tools/36.0.0" -maxdepth 1 -type f -name aapt2 | grep -q . \
+  && curl -fL --retry 5 --retry-delay 5 --connect-timeout 20 "https://downloads.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip" -o /tmp/gradle.zip \
+  && unzip -q /tmp/gradle.zip -d /opt \
+  && mv "/opt/gradle-${GRADLE_VERSION}" "$GRADLE_HOME" \
+  && rm /tmp/gradle.zip \
+  && gradle --version
 
 WORKDIR /app
 
@@ -101,8 +109,7 @@ RUN --mount=type=cache,id=mydream-expo,target=/root/.expo,sharing=locked \
   fi; \
   npx expo prebuild --platform android --non-interactive \
   && cd android \
-  && chmod +x gradlew \
-  && ./gradlew assembleRelease $gradle_flags
+  && gradle assembleRelease $gradle_flags
 
 FROM scratch AS android-artifacts
 COPY --from=android-build /app/android/app/build/outputs/apk/release/ /
