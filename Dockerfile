@@ -1,7 +1,31 @@
 # syntax=docker/dockerfile:1.7
-ARG NODE_IMAGE=docker.iranserver.com/node:22.13.1-bookworm
+ARG UBUNTU_IMAGE=docker.iranserver.com/ubuntu:24.04
+ARG NODE_VERSION=22.13.1
 
-FROM ${NODE_IMAGE} AS deps
+FROM ${UBUNTU_IMAGE} AS node-base
+
+ARG NODE_VERSION
+
+ENV NODE_HOME=/opt/node \
+  PATH=/opt/node/bin:$PATH \
+  CI=1 \
+  EXPO_NO_TELEMETRY=1
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    git \
+    xz-utils \
+  && curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" -o /tmp/node.tar.xz \
+  && mkdir -p "$NODE_HOME" \
+  && tar -xJf /tmp/node.tar.xz -C "$NODE_HOME" --strip-components=1 \
+  && rm /tmp/node.tar.xz \
+  && node --version \
+  && npm --version \
+  && rm -rf /var/lib/apt/lists/*
+
+FROM node-base AS deps
 WORKDIR /app
 
 COPY package*.json ./
@@ -32,7 +56,7 @@ ENV EXPO_PUBLIC_API_URL=${EXPO_PUBLIC_API_URL}
 RUN --mount=type=cache,target=/root/.expo \
   npx expo export --platform web
 
-FROM ${NODE_IMAGE} AS web-runtime
+FROM node-base AS web-runtime
 WORKDIR /app
 
 ENV NODE_ENV=production
