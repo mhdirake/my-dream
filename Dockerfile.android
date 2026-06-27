@@ -112,10 +112,16 @@ ARG EXPO_PUBLIC_API_URL
 ARG EXPO_PUBLIC_KC_URL
 ARG EXPO_PUBLIC_KC_SECRET
 ARG GRADLE_OFFLINE=false
+ARG GOOGLE_MAVEN_REPOSITORY=https://maven.aliyun.com/repository/google
+ARG MAVEN_CENTRAL_REPOSITORY=https://maven.aliyun.com/repository/public
+ARG GRADLE_PLUGIN_REPOSITORY=https://maven.aliyun.com/repository/gradle-plugin
 
 ENV EXPO_PUBLIC_API_URL=${EXPO_PUBLIC_API_URL} \
   EXPO_PUBLIC_KC_URL=${EXPO_PUBLIC_KC_URL} \
-  EXPO_PUBLIC_KC_SECRET=${EXPO_PUBLIC_KC_SECRET}
+  EXPO_PUBLIC_KC_SECRET=${EXPO_PUBLIC_KC_SECRET} \
+  GOOGLE_MAVEN_REPOSITORY=${GOOGLE_MAVEN_REPOSITORY} \
+  MAVEN_CENTRAL_REPOSITORY=${MAVEN_CENTRAL_REPOSITORY} \
+  GRADLE_PLUGIN_REPOSITORY=${GRADLE_PLUGIN_REPOSITORY}
 
 RUN --mount=type=cache,id=mydream-expo,target=/root/.expo,sharing=locked \
   --mount=type=cache,id=mydream-gradle,target=/root/.gradle,sharing=locked \
@@ -125,16 +131,30 @@ RUN --mount=type=cache,id=mydream-expo,target=/root/.expo,sharing=locked \
     "def googleMirror = System.getenv('GOOGLE_MAVEN_REPOSITORY')" \
     "def centralMirror = System.getenv('MAVEN_CENTRAL_REPOSITORY')" \
     "def pluginMirror = System.getenv('GRADLE_PLUGIN_REPOSITORY')" \
+    "gradle.beforeSettings { settings ->" \
+    "  settings.pluginManagement {" \
+    "    repositories {" \
+    "      clear()" \
+    "      maven { url = uri(googleMirror) }" \
+    "      maven { url = uri(centralMirror) }" \
+    "      google()" \
+    "      mavenCentral()" \
+    "      gradlePluginPortal()" \
+    "    }" \
+    "  }" \
+    "}" \
     "settingsEvaluated { settings ->" \
     "  settings.pluginManagement.repositories {" \
+    "    clear()" \
     "    maven { url = uri(googleMirror) }" \
-    "    maven { url = uri(pluginMirror) }" \
+    "    maven { url = uri(centralMirror) }" \
     "    google()" \
     "    mavenCentral()" \
     "    gradlePluginPortal()" \
     "  }" \
     "  try {" \
     "    settings.dependencyResolutionManagement.repositories {" \
+    "      clear()" \
     "      maven { url = uri(googleMirror) }" \
     "      maven { url = uri(centralMirror) }" \
     "      google()" \
@@ -170,6 +190,8 @@ RUN --mount=type=cache,id=mydream-expo,target=/root/.expo,sharing=locked \
     gradle_flags="$gradle_flags --offline"; \
   fi; \
   npx expo prebuild --platform android \
+  && sed -i '/foojay-resolver-convention/d' \
+       /app/node_modules/@react-native/gradle-plugin/settings.gradle.kts \
   && cd android \
   && gradle assembleRelease $gradle_flags
 
