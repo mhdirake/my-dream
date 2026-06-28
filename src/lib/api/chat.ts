@@ -57,8 +57,17 @@ export type Message = {
   read_at?: string | null;
 };
 
+export type MessageSearchItem = {
+  message_id: string;
+  conversation_id: string;
+  sender_user_id: number;
+  message_type: MessageType;
+  text_snippet: string;
+  created_at: string;
+};
+
 export type MessageSearchResult = {
-  items: Message[];
+  items: MessageSearchItem[];
   next_cursor: string | null;
 };
 

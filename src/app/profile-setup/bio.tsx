@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { BioHelperModal } from '@/components/BioHelperModal';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { profileApi } from '@/lib/api/profile';
@@ -14,6 +15,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -29,6 +31,7 @@ export default function BioScreen() {
   const safeBack = useSafeBack('/profile-edit');
   const [bio, setBio] = useState(typeof currentBio === 'string' ? currentBio : '');
   const [saving, setSaving] = useState(false);
+  const [helperOpen, setHelperOpen] = useState(false);
 
   const handleSave = async () => {
     if (!session?.accessToken) return;
@@ -64,16 +67,25 @@ export default function BioScreen() {
         />
         <Text style={styles.counter}>{toPersian(bio.length)} / {toPersian(MAX)}</Text>
 
-        <Card soft style={styles.aiCard}>
-          <View style={styles.aiHeader}>
-            <Sparkles size={14} color={Colors.purple} strokeWidth={2} />
-            <Text style={styles.aiTitle}>کمک از AI Coach</Text>
-            <View style={styles.aiBadge}><Text style={styles.aiBadgeText}>پیشنهاد</Text></View>
-          </View>
-          <Text style={styles.aiBody}>
-            می‌تونی به AI Coach بگی درباره چی هستی، یه Bio کوتاه برات بسازه.
-          </Text>
-        </Card>
+        <TouchableOpacity onPress={() => setHelperOpen(true)} activeOpacity={0.8}>
+          <Card soft style={styles.aiCard}>
+            <View style={styles.aiHeader}>
+              <Sparkles size={14} color={Colors.purple} strokeWidth={2} />
+              <Text style={styles.aiTitle}>کمک از AI Coach</Text>
+              <View style={styles.aiBadge}><Text style={styles.aiBadgeText}>پیشنهاد</Text></View>
+            </View>
+            <Text style={styles.aiBody}>
+              ضربه بزن — AI برات ۳ تا Bio پیشنهاد میده. یکی رو انتخاب کن.
+            </Text>
+          </Card>
+        </TouchableOpacity>
+
+        <BioHelperModal
+          visible={helperOpen}
+          currentBio={bio}
+          onSelect={text => setBio(text.slice(0, MAX))}
+          onClose={() => setHelperOpen(false)}
+        />
 
         <View style={{ height: 100 }} />
       </ScrollView>

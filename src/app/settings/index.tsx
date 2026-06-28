@@ -6,7 +6,7 @@ import { toast } from '@/lib/toast';
 import { router } from 'expo-router';
 import {
   AlertTriangle, ChevronLeft, Lock, LogOut,
-  MessageCircle, Shield, Trash2, type LucideIcon,
+  MessageCircle, Shield, Trash2, UserX, type LucideIcon,
 } from 'lucide-react-native';
 import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -49,6 +49,12 @@ export default function SettingsScreen() {
           label: 'محدودیت‌ها',
           sub: 'وضعیت حساب و سابقه',
           route: '/settings/restrictions',
+        },
+        {
+          icon: UserX, iconColor: Colors.danger,
+          label: 'کاربران مسدود',
+          sub: 'مدیریت لیست مسدودها',
+          route: '/settings/blocked-users',
         },
       ],
     },

@@ -536,7 +536,7 @@ function FloatingHeader({
           >
             <ShieldCheck size={17} color={safeMode ? Colors.ok : Colors.ink} strokeWidth={2} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn}>
+          <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/search' as never)}>
             <Search size={17} color={Colors.ink} strokeWidth={2} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/notifications' as never)}>

@@ -2,6 +2,7 @@ import { GiftModal } from '@/components/GiftModal';
 import { TemplateMessageModal } from '@/components/TemplateMessageModal';
 import { Badge } from '@/components/ui/Badge';
 import { Colors, Fonts, Spacing } from '@/constants/colors';
+import { blockApi, type BlockStatus } from '@/lib/api/block';
 import { discoverApi } from '@/lib/api/discover';
 import { toast } from '@/lib/toast';
 import { profileApi, type ClientProfile, type UserProfile } from '@/lib/api/profile';
@@ -116,10 +117,11 @@ function ProgressRing({
 // ── ProfileActionsSheet ───────────────────────────────────────────────────────
 
 function ProfileActionsSheet({
-  visible, firstName, onClose, onGift, onAnon, onInsight, onBlock, onReport, onShare,
+  visible, firstName, isBlocked, onClose, onGift, onAnon, onInsight, onBlock, onReport, onShare,
 }: {
   visible: boolean;
   firstName: string;
+  isBlocked: boolean;
   onClose: () => void;
   onGift: () => void;
   onAnon: () => void;
@@ -143,7 +145,7 @@ function ProfileActionsSheet({
     { icon: <Gift size={18} color={Colors.goldDeep} strokeWidth={2} />, label: 'فرستادن هدیه', sub: 'با سکه', onPress: onGift },
     { icon: <Eye size={18} color={Colors.purple} strokeWidth={2} />, label: 'علاقه ناشناس', onPress: onAnon },
     { icon: <Sparkles size={18} color={Colors.purple} strokeWidth={2} />, label: `AI Insight ${firstName}`, sub: '۵۰ سکه', onPress: onInsight },
-    { icon: <UserX size={18} color={Colors.danger} strokeWidth={2} />, label: 'بلاک کاربر', danger: true, onPress: onBlock },
+    { icon: <UserX size={18} color={Colors.danger} strokeWidth={2} />, label: isBlocked ? 'رفع مسدودیت' : 'مسدود کردن', danger: true, onPress: onBlock },
     { icon: <Flag size={18} color={Colors.danger} strokeWidth={2} />, label: 'گزارش', danger: true, onPress: onReport },
   ];
 
@@ -233,6 +235,7 @@ export default function ProfileViewScreen() {
   const [loading, setLoading] = useState(!cached);
   const [error, setError] = useState(false);
 
+  const [blockStatus, setBlockStatus] = useState<BlockStatus | null>(null);
   const [giftOpen, setGiftOpen] = useState(false);
   const [templateOpen, setTemplateOpen] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
@@ -245,15 +248,17 @@ export default function ProfileViewScreen() {
   const fetchProfile = useCallback(async () => {
     if (!session) return;
     try {
-      const [data, me] = await Promise.all([
+      const [data, me, bStatus] = await Promise.all([
         profileApi.getUserProfile(session.accessToken, userId),
         profileApi.getProfile(session.accessToken),
+        blockApi.getBlockStatus(session.accessToken, userId).catch(() => null),
       ]);
       setProfile(prev => ({
         ...data,
         compatibility_score: prev?.compatibility_score ?? data.compatibility_score,
       }));
       setMyProfile(me);
+      setBlockStatus(bStatus);
       setError(false);
     } catch {
       if (!cached) setError(true);
@@ -363,7 +368,39 @@ export default function ProfileViewScreen() {
     router.push({ pathname: '/ai-insight/user' as any, params: { userId: String(profile?.id), userName: profile?.first_name } });
   };
   const handleBlock = () => {
-    Alert.alert('بلاک کاربر', 'این قابلیت به زودی اضافه می‌شه.', [{ text: 'باشه' }]);
+    if (!session || !profile) return;
+    const isBlocked = blockStatus?.blocked_by_me ?? false;
+    if (isBlocked) {
+      Alert.alert('رفع مسدودیت', `آیا می‌خواهی ${profile.first_name} را رفع بلاک کنی؟`, [
+        { text: 'لغو', style: 'cancel' },
+        {
+          text: 'رفع بلاک', style: 'destructive',
+          onPress: async () => {
+            try {
+              await blockApi.unblockUser(session.accessToken, profile.id);
+              setBlockStatus(prev => prev ? { ...prev, blocked_by_me: false, is_blocked_between: prev.blocked_me } : null);
+              toast.success('رفع مسدودیت انجام شد');
+            } catch { toast.error('خطا در رفع مسدودیت'); }
+          },
+        },
+      ]);
+    } else {
+      Alert.alert('مسدود کردن', `آیا می‌خواهی ${profile.first_name} را مسدود کنی؟`, [
+        { text: 'لغو', style: 'cancel' },
+        {
+          text: 'مسدود کردن', style: 'destructive',
+          onPress: async () => {
+            try {
+              await blockApi.blockUser(session.accessToken, profile.id);
+              setBlockStatus(prev => prev ? { ...prev, blocked_by_me: true, is_blocked_between: true } : null);
+              toast.success(`${profile.first_name} مسدود شد`);
+              setActionsOpen(false);
+              goBack();
+            } catch { toast.error('خطا در مسدود کردن'); }
+          },
+        },
+      ]);
+    }
   };
   const handleReport = () => {
     if (!profile) return;
@@ -734,6 +771,7 @@ export default function ProfileViewScreen() {
       <ProfileActionsSheet
         visible={actionsOpen}
         firstName={profile.first_name}
+        isBlocked={blockStatus?.blocked_by_me ?? false}
         onClose={() => setActionsOpen(false)}
         onGift={() => setGiftOpen(true)}
         onAnon={handleAnon}

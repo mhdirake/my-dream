@@ -1,5 +1,6 @@
 import { AuthProvider } from '@/lib/auth/AuthContext';
 import { CentrifugoProvider } from '@/lib/chat/CentrifugoContext';
+import { ModerationProvider } from '@/lib/moderation/ModerationContext';
 import { useFonts } from 'expo-font';
 import * as Notifications from 'expo-notifications';
 import { Stack, router } from 'expo-router';
@@ -69,13 +70,20 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <StatusBar style="dark" />
         <AuthProvider>
-          <CentrifugoProvider>
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen name="onboarding" options={{ animation: 'fade' }} />
-              <Stack.Screen name="profile-setup" options={{ animation: 'slide_from_right' }} />
-            </Stack>
-          </CentrifugoProvider>
+          <ModerationProvider>
+            <CentrifugoProvider>
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="(tabs)" />
+                <Stack.Screen name="onboarding" options={{ animation: 'fade' }} />
+                <Stack.Screen name="profile-setup" options={{ animation: 'slide_from_right' }} />
+                <Stack.Screen name="moderation/banned" options={{ gestureEnabled: false }} />
+                <Stack.Screen name="moderation/restriction-warning" options={{ presentation: 'modal' }} />
+                <Stack.Screen name="moderation/admin-review" options={{ gestureEnabled: false }} />
+                <Stack.Screen name="ai-coach" />
+                <Stack.Screen name="search" options={{ animation: 'fade_from_bottom' }} />
+              </Stack>
+            </CentrifugoProvider>
+          </ModerationProvider>
         </AuthProvider>
         <Toast config={toastConfig} visibilityTime={3000} topOffset={56} />
       </SafeAreaProvider>

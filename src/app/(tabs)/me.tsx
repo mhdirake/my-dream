@@ -10,7 +10,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
-  AlertTriangle, Bell, Brain, Camera, ChevronLeft, Coins, Eye, LayoutGrid,
+  AlertTriangle, Bell, Bot, Brain, Camera, ChevronLeft, Coins, Eye, LayoutGrid,
   Pencil, Settings, Shield, Sparkles, Star, User, Users, type LucideIcon,
 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
@@ -28,6 +28,7 @@ const MENU_ITEMS: MenuItem[] = [
   { icon: LayoutGrid,  iconColor: Colors.accent,   label: 'پیش‌نمایش پروفایل', sub: 'درصد تکمیل و موارد ناقص',   route: '/profile-setup/profile-preview' },
   { icon: Brain,       iconColor: Colors.purple,   label: 'تست شخصیت',          sub: 'تست شخصیت · بج طلایی',      route: '/profile-setup/personality-test-intro' },
   { icon: Sparkles,   iconColor: Colors.purple,   label: 'آنالیز هوش مصنوعی', sub: 'تحلیل شخصیتی من',            route: '/ai-insight/self' },
+  { icon: Bot,        iconColor: Colors.accent,   label: 'مربی هوش مصنوعی',  sub: 'گفتگو با AI Coach',            route: '/ai-coach' },
   { icon: Shield,     iconColor: Colors.trust,    label: 'احراز هویت',         sub: 'تأیید پایه · AI · جامعه',    route: '/verification' },
   { icon: Bell,        iconColor: Colors.trust,    label: 'اعلان‌ها',           sub: 'مدیریت اعلان‌ها',            route: '/notifications' },
   { icon: Shield,      iconColor: Colors.ok,       label: 'حریم خصوصی',        sub: 'حالت امن · کنترل پیام',      route: '/settings/privacy' },

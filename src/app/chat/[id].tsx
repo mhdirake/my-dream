@@ -152,7 +152,7 @@ export default function ConversationScreen() {
   // Message search
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<import('@/lib/api/chat').Message[]>([]);
+  const [searchResults, setSearchResults] = useState<import('@/lib/api/chat').MessageSearchItem[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const searchRef = useRef<TextInput>(null);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -236,12 +236,12 @@ export default function ConversationScreen() {
   useEffect(() => {
     if (!searchOpen) { setSearchResults([]); return; }
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-    if (!searchQuery.trim()) { setSearchResults([]); return; }
+    if (searchQuery.trim().length < 3) { setSearchResults([]); return; }
     searchDebounceRef.current = setTimeout(async () => {
       setSearchLoading(true);
       try {
         const res = await chatApi.searchMessages(token, conversationId, searchQuery.trim());
-        setSearchResults((res.items ?? []).reverse());
+        setSearchResults([...(res.items ?? [])]);
       } catch {
         // silent
       } finally {
@@ -394,7 +394,7 @@ export default function ConversationScreen() {
           <View style={styles.center}>
             <ActivityIndicator color={Colors.accent} />
           </View>
-        ) : searchOpen && searchQuery.trim() ? (
+        ) : searchOpen && searchQuery.trim().length >= 3 ? (
           /* Search results */
           searchLoading ? (
             <View style={styles.center}><ActivityIndicator color={Colors.accent} /></View>
@@ -404,20 +404,26 @@ export default function ConversationScreen() {
             </View>
           ) : (
             <ScrollView style={styles.searchResults} keyboardShouldPersistTaps="handled">
-              {searchResults.map(item => (
-                <TouchableOpacity
-                  key={item.message_id}
-                  style={styles.searchResultItem}
-                  onPress={async () => {
-                    setSearchOpen(false);
-                    setSearchQuery('');
-                    await loadContext(item.message_id);
-                  }}
-                >
-                  <Text style={styles.searchResultBody} numberOfLines={2}>{item.body_text || item.caption}</Text>
-                  <Text style={styles.searchResultTime}>{formatTime(item.created_at)}</Text>
-                </TouchableOpacity>
-              ))}
+              {searchResults.map(item => {
+                const isMine = item.sender_user_id === myId;
+                return (
+                  <TouchableOpacity
+                    key={item.message_id}
+                    style={styles.searchResultItem}
+                    onPress={async () => {
+                      setSearchOpen(false);
+                      setSearchQuery('');
+                      await loadContext(item.message_id);
+                    }}
+                  >
+                    <View style={styles.searchResultRow}>
+                      <Text style={styles.searchResultSender}>{isMine ? 'شما' : (name ?? '')}</Text>
+                      <Text style={styles.searchResultTime}>{formatTime(item.created_at)}</Text>
+                    </View>
+                    <Text style={styles.searchResultBody} numberOfLines={2}>{item.text_snippet}</Text>
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
           )
         ) : (
@@ -1015,10 +1021,12 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.hair,
   },
-  searchResultBody: { fontSize: 13, fontFamily: Fonts.regular, color: Colors.ink },
-  searchResultTime: { fontSize: 10.5, fontFamily: Fonts.regular, color: Colors.muted, marginTop: 2 },
+  searchResultRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  searchResultSender: { fontSize: 11.5, fontFamily: Fonts.semiBold, color: Colors.accent },
+  searchResultBody: { fontSize: 13, fontFamily: Fonts.regular, color: Colors.ink, textAlign: 'right', writingDirection: 'rtl' },
+  searchResultTime: { fontSize: 10.5, fontFamily: Fonts.regular, color: Colors.muted },
   searchEmpty: {
-    alignItems: 'center', paddingTop: 40, gap: 8,
+    flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8,
   },
   searchEmptyTxt: { fontSize: 14, fontFamily: Fonts.bold, color: Colors.inkSoft },
 

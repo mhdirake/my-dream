@@ -28,6 +28,7 @@ export function useConversations(
 
   const conversationsRef = useRef<Conversation[]>([]);
   const onNewMessageRef = useRef(onNewMessage);
+  const fetchCounterRef = useRef(0);
   useEffect(() => { onNewMessageRef.current = onNewMessage; }, [onNewMessage]);
 
   // Sync totalUnread whenever conversations change — avoids setState-in-updater
@@ -35,16 +36,26 @@ export function useConversations(
     setTotalUnread(conversations.reduce((sum, c) => sum + (c.unread_count ?? 0), 0));
   }, [conversations, setTotalUnread]);
 
+  const sortByLastMessage = (list: Conversation[]) =>
+    [...list].sort(
+      (a, b) =>
+        new Date(b.last_message_at ?? 0).getTime() -
+        new Date(a.last_message_at ?? 0).getTime(),
+    );
+
   const fetchConversations = useCallback(async () => {
     if (!token) return;
+    const myCount = ++fetchCounterRef.current;
     try {
       const [accepted, incoming, outgoing] = await Promise.all([
         chatApi.listConversations(token),
         chatApi.listPendingIncoming(token),
         chatApi.listPendingOutgoing(token),
       ]);
-      setConversations(accepted);
-      conversationsRef.current = accepted;
+      if (myCount !== fetchCounterRef.current) return;
+      const sorted = sortByLastMessage(accepted);
+      setConversations(sorted);
+      conversationsRef.current = sorted;
       setPendingIncoming(incoming);
       setPendingOutgoing(outgoing);
     } catch {
@@ -78,14 +89,15 @@ export function useConversations(
         const convPublicId = p?.conversation_id;
         if (!convPublicId) return;
 
-        // Optimistically increment badge immediately
-        setConversations(prev =>
-          prev.map(c =>
+        // Optimistically bump unread + move conversation to top
+        setConversations(prev => {
+          const updated = prev.map(c =>
             c.public_id === convPublicId
-              ? { ...c, unread_count: (c.unread_count ?? 0) + 1 }
+              ? { ...c, unread_count: (c.unread_count ?? 0) + 1, last_message_at: new Date().toISOString() }
               : c,
-          ),
-        );
+          );
+          return sortByLastMessage(updated);
+        });
 
         // Refresh to get updated last_message_preview, then fire in-app notification
         fetchConversations().then(() => {

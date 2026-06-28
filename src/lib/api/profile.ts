@@ -98,4 +98,11 @@ export const profileApi = {
     }
   ) =>
     api.patch<ClientProfile>('/api/client/profile', data, token),
+
+  getBioSuggestions: (token: string, currentBio?: string): Promise<string[]> =>
+    api.post<{ data: string[] }>(
+      '/api/client/profile/bio/suggestions',
+      currentBio ? { current_bio: currentBio } : {},
+      token,
+    ).then(r => r.data),
 };
