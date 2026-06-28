@@ -279,7 +279,8 @@ export function useChatMessages(
     try {
       const res = await chatApi.getMessageContext(token, conversationId, messageId);
       if (res.items?.length) {
-        setMessages([...res.items].reverse());
+        // context API returns ascending (oldest first) — no reverse needed
+        setMessages([...res.items]);
         setHasMore(true);
         setHighlightId(messageId);
         return messageId;

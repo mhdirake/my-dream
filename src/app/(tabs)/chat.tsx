@@ -5,7 +5,6 @@ import { Conversation, ConversationUser, chatApi } from '@/lib/api/chat';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useConversations } from '@/lib/chat/useConversations';
 import { toast } from '@/lib/toast';
-import * as Notifications from 'expo-notifications';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Check, Clock, Search, X } from 'lucide-react-native';
@@ -50,14 +49,6 @@ export default function ChatScreen() {
     const other = conv.first_user_id === myId ? conv.second_user : conv.first_user;
     showChatToast(conv, other);
     if (Platform.OS === 'web') return;
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: other.first_name,
-        body: conv.last_message_preview ?? 'پیام جدید 💬',
-        data: { conversationId: conv.id, publicId: conv.public_id, name: other.first_name },
-      },
-      trigger: null,
-    });
   }, [myId, showChatToast]);
 
   const { conversations, pendingIncoming, pendingOutgoing, loading, refreshing, refresh, resetUnread } = useConversations(
@@ -84,6 +75,8 @@ export default function ChatScreen() {
   const openConversation = (c: Conversation) => {
     const other = otherUser(c);
     resetUnread(c.public_id);
+    setSearchOpen(false);
+    setQuery('');
     router.push({
       pathname: '/chat/[id]',
       params: {

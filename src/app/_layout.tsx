@@ -2,8 +2,7 @@ import { AuthProvider } from '@/lib/auth/AuthContext';
 import { CentrifugoProvider } from '@/lib/chat/CentrifugoContext';
 import { ModerationProvider } from '@/lib/moderation/ModerationContext';
 import { useFonts } from 'expo-font';
-import * as Notifications from 'expo-notifications';
-import { Stack, router } from 'expo-router';
+import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
@@ -18,16 +17,6 @@ SplashScreen.preventAutoHideAsync();
 I18nManager.allowRTL(true);
 I18nManager.forceRTL(true);
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
-
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
     'Vazirmatn-Regular':   require('../../assets/fonts/Vazirmatn-Regular.ttf'),
@@ -40,28 +29,6 @@ export default function RootLayout() {
     if (fontsLoaded) SplashScreen.hideAsync();
   }, [fontsLoaded]);
 
-  useEffect(() => {
-    Notifications.requestPermissionsAsync();
-    const sub = Notifications.addNotificationResponseReceivedListener(response => {
-      const data = response.notification.request.content.data as {
-        conversationId?: number;
-        publicId?: string;
-        name?: string;
-      };
-      if (data?.conversationId) {
-        router.push({
-          pathname: '/chat/[id]',
-          params: {
-            id: String(data.conversationId),
-            publicId: data.publicId ?? '',
-            name: data.name ?? '',
-            status: 'accepted',
-          },
-        } as never);
-      }
-    });
-    return () => sub.remove();
-  }, []);
 
   if (!fontsLoaded) return null;
 
