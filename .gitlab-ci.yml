@@ -17,6 +17,7 @@ variables:
   ANDROID_GRADLE_PLUGIN_REPOSITORY: "https://plugins.gradle.org/m2/"
 
 .android-buildx-cache:
+  interruptible: true
   tags:
     - germany
   cache:
@@ -24,7 +25,6 @@ variables:
     policy: pull-push
     paths:
       - .ci-cache/android-buildx/
-  resource_group: android-runner-cache
   before_script:
     - mkdir -p "$ANDROID_ARTIFACTS_DIR" ".ci-cache"
     - docker buildx inspect "$ANDROID_BUILDX_BUILDER" >/dev/null 2>&1 || docker buildx create --name "$ANDROID_BUILDX_BUILDER" --driver docker-container --use
