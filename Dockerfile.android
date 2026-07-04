@@ -1,28 +1,22 @@
 ARG UBUNTU_IMAGE=ubuntu:24.04
 ARG NODE_VERSION=22.13.1
 ARG NODE_DOWNLOAD_BASE=https://nodejs.org/dist
-ARG GRADLE_VERSION=9.3.1
 ARG ANDROID_REPOSITORY_URL=https://dl.google.com/android/repository
 
 FROM ${UBUNTU_IMAGE} AS android-base
 
 ARG NODE_VERSION
 ARG NODE_DOWNLOAD_BASE
-ARG GRADLE_VERSION
 ARG ANDROID_REPOSITORY_URL
 
 ENV ANDROID_HOME=/opt/android-sdk \
   ANDROID_SDK_ROOT=/opt/android-sdk \
   DEBIAN_FRONTEND=noninteractive \
-  GOOGLE_MAVEN_REPOSITORY=https://dl.google.com/dl/android/maven2/ \
-  MAVEN_CENTRAL_REPOSITORY=https://repo.maven.apache.org/maven2/ \
-  GRADLE_PLUGIN_REPOSITORY=https://plugins.gradle.org/m2/ \
   JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 \
   NODE_HOME=/opt/node \
-  GRADLE_HOME=/opt/gradle \
   CI=1 \
   EXPO_NO_TELEMETRY=1 \
-  PATH=/opt/node/bin:/opt/gradle/bin:/opt/android-sdk/cmdline-tools/latest/bin:/opt/android-sdk/platform-tools:$PATH
+  PATH=/opt/node/bin:/opt/android-sdk/cmdline-tools/latest/bin:/opt/android-sdk/platform-tools:$PATH
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
@@ -59,9 +53,8 @@ RUN mkdir -p "$ANDROID_HOME/platforms" "$ANDROID_HOME/build-tools" "$ANDROID_HOM
     "${ANDROID_REPOSITORY_URL}/platform-36_r01.zip" -o /tmp/platform-36.zip \
   && unzip -q /tmp/platform-36.zip -d /tmp/platform-36 \
   && mv /tmp/platform-36/* "$ANDROID_HOME/platforms/android-36" \
-  && rm -rf /tmp/platform-36 /tmp/platform-36.zip
-
-RUN curl -fL --retry 5 --retry-all-errors --retry-delay 5 --connect-timeout 20 --max-time 600 \
+  && rm -rf /tmp/platform-36 /tmp/platform-36.zip \
+  && curl -fL --retry 5 --retry-all-errors --retry-delay 5 --connect-timeout 20 --max-time 600 \
     "${ANDROID_REPOSITORY_URL}/build-tools_r36_linux.zip" -o /tmp/build-tools-36.zip \
   && unzip -q /tmp/build-tools-36.zip -d /tmp/build-tools-36 \
   && mv /tmp/build-tools-36/* "$ANDROID_HOME/build-tools/36.0.0" \
@@ -70,123 +63,36 @@ RUN curl -fL --retry 5 --retry-all-errors --retry-delay 5 --connect-timeout 20 -
     '8933bad161af4178b1185d1a37fbf41ea5269c55' \
     'd56f5187479451eabf01fb78af6dfcb131a6481e' \
     '24333f8a63b6825ea9c5514f83c2829b004d1fee' \
-    > "$ANDROID_HOME/licenses/android-sdk-license" \
-  && find "$ANDROID_HOME/platforms/android-36" -maxdepth 1 -type f -name android.jar | grep -q . \
-  && find "$ANDROID_HOME/build-tools/36.0.0" -maxdepth 1 -type f -name aapt2 | grep -q . \
-  && curl -fL --retry 5 --retry-all-errors --retry-delay 5 --connect-timeout 20 --max-time 600 \
-    "https://downloads.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip" -o /tmp/gradle.zip \
-  && unzip -q /tmp/gradle.zip -d /opt \
-  && mv "/opt/gradle-${GRADLE_VERSION}" "$GRADLE_HOME" \
-  && rm /tmp/gradle.zip \
-  && gradle --version
+    > "$ANDROID_HOME/licenses/android-sdk-license"
 
 WORKDIR /app
 
 FROM android-base AS deps
 COPY package*.json ./
 
-ARG NPM_INSTALL_MODE=online
 ARG NPM_REGISTRY=https://registry.npmjs.org/
 RUN --mount=type=cache,id=mydream-npm,target=/root/.npm,sharing=locked \
-  set -eu; \
-  npm_flags="--prefer-offline"; \
-  if [ "$NPM_INSTALL_MODE" = "offline" ]; then \
-    npm_flags="$npm_flags --offline"; \
-  fi; \
-  npm ci $npm_flags --registry="$NPM_REGISTRY"
+  npm ci --prefer-offline --registry="$NPM_REGISTRY"
 
 FROM deps AS android-build
 COPY . .
 
+ARG EXPO_ANDROID_VARIANT=debugOptimized
 ARG EXPO_PUBLIC_API_URL
 ARG EXPO_PUBLIC_KC_URL
 ARG EXPO_PUBLIC_KC_SECRET
-ARG GRADLE_OFFLINE=false
-ARG GOOGLE_MAVEN_REPOSITORY=https://dl.google.com/dl/android/maven2/
-ARG MAVEN_CENTRAL_REPOSITORY=https://repo.maven.apache.org/maven2/
-ARG GRADLE_PLUGIN_REPOSITORY=https://plugins.gradle.org/m2/
 
 ENV EXPO_PUBLIC_API_URL=${EXPO_PUBLIC_API_URL} \
   EXPO_PUBLIC_KC_URL=${EXPO_PUBLIC_KC_URL} \
-  EXPO_PUBLIC_KC_SECRET=${EXPO_PUBLIC_KC_SECRET} \
-  GOOGLE_MAVEN_REPOSITORY=${GOOGLE_MAVEN_REPOSITORY} \
-  MAVEN_CENTRAL_REPOSITORY=${MAVEN_CENTRAL_REPOSITORY} \
-  GRADLE_PLUGIN_REPOSITORY=${GRADLE_PLUGIN_REPOSITORY}
+  EXPO_PUBLIC_KC_SECRET=${EXPO_PUBLIC_KC_SECRET}
 
 RUN --mount=type=cache,id=mydream-expo,target=/root/.expo,sharing=locked \
   --mount=type=cache,id=mydream-gradle,target=/root/.gradle,sharing=locked \
-  set -eu; \
-  mkdir -p /root/.gradle; \
-  printf '%s\n' \
-    "def googleMirror = System.getenv('GOOGLE_MAVEN_REPOSITORY')" \
-    "def centralMirror = System.getenv('MAVEN_CENTRAL_REPOSITORY')" \
-    "def pluginMirror = System.getenv('GRADLE_PLUGIN_REPOSITORY')" \
-    "gradle.beforeSettings { settings ->" \
-    "  settings.pluginManagement {" \
-    "    repositories {" \
-    "      clear()" \
-    "      maven { url = uri(googleMirror) }" \
-    "      maven { url = uri(centralMirror) }" \
-    "      maven { url = uri(pluginMirror) }" \
-    "      google()" \
-    "      mavenCentral()" \
-    "      gradlePluginPortal()" \
-    "    }" \
-    "  }" \
-    "}" \
-    "settingsEvaluated { settings ->" \
-    "  settings.pluginManagement.repositories {" \
-    "    clear()" \
-    "    maven { url = uri(googleMirror) }" \
-    "    maven { url = uri(centralMirror) }" \
-    "    maven { url = uri(pluginMirror) }" \
-    "    google()" \
-    "    mavenCentral()" \
-    "    gradlePluginPortal()" \
-    "  }" \
-    "  try {" \
-    "    settings.dependencyResolutionManagement.repositories {" \
-    "      clear()" \
-    "      maven { url = uri(googleMirror) }" \
-    "      maven { url = uri(centralMirror) }" \
-    "      google()" \
-    "      mavenCentral()" \
-    "    }" \
-    "  } catch (ignored) {}" \
-    "}" \
-    "gradle.beforeProject { project ->" \
-    "  project.buildscript.repositories {" \
-    "    maven { url = uri(googleMirror) }" \
-    "    maven { url = uri(centralMirror) }" \
-    "    google()" \
-    "    mavenCentral()" \
-    "  }" \
-    "  project.repositories {" \
-    "    maven { url = uri(googleMirror) }" \
-    "    maven { url = uri(centralMirror) }" \
-    "    google()" \
-    "    mavenCentral()" \
-    "  }" \
-    "}" \
-    "allprojects {" \
-    "  repositories {" \
-    "    maven { url = uri(googleMirror) }" \
-    "    maven { url = uri(centralMirror) }" \
-    "    google()" \
-    "    mavenCentral()" \
-    "  }" \
-    "}" \
-    > /root/.gradle/init.gradle; \
-  gradle_flags="--build-cache --no-daemon"; \
-  if [ "$GRADLE_OFFLINE" = "true" ]; then \
-    gradle_flags="$gradle_flags --offline"; \
-  fi; \
-  npx expo prebuild --platform android \
-  && sed -i '/foojay-resolver-convention/d' \
-       /app/node_modules/@react-native/gradle-plugin/settings.gradle.kts \
-  && cd android \
-  && chmod +x ./gradlew \
-  && ./gradlew assembleRelease $gradle_flags
+  mkdir -p /out \
+  && npx expo run:android \
+    --variant "$EXPO_ANDROID_VARIANT" \
+    --device generic \
+    --output /out
 
 FROM scratch AS android-artifacts
-COPY --from=android-build /app/android/app/build/outputs/apk/release/ /
+COPY --from=android-build /out/ /

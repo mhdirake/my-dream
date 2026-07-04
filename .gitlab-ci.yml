@@ -5,31 +5,11 @@ variables:
   COMPOSE_DOCKER_CLI_BUILD: "1"
   DOCKER_BUILDKIT: "1"
   BUILDKIT_PROGRESS: "plain"
-  ANDROID_BUILDX_BUILDER: "native-app-android"
-  ANDROID_BUILDX_CACHE_DIR: ".ci-cache/android-buildx"
-  ANDROID_BUILDX_CACHE_NEW_DIR: ".ci-cache/android-buildx-new"
   ANDROID_ARTIFACTS_DIR: "artifacts"
   ANDROID_UBUNTU_IMAGE: "ubuntu:24.04"
   ANDROID_REPOSITORY_URL: "https://dl.google.com/android/repository"
   ANDROID_NPM_REGISTRY: "https://registry.npmjs.org/"
-  ANDROID_GOOGLE_MAVEN_REPOSITORY: "https://dl.google.com/dl/android/maven2/"
-  ANDROID_MAVEN_CENTRAL_REPOSITORY: "https://repo.maven.apache.org/maven2/"
-  ANDROID_GRADLE_PLUGIN_REPOSITORY: "https://plugins.gradle.org/m2/"
-
-.android-buildx-cache:
-  interruptible: true
-  tags:
-    - germany
-  cache:
-    key: "android-offline-${CI_PROJECT_ID}"
-    policy: pull-push
-    paths:
-      - .ci-cache/android-buildx/
-  before_script:
-    - mkdir -p "$ANDROID_ARTIFACTS_DIR" ".ci-cache"
-    - docker buildx inspect "$ANDROID_BUILDX_BUILDER" >/dev/null 2>&1 || docker buildx create --name "$ANDROID_BUILDX_BUILDER" --driver docker-container --use
-    - docker buildx use "$ANDROID_BUILDX_BUILDER"
-    - docker buildx inspect --bootstrap
+  ANDROID_EXPO_VARIANT: "debugOptimized"
 
 build-web:
   stage: build
@@ -51,81 +31,30 @@ build-web:
     - docker compose up -d --no-build --no-deps expo-web
     - echo "Deployment complete!"
 
-warm-android-cache:
-  extends: .android-buildx-cache
-  stage: build
-  rules:
-    - if: '$WARM_ANDROID_CACHE == "1"'
-  script:
-    - rm -rf "$ANDROID_BUILDX_CACHE_NEW_DIR"
-    - |
-      cache_from_args=""
-      if [ -f "$ANDROID_BUILDX_CACHE_DIR/index.json" ]; then
-        cache_from_args="--cache-from type=local,src=$ANDROID_BUILDX_CACHE_DIR"
-      fi
-
-      docker buildx build \
-        --file Dockerfile.android \
-        --target android-artifacts \
-        --output "type=local,dest=$ANDROID_ARTIFACTS_DIR" \
-        $cache_from_args \
-        --cache-to "type=local,dest=$ANDROID_BUILDX_CACHE_NEW_DIR,mode=max" \
-        --build-arg UBUNTU_IMAGE="$ANDROID_UBUNTU_IMAGE" \
-        --build-arg ANDROID_REPOSITORY_URL="$ANDROID_REPOSITORY_URL" \
-        --build-arg NPM_INSTALL_MODE=online \
-        --build-arg NPM_REGISTRY="$ANDROID_NPM_REGISTRY" \
-        --build-arg GRADLE_OFFLINE=false \
-        --build-arg GOOGLE_MAVEN_REPOSITORY="$ANDROID_GOOGLE_MAVEN_REPOSITORY" \
-        --build-arg MAVEN_CENTRAL_REPOSITORY="$ANDROID_MAVEN_CENTRAL_REPOSITORY" \
-        --build-arg GRADLE_PLUGIN_REPOSITORY="$ANDROID_GRADLE_PLUGIN_REPOSITORY" \
-        --build-arg EXPO_PUBLIC_API_URL="$EXPO_PUBLIC_API_URL" \
-        --build-arg EXPO_PUBLIC_KC_URL="$EXPO_PUBLIC_KC_URL" \
-        --build-arg EXPO_PUBLIC_KC_SECRET="$EXPO_PUBLIC_KC_SECRET" \
-        .
-    - rm -rf "$ANDROID_BUILDX_CACHE_DIR"
-    - mv "$ANDROID_BUILDX_CACHE_NEW_DIR" "$ANDROID_BUILDX_CACHE_DIR"
-    - ls -lah "$ANDROID_ARTIFACTS_DIR"
-  artifacts:
-    name: "android-cache-warm-$CI_COMMIT_REF_SLUG-$CI_PIPELINE_ID"
-    expire_in: 90 days
-    paths:
-      - artifacts/
-
 build-android:
-  extends: .android-buildx-cache
   stage: build
+  interruptible: true
+  tags:
+    - germany
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
   script:
-    - rm -rf "$ANDROID_BUILDX_CACHE_NEW_DIR"
+    - rm -rf "$ANDROID_ARTIFACTS_DIR"
+    - mkdir -p "$ANDROID_ARTIFACTS_DIR"
     - |
-      cache_from_args=""
-      if [ -f "$ANDROID_BUILDX_CACHE_DIR/index.json" ]; then
-        cache_from_args="--cache-from type=local,src=$ANDROID_BUILDX_CACHE_DIR"
-      fi
-
       docker buildx build \
         --file Dockerfile.android \
         --target android-artifacts \
         --output "type=local,dest=$ANDROID_ARTIFACTS_DIR" \
-        $cache_from_args \
-        --cache-to "type=local,dest=$ANDROID_BUILDX_CACHE_NEW_DIR,mode=max" \
         --build-arg UBUNTU_IMAGE="$ANDROID_UBUNTU_IMAGE" \
         --build-arg ANDROID_REPOSITORY_URL="$ANDROID_REPOSITORY_URL" \
-        --build-arg NPM_INSTALL_MODE=online \
         --build-arg NPM_REGISTRY="$ANDROID_NPM_REGISTRY" \
-        --build-arg GRADLE_OFFLINE=false \
-        --build-arg GOOGLE_MAVEN_REPOSITORY="$ANDROID_GOOGLE_MAVEN_REPOSITORY" \
-        --build-arg MAVEN_CENTRAL_REPOSITORY="$ANDROID_MAVEN_CENTRAL_REPOSITORY" \
-        --build-arg GRADLE_PLUGIN_REPOSITORY="$ANDROID_GRADLE_PLUGIN_REPOSITORY" \
+        --build-arg EXPO_ANDROID_VARIANT="$ANDROID_EXPO_VARIANT" \
         --build-arg EXPO_PUBLIC_API_URL="$EXPO_PUBLIC_API_URL" \
         --build-arg EXPO_PUBLIC_KC_URL="$EXPO_PUBLIC_KC_URL" \
         --build-arg EXPO_PUBLIC_KC_SECRET="$EXPO_PUBLIC_KC_SECRET" \
         .
-    - rm -rf "$ANDROID_BUILDX_CACHE_DIR"
-    - mv "$ANDROID_BUILDX_CACHE_NEW_DIR" "$ANDROID_BUILDX_CACHE_DIR"
     - ls -lah "$ANDROID_ARTIFACTS_DIR"
-
   artifacts:
     name: "apk-$CI_COMMIT_REF_SLUG-$CI_PIPELINE_ID"
     expose_as: "Android APK"
