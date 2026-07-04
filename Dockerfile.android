@@ -92,7 +92,8 @@ RUN --mount=type=cache,id=mydream-expo,target=/root/.expo,sharing=locked \
   && npx expo run:android \
     --variant "$EXPO_ANDROID_VARIANT" \
     --device generic \
-    --output /out
+  && find /app/android/app/build/outputs/apk -type f -name "*.apk" -exec cp {} /out/ \; \
+  && test -n "$(find /out -type f -name '*.apk' -print -quit)"
 
 FROM scratch AS android-artifacts
 COPY --from=android-build /out/ /
