@@ -1,7 +1,5 @@
 stages:
-  - build-web
-  - warm-android-cache
-  - build-android
+  - build
 
 variables:
   COMPOSE_DOCKER_CLI_BUILD: "1"
@@ -34,7 +32,7 @@ variables:
     - docker buildx inspect --bootstrap
 
 build-web:
-  stage: build-web
+  stage: build
   tags:
     - runner01
   only:
@@ -55,10 +53,9 @@ build-web:
 
 warm-android-cache:
   extends: .android-buildx-cache
-  stage: warm-android-cache
+  stage: build
   rules:
     - if: '$WARM_ANDROID_CACHE == "1"'
-    - if: '$CI_COMMIT_BRANCH == "main"'
   script:
     - rm -rf "$ANDROID_BUILDX_CACHE_NEW_DIR"
     - |
@@ -96,7 +93,7 @@ warm-android-cache:
 
 build-android:
   extends: .android-buildx-cache
-  stage: build-android
+  stage: build
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
   script:
@@ -108,7 +105,6 @@ build-android:
       fi
 
       docker buildx build \
-        --network none \
         --file Dockerfile.android \
         --target android-artifacts \
         --output "type=local,dest=$ANDROID_ARTIFACTS_DIR" \
@@ -116,9 +112,9 @@ build-android:
         --cache-to "type=local,dest=$ANDROID_BUILDX_CACHE_NEW_DIR,mode=max" \
         --build-arg UBUNTU_IMAGE="$ANDROID_UBUNTU_IMAGE" \
         --build-arg ANDROID_REPOSITORY_URL="$ANDROID_REPOSITORY_URL" \
-        --build-arg NPM_INSTALL_MODE=offline \
+        --build-arg NPM_INSTALL_MODE=online \
         --build-arg NPM_REGISTRY="$ANDROID_NPM_REGISTRY" \
-        --build-arg GRADLE_OFFLINE=true \
+        --build-arg GRADLE_OFFLINE=false \
         --build-arg GOOGLE_MAVEN_REPOSITORY="$ANDROID_GOOGLE_MAVEN_REPOSITORY" \
         --build-arg MAVEN_CENTRAL_REPOSITORY="$ANDROID_MAVEN_CENTRAL_REPOSITORY" \
         --build-arg GRADLE_PLUGIN_REPOSITORY="$ANDROID_GRADLE_PLUGIN_REPOSITORY" \
