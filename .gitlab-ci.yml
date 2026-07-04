@@ -11,6 +11,12 @@ variables:
   ANDROID_BUILDX_CACHE_DIR: ".ci-cache/android-buildx"
   ANDROID_BUILDX_CACHE_NEW_DIR: ".ci-cache/android-buildx-new"
   ANDROID_ARTIFACTS_DIR: "artifacts"
+  ANDROID_UBUNTU_IMAGE: "ubuntu:24.04"
+  ANDROID_REPOSITORY_URL: "https://dl.google.com/android/repository"
+  ANDROID_NPM_REGISTRY: "https://registry.npmjs.org/"
+  ANDROID_GOOGLE_MAVEN_REPOSITORY: "https://dl.google.com/dl/android/maven2/"
+  ANDROID_MAVEN_CENTRAL_REPOSITORY: "https://repo.maven.apache.org/maven2/"
+  ANDROID_GRADLE_PLUGIN_REPOSITORY: "https://plugins.gradle.org/m2/"
 
 .android-buildx-cache:
   tags:
@@ -67,10 +73,14 @@ warm-android-cache:
         --output "type=local,dest=$ANDROID_ARTIFACTS_DIR" \
         $cache_from_args \
         --cache-to "type=local,dest=$ANDROID_BUILDX_CACHE_NEW_DIR,mode=max" \
-        --secret id=npm_user,env=NPM_USER \
-        --secret id=npm_pass,env=NPM_PASS \
+        --build-arg UBUNTU_IMAGE="$ANDROID_UBUNTU_IMAGE" \
+        --build-arg ANDROID_REPOSITORY_URL="$ANDROID_REPOSITORY_URL" \
         --build-arg NPM_INSTALL_MODE=online \
+        --build-arg NPM_REGISTRY="$ANDROID_NPM_REGISTRY" \
         --build-arg GRADLE_OFFLINE=false \
+        --build-arg GOOGLE_MAVEN_REPOSITORY="$ANDROID_GOOGLE_MAVEN_REPOSITORY" \
+        --build-arg MAVEN_CENTRAL_REPOSITORY="$ANDROID_MAVEN_CENTRAL_REPOSITORY" \
+        --build-arg GRADLE_PLUGIN_REPOSITORY="$ANDROID_GRADLE_PLUGIN_REPOSITORY" \
         --build-arg EXPO_PUBLIC_API_URL="$EXPO_PUBLIC_API_URL" \
         --build-arg EXPO_PUBLIC_KC_URL="$EXPO_PUBLIC_KC_URL" \
         --build-arg EXPO_PUBLIC_KC_SECRET="$EXPO_PUBLIC_KC_SECRET" \
@@ -104,10 +114,14 @@ build-android:
         --output "type=local,dest=$ANDROID_ARTIFACTS_DIR" \
         $cache_from_args \
         --cache-to "type=local,dest=$ANDROID_BUILDX_CACHE_NEW_DIR,mode=max" \
-        --secret id=npm_user,env=NPM_USER \
-        --secret id=npm_pass,env=NPM_PASS \
+        --build-arg UBUNTU_IMAGE="$ANDROID_UBUNTU_IMAGE" \
+        --build-arg ANDROID_REPOSITORY_URL="$ANDROID_REPOSITORY_URL" \
         --build-arg NPM_INSTALL_MODE=offline \
+        --build-arg NPM_REGISTRY="$ANDROID_NPM_REGISTRY" \
         --build-arg GRADLE_OFFLINE=true \
+        --build-arg GOOGLE_MAVEN_REPOSITORY="$ANDROID_GOOGLE_MAVEN_REPOSITORY" \
+        --build-arg MAVEN_CENTRAL_REPOSITORY="$ANDROID_MAVEN_CENTRAL_REPOSITORY" \
+        --build-arg GRADLE_PLUGIN_REPOSITORY="$ANDROID_GRADLE_PLUGIN_REPOSITORY" \
         --build-arg EXPO_PUBLIC_API_URL="$EXPO_PUBLIC_API_URL" \
         --build-arg EXPO_PUBLIC_KC_URL="$EXPO_PUBLIC_KC_URL" \
         --build-arg EXPO_PUBLIC_KC_SECRET="$EXPO_PUBLIC_KC_SECRET" \

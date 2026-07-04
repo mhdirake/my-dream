@@ -1,8 +1,8 @@
-ARG UBUNTU_IMAGE=docker.iranserver.com/ubuntu:24.04
+ARG UBUNTU_IMAGE=ubuntu:24.04
 ARG NODE_VERSION=22.13.1
 ARG NODE_DOWNLOAD_BASE=https://nodejs.org/dist
 ARG GRADLE_VERSION=9.3.1
-ARG ANDROID_REPOSITORY_URL=https://redirector.gvt1.com/edgedl/android/repository
+ARG ANDROID_REPOSITORY_URL=https://dl.google.com/android/repository
 
 FROM ${UBUNTU_IMAGE} AS android-base
 
@@ -14,9 +14,9 @@ ARG ANDROID_REPOSITORY_URL
 ENV ANDROID_HOME=/opt/android-sdk \
   ANDROID_SDK_ROOT=/opt/android-sdk \
   DEBIAN_FRONTEND=noninteractive \
-  GOOGLE_MAVEN_REPOSITORY=https://maven.aliyun.com/repository/google \
-  MAVEN_CENTRAL_REPOSITORY=https://maven.aliyun.com/repository/public \
-  GRADLE_PLUGIN_REPOSITORY=https://maven.aliyun.com/repository/gradle-plugin \
+  GOOGLE_MAVEN_REPOSITORY=https://dl.google.com/dl/android/maven2/ \
+  MAVEN_CENTRAL_REPOSITORY=https://repo.maven.apache.org/maven2/ \
+  GRADLE_PLUGIN_REPOSITORY=https://plugins.gradle.org/m2/ \
   JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 \
   NODE_HOME=/opt/node \
   GRADLE_HOME=/opt/gradle \
@@ -86,24 +86,14 @@ FROM android-base AS deps
 COPY package*.json ./
 
 ARG NPM_INSTALL_MODE=online
+ARG NPM_REGISTRY=https://registry.npmjs.org/
 RUN --mount=type=cache,id=mydream-npm,target=/root/.npm,sharing=locked \
-  --mount=type=secret,id=npm_user,required=false \
-  --mount=type=secret,id=npm_pass,required=false \
   set -eu; \
   npm_flags="--prefer-offline"; \
   if [ "$NPM_INSTALL_MODE" = "offline" ]; then \
     npm_flags="$npm_flags --offline"; \
   fi; \
-  if [ -s /run/secrets/npm_user ] && [ -s /run/secrets/npm_pass ]; then \
-    npm_user="$(cat /run/secrets/npm_user)"; \
-    npm_pass="$(cat /run/secrets/npm_pass)"; \
-    pass64="$(printf '%s' "$npm_pass" | base64 | tr -d '\n')"; \
-    printf "registry=https://nexus.gosafir.com/repository/npm-group/\n//nexus.gosafir.com/repository/npm-group/:username=%s\n//nexus.gosafir.com/repository/npm-group/:_password=%s\n//nexus.gosafir.com/repository/npm-group/:email=ci@example.com\n" "$npm_user" "$pass64" > /tmp/npmrc; \
-    NPM_CONFIG_USERCONFIG=/tmp/npmrc npm ci $npm_flags; \
-    rm -f /tmp/npmrc; \
-  else \
-    npm ci $npm_flags; \
-  fi
+  npm ci $npm_flags --registry="$NPM_REGISTRY"
 
 FROM deps AS android-build
 COPY . .
@@ -112,9 +102,9 @@ ARG EXPO_PUBLIC_API_URL
 ARG EXPO_PUBLIC_KC_URL
 ARG EXPO_PUBLIC_KC_SECRET
 ARG GRADLE_OFFLINE=false
-ARG GOOGLE_MAVEN_REPOSITORY=https://maven.aliyun.com/repository/google
-ARG MAVEN_CENTRAL_REPOSITORY=https://maven.aliyun.com/repository/public
-ARG GRADLE_PLUGIN_REPOSITORY=https://maven.aliyun.com/repository/gradle-plugin
+ARG GOOGLE_MAVEN_REPOSITORY=https://dl.google.com/dl/android/maven2/
+ARG MAVEN_CENTRAL_REPOSITORY=https://repo.maven.apache.org/maven2/
+ARG GRADLE_PLUGIN_REPOSITORY=https://plugins.gradle.org/m2/
 
 ENV EXPO_PUBLIC_API_URL=${EXPO_PUBLIC_API_URL} \
   EXPO_PUBLIC_KC_URL=${EXPO_PUBLIC_KC_URL} \
@@ -137,6 +127,7 @@ RUN --mount=type=cache,id=mydream-expo,target=/root/.expo,sharing=locked \
     "      clear()" \
     "      maven { url = uri(googleMirror) }" \
     "      maven { url = uri(centralMirror) }" \
+    "      maven { url = uri(pluginMirror) }" \
     "      google()" \
     "      mavenCentral()" \
     "      gradlePluginPortal()" \
@@ -148,6 +139,7 @@ RUN --mount=type=cache,id=mydream-expo,target=/root/.expo,sharing=locked \
     "    clear()" \
     "    maven { url = uri(googleMirror) }" \
     "    maven { url = uri(centralMirror) }" \
+    "    maven { url = uri(pluginMirror) }" \
     "    google()" \
     "    mavenCentral()" \
     "    gradlePluginPortal()" \
