@@ -9,7 +9,7 @@ variables:
   ANDROID_UBUNTU_IMAGE: "ubuntu:24.04"
   ANDROID_REPOSITORY_URL: "https://dl.google.com/android/repository"
   ANDROID_NPM_REGISTRY: "https://registry.npmjs.org/"
-  ANDROID_EXPO_VARIANT: "debugOptimized"
+  ANDROID_GRADLE_VARIANT: "DebugOptimized"
 
 build-web:
   stage: build
@@ -49,7 +49,7 @@ build-android:
         --build-arg UBUNTU_IMAGE="$ANDROID_UBUNTU_IMAGE" \
         --build-arg ANDROID_REPOSITORY_URL="$ANDROID_REPOSITORY_URL" \
         --build-arg NPM_REGISTRY="$ANDROID_NPM_REGISTRY" \
-        --build-arg EXPO_ANDROID_VARIANT="$ANDROID_EXPO_VARIANT" \
+        --build-arg ANDROID_GRADLE_VARIANT="$ANDROID_GRADLE_VARIANT" \
         --build-arg EXPO_PUBLIC_API_URL="$EXPO_PUBLIC_API_URL" \
         --build-arg EXPO_PUBLIC_KC_URL="$EXPO_PUBLIC_KC_URL" \
         --build-arg EXPO_PUBLIC_KC_SECRET="$EXPO_PUBLIC_KC_SECRET" \
