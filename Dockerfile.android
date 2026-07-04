@@ -185,7 +185,8 @@ RUN --mount=type=cache,id=mydream-expo,target=/root/.expo,sharing=locked \
   && sed -i '/foojay-resolver-convention/d' \
        /app/node_modules/@react-native/gradle-plugin/settings.gradle.kts \
   && cd android \
-  && gradle assembleRelease $gradle_flags
+  && chmod +x ./gradlew \
+  && ./gradlew assembleRelease $gradle_flags
 
 FROM scratch AS android-artifacts
 COPY --from=android-build /app/android/app/build/outputs/apk/release/ /
