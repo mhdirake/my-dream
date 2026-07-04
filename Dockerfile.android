@@ -89,6 +89,7 @@ ENV EXPO_PUBLIC_API_URL=${EXPO_PUBLIC_API_URL} \
 RUN --mount=type=cache,id=mydream-expo,target=/root/.expo,sharing=locked \
   --mount=type=cache,id=mydream-gradle,target=/root/.gradle,sharing=locked \
   mkdir -p /out \
+  && rm -f /root/.gradle/init.gradle \
   && npx expo prebuild --platform android \
   && cd android \
   && chmod +x ./gradlew \
