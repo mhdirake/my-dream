@@ -14,7 +14,7 @@ variables:
 
 .android-buildx-cache:
   tags:
-    - runner01
+    - germany
   cache:
     key: "android-offline-${CI_PROJECT_ID}"
     policy: pull-push
@@ -82,7 +82,7 @@ warm-android-cache:
     name: "android-cache-warm-$CI_COMMIT_REF_SLUG-$CI_PIPELINE_ID"
     expire_in: 90 days
     paths:
-      - artifacts/*.apk
+      - artifacts/
 
 build-android:
   extends: .android-buildx-cache
@@ -118,6 +118,7 @@ build-android:
 
   artifacts:
     name: "apk-$CI_COMMIT_REF_SLUG-$CI_PIPELINE_ID"
+    expose_as: "Android APK"
     expire_in: 90 days
     paths:
-      - artifacts/*.apk
+      - artifacts/
