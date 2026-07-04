@@ -77,7 +77,8 @@ RUN --mount=type=cache,id=mydream-npm,target=/root/.npm,sharing=locked \
 FROM deps AS android-build
 COPY . .
 
-ARG ANDROID_GRADLE_VARIANT=DebugOptimized
+ARG ANDROID_GRADLE_VARIANT=Debug
+ARG ANDROID_ARCHITECTURES=arm64-v8a
 ARG EXPO_PUBLIC_API_URL
 ARG EXPO_PUBLIC_KC_URL
 ARG EXPO_PUBLIC_KC_SECRET
@@ -93,7 +94,11 @@ RUN --mount=type=cache,id=mydream-expo,target=/root/.expo,sharing=locked \
   && npx expo prebuild --platform android \
   && cd android \
   && chmod +x ./gradlew \
-  && ./gradlew "assemble${ANDROID_GRADLE_VARIANT}" --build-cache --no-daemon \
+  && GRADLE_OPTS="-Dorg.gradle.jvmargs=-Xmx1536m -Dkotlin.daemon.jvm.options=-Xmx512m" ./gradlew "assemble${ANDROID_GRADLE_VARIANT}" \
+    -PreactNativeArchitectures="$ANDROID_ARCHITECTURES" \
+    --build-cache \
+    --max-workers=1 \
+    --no-daemon \
   && find /app/android/app/build/outputs/apk -type f -name "*.apk" -exec cp {} /out/ \; \
   && test -n "$(find /out -type f -name '*.apk' -print -quit)"
 
