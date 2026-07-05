@@ -8,6 +8,7 @@ import {
   Flag,
   Globe,
   MapPin,
+  Mic,
   MessageSquare,
   Pencil,
   Sliders,
@@ -132,6 +133,13 @@ function buildSections(profile: ClientProfile): Section[] {
         ? `${profile.prompt_answers!.length} پاسخ`
         : '—',
       onPress: () => push('/profile-setup/about-me', { mode: 'edit' }),
+    },
+    {
+      icon: Mic,
+      iconColor: Colors.accent,
+      label: 'معرفی صوتی',
+      value: profile.voice_intro_duration_seconds ? 'ثبت شده' : '—',
+      onPress: () => router.push('/profile-edit/voice-intro' as any),
     },
   ];
 }

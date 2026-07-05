@@ -11,6 +11,7 @@ import { profileApi, type ClientProfile, type UserProfile } from '@/lib/api/prof
 import { profileCache } from '@/lib/cache/profileCache';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { Image } from 'expo-image';
+import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
@@ -25,6 +26,8 @@ import {
   Lock,
   MessageCircle,
   MoreVertical,
+  Pause,
+  Play,
   Share2,
   Sparkles,
   Star,
@@ -60,6 +63,42 @@ function badgeKind(slug: string): 'ai' | 'community' | 'gold' | 'complete' | 'pe
   if (slug === 'complete_profile' || slug === 'complete-profile') return 'complete';
   if (slug === 'psychology_test_completed' || slug === 'psychology-test-completed') return 'personality';
   return 'check';
+}
+
+function formatVoiceDuration(totalSeconds: number) {
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function VoiceIntroPlayer({ uri, durationSeconds }: { uri: string; durationSeconds: number }) {
+  const player = useAudioPlayer(uri);
+  const status = useAudioPlayerStatus(player);
+
+  const toggle = () => {
+    if (status.playing) player.pause();
+    else {
+      if (status.currentTime >= (status.duration || durationSeconds)) player.seekTo(0);
+      player.play();
+    }
+  };
+
+  const remaining = status.playing || status.currentTime > 0
+    ? Math.max(0, Math.ceil((status.duration || durationSeconds) - status.currentTime))
+    : durationSeconds;
+
+  return (
+    <TouchableOpacity style={styles.voiceIntroRow} onPress={toggle} activeOpacity={0.8}>
+      <View style={styles.voiceIntroBtn}>
+        {status.playing
+          ? <Pause size={16} color="#fff" fill="#fff" strokeWidth={0} />
+          : <Play size={16} color="#fff" fill="#fff" strokeWidth={0} />
+        }
+      </View>
+      <View style={styles.voiceIntroWave} />
+      <Text style={styles.voiceIntroDuration}>{formatVoiceDuration(remaining)}</Text>
+    </TouchableOpacity>
+  );
 }
 
 const RELIGIOSITY: Record<number, string> = {
@@ -548,7 +587,7 @@ export default function ProfileViewScreen() {
             {/* Locked rows */}
             <View style={styles.lockedList}>
               <Text style={styles.sectionTitle}>قفل در Basic</Text>
-              {['Lifestyle Match', 'سبک زندگی', 'تست شخصیت', 'پاسخ آشنایی', 'Voice Intro'].map(l => (
+              {['تطابق سبک زندگی', 'سبک زندگی', 'تست شخصیت', 'پاسخ آشنایی', 'معرفی صوتی'].map(l => (
                 <LockedRow key={l} label={l} />
               ))}
             </View>
@@ -556,6 +595,13 @@ export default function ProfileViewScreen() {
         )}
 
         {/* ── SILVER ────────────────────────────────────────────────── */}
+        {isAtLeastSilver && profile.voice_intro_url && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>معرفی صوتی</Text>
+            <VoiceIntroPlayer uri={profile.voice_intro_url} durationSeconds={profile.voice_intro_duration_seconds ?? 1} />
+          </View>
+        )}
+
         {isAtLeastSilver && !isGold && (
           <>
             {/* Lifestyle Match ring card */}
@@ -898,6 +944,19 @@ const styles = StyleSheet.create({
   scrollContent: { padding: Spacing.lg, gap: 16 },
 
   section: { gap: 10 },
+  voiceIntroRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: Colors.surface,
+    borderWidth: 1, borderColor: Colors.hair,
+    borderRadius: 999, paddingHorizontal: 14, paddingVertical: 10,
+  },
+  voiceIntroBtn: {
+    width: 34, height: 34, borderRadius: 17,
+    backgroundColor: Colors.accent,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  voiceIntroWave: { flex: 1, height: 3, borderRadius: 2, backgroundColor: Colors.lineSoft },
+  voiceIntroDuration: { fontSize: 12.5, fontFamily: Fonts.semiBold, color: Colors.ink },
   sectionTitle: { fontSize: 11.5, fontFamily: Fonts.bold, color: Colors.muted, letterSpacing: 0.3 },
   giftScroll: { gap: 8, paddingVertical: 2 },
   giftItem: {

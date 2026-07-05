@@ -1217,6 +1217,29 @@ const styles = StyleSheet.create({
   },
   pendingImageThumb: { width: 42, height: 42, borderRadius: 8 },
   pendingImageTxt: { flex: 1, fontFamily: Fonts.regular, fontSize: 12, color: Colors.inkSoft },
+  voiceRecordingBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingHorizontal: Spacing.lg, paddingVertical: 10,
+    backgroundColor: Colors.surface,
+    borderTopWidth: 1, borderTopColor: Colors.hair,
+  },
+  voiceRecDot: {
+    width: 9, height: 9, borderRadius: 5, backgroundColor: Colors.danger,
+  },
+  voiceRecordingTxt: { flex: 1, fontFamily: Fonts.semiBold, fontSize: 13, color: Colors.ink },
+  voicePreviewBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingHorizontal: Spacing.lg, paddingVertical: 10,
+    backgroundColor: Colors.surface,
+    borderTopWidth: 1, borderTopColor: Colors.hair,
+  },
+  voicePlayerRow: { flexDirection: 'row', alignItems: 'center', gap: 8, minWidth: 130 },
+  voicePlayBtn: {
+    width: 28, height: 28, borderRadius: 14,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  voiceWave: { flex: 1, height: 3, borderRadius: 2 },
+  voiceDurationTxt: { fontFamily: Fonts.semiBold, fontSize: 11.5 },
   viewerOverlay: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.92)',
     alignItems: 'center', justifyContent: 'center',

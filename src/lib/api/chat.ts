@@ -48,6 +48,7 @@ export type Message = {
   gif_id: string;
   gift_id: number;
   sent_gift_id: number;
+  duration_seconds?: number;
   reply_to_message_id: string | null;
   status: string;
   is_edited: boolean;
@@ -105,6 +106,30 @@ export type MediaUploadResult = {
   height?: number;
   duration_seconds?: number;
 };
+
+// خروجی خام backend برای /conversations/{id}/images و /files — از FormatsMediaPayloads::mediaFilePayload
+// (بعد از فیکس باگ media_url در commit 8f68b18 — دیگه media_url/media_size تخت نیست)
+type RawMediaFilePayload = {
+  id: number;
+  mime_type: string;
+  size: number | null;
+  width: number | null;
+  height: number | null;
+  duration_seconds: number | null;
+  urls: Record<string, string>;
+  base_url?: string | null;
+};
+
+function toMediaUploadResult(raw: RawMediaFilePayload): MediaUploadResult {
+  return {
+    media_url: raw.urls?.original ?? '',
+    media_size: raw.size ?? 0,
+    mime_type: raw.mime_type,
+    width: raw.width ?? undefined,
+    height: raw.height ?? undefined,
+    duration_seconds: raw.duration_seconds ?? undefined,
+  };
+}
 
 export type TypedMessagePayload = {
   type: MessageType;
@@ -204,7 +229,7 @@ export const chatApi = {
       const data = JSON.parse(result.body || '{}');
       if (result.status < 200 || result.status >= 300)
         throw new Error(data?.message ?? `HTTP ${result.status}`);
-      return data.data as MediaUploadResult;
+      return toMediaUploadResult(data.data as RawMediaFilePayload);
     }
 
     const blob = await fetch(uri).then(r => r.blob());
@@ -219,7 +244,7 @@ export const chatApi = {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.message ?? `HTTP ${res.status}`);
-    return data.data as MediaUploadResult;
+    return toMediaUploadResult(data.data as RawMediaFilePayload);
   },
 
   uploadConversationVoice: async (
@@ -244,7 +269,7 @@ export const chatApi = {
       const data = JSON.parse(result.body || '{}');
       if (result.status < 200 || result.status >= 300)
         throw new Error(data?.message ?? `HTTP ${result.status}`);
-      return data.data as MediaUploadResult;
+      return toMediaUploadResult(data.data as RawMediaFilePayload);
     }
 
     const blob = await fetch(uri).then(r => r.blob());
@@ -260,7 +285,7 @@ export const chatApi = {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.message ?? `HTTP ${res.status}`);
-    return data.data as MediaUploadResult;
+    return toMediaUploadResult(data.data as RawMediaFilePayload);
   },
 
   markRead: (token: string, conversationId: number, messageId: string) =>
