@@ -33,15 +33,18 @@ export const giftsApi = {
   list: (token: string): Promise<BackendGift[]> =>
     api.get<{ data: BackendGift[] }>('/api/client/gifts', token).then(r => r.data ?? []),
 
-  send: (token: string, giftId: number, receiverUserId: number, note?: string) =>
+  send: (token: string, giftId: number, receiverUserId: number, note?: string, showInChat = false) =>
     api.post<{ message: string; data: SentGift; coin_balance: number }>(
       `/api/client/gifts/${giftId}/send`,
-      { receiver_user_id: receiverUserId, note: note ?? null, show_in_chat: false },
+      { receiver_user_id: receiverUserId, note: note ?? null, show_in_chat: showInChat },
       token,
     ),
 
   mine: (token: string): Promise<SentGift[]> =>
     api.get<{ data: SentGift[] }>('/api/client/me/gifts', token).then(r => r.data ?? []),
+
+  listUserGifts: (token: string, userId: number): Promise<SentGift[]> =>
+    api.get<{ data: SentGift[] }>(`/api/client/users/${userId}/gifts`, token).then(r => r.data ?? []),
 
   pin: (token: string, sentGiftId: number) =>
     api.post(`/api/client/sent-gifts/${sentGiftId}/pin`, {}, token),
@@ -74,4 +77,27 @@ export const giftsApi = {
       { receiver_user_id: receiverUserId, subscription_plan_id: subscriptionPlanId, note: note ?? null, show_in_chat: false },
       token,
     ),
+
+  subscriptionGiftsSent: (token: string, page = 1): Promise<SubscriptionGiftRecord[]> =>
+    api.get<{ data: SubscriptionGiftRecord[] }>(`/api/client/subscription-gifts/sent?page=${page}`, token)
+      .then(r => r.data ?? []),
+
+  subscriptionGiftsReceived: (token: string, page = 1): Promise<SubscriptionGiftRecord[]> =>
+    api.get<{ data: SubscriptionGiftRecord[] }>(`/api/client/subscription-gifts/received?page=${page}`, token)
+      .then(r => r.data ?? []),
+};
+
+export type SubscriptionGiftRecord = {
+  id: number;
+  sender_user_id: number;
+  receiver_user_id: number;
+  plan_slug: string;
+  duration_days: number;
+  status: string;
+  note: string | null;
+  granted_at: string | null;
+  created_at: string;
+  sender: { id: number; username: string; first_name: string } | null;
+  receiver: { id: number; username: string; first_name: string } | null;
+  subscription_plan: { id: number; name: string; slug: string } | null;
 };

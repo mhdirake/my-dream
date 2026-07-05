@@ -1,14 +1,18 @@
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { chatApi } from '@/lib/api/chat';
+import { BackendGift } from '@/lib/api/discover';
+import { giftsApi } from '@/lib/api/gifts';
+import { profileApi } from '@/lib/api/profile';
 import { useChatMessages } from '@/lib/chat/useChatMessages';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { toast } from '@/lib/toast';
 import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
-  ArrowLeft, Check, CheckCheck, Clock,
-  Lock, MoreVertical, Pencil, Search, Send, User, X,
+  ArrowLeft, Check, CheckCheck, Clock, Gift as GiftIcon,
+  ImagePlus, Lock, MoreVertical, Pencil, Search, Send, User, X,
 } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -30,6 +34,36 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
+}
+
+function toPersianNum(n: number) {
+  return String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
+}
+
+const GIFT_SLUG_EMOJI: Record<string, string> = {
+  'dream-rose':    '🌹',
+  'coffee-invite': '☕',
+  'cool-moon':     '🌙',
+  'golden-heart':  '💛',
+  'legendary-star':'⭐',
+};
+
+function isSameDay(a: string, b: string) {
+  const da = new Date(a);
+  const db = new Date(b);
+  return da.getFullYear() === db.getFullYear() && da.getMonth() === db.getMonth() && da.getDate() === db.getDate();
+}
+
+function formatDayLabel(iso: string) {
+  const d = new Date(iso);
+  const now = new Date();
+  const startOfDay = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diffDays = Math.round((startOfDay(now) - startOfDay(d)) / 86400000);
+  if (diffDays === 0) return 'امروز';
+  if (diffDays === 1) return 'دیروز';
+  const opts: Intl.DateTimeFormatOptions = { month: 'long', day: 'numeric' };
+  if (d.getFullYear() !== now.getFullYear()) opts.year = 'numeric';
+  return d.toLocaleDateString('fa-IR', opts);
 }
 
 function MsgLimitCard() {
@@ -131,13 +165,21 @@ export default function ConversationScreen() {
   const token = session?.accessToken ?? '';
 
   const {
-    messages, loading, sending, send,
+    messages, loading, sending, send, sendTyped,
     loadMore, hasMore, deleteMsg, editMsg,
     setReaction, removeReaction,
     loadContext, highlightId, clearHighlight,
   } = useChatMessages(conversationId, publicId ?? '', token);
 
   const [text, setText] = useState('');
+  const [pendingImage, setPendingImage] = useState<{ uri: string; mimeType: string } | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [myPlan, setMyPlan] = useState<string>('basic');
+  const [giftPickerOpen, setGiftPickerOpen] = useState(false);
+  const [gifts, setGifts] = useState<BackendGift[]>([]);
+  const [giftsLoading, setGiftsLoading] = useState(false);
+  const [sendingGiftId, setSendingGiftId] = useState<number | null>(null);
+  const [viewerUri, setViewerUri] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [limitReached, setLimitReached] = useState(false);
@@ -273,6 +315,107 @@ export default function ConversationScreen() {
   const handleTextChange = (val: string) => {
     setText(val);
     if (val.length > 0) sendTypingSignal();
+  };
+
+  useEffect(() => {
+    if (!token) return;
+    profileApi.getProfile(token)
+      .then(p => setMyPlan(p.active_subscription?.plan?.slug ?? 'basic'))
+      .catch(() => {});
+  }, [token]);
+
+  const handlePickImage = async () => {
+    if (myPlan !== 'gold') {
+      toast.error('ارسال تصویر مخصوص اشتراک طلایی است');
+      router.push('/subscription' as never);
+      return;
+    }
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      toast.error('دسترسی به گالری داده نشد');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.7,
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    const asset = result.assets[0];
+    if (asset.fileSize != null && asset.fileSize > 3 * 1024 * 1024) {
+      toast.error('حجم تصویر باید کمتر از ۳ مگابایت باشد');
+      return;
+    }
+    setPendingImage({ uri: asset.uri, mimeType: asset.mimeType ?? 'image/jpeg' });
+  };
+
+  const handleSendImage = async () => {
+    if (!pendingImage || uploadingImage) return;
+    const caption = text.trim();
+    setUploadingImage(true);
+    try {
+      const media = await chatApi.uploadConversationImage(
+        token,
+        conversationId,
+        pendingImage.uri,
+        pendingImage.mimeType,
+        caption || undefined,
+      );
+      await sendTyped(
+        {
+          type: 'image',
+          media_url: media.media_url,
+          media_size: media.media_size,
+          mime_type: media.mime_type,
+          width: media.width,
+          height: media.height,
+          ...(caption ? { caption } : {}),
+        },
+        myId,
+        pendingImage.uri,
+      );
+      setPendingImage(null);
+      setText('');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '';
+      if (msg.includes('403') || msg.includes('مجاز') || msg.toLowerCase().includes('forbidden')) {
+        toast.error('ارسال تصویر مخصوص اشتراک طلایی است');
+      } else if (msg.includes('limit exceeded') || msg.includes('Daily messages')) {
+        setLimitReached(true);
+      } else {
+        toast.error('ارسال تصویر ناموفق بود');
+      }
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleOpenGiftPicker = async () => {
+    setGiftPickerOpen(true);
+    if (gifts.length > 0 || giftsLoading) return;
+    setGiftsLoading(true);
+    try {
+      setGifts(await giftsApi.list(token));
+    } catch {
+      toast.error('دریافت هدیه‌ها ناموفق بود');
+      setGiftPickerOpen(false);
+    } finally {
+      setGiftsLoading(false);
+    }
+  };
+
+  const handleSendGift = async (gift: BackendGift) => {
+    if (sendingGiftId != null || !otherId) return;
+    setSendingGiftId(gift.id);
+    try {
+      await giftsApi.send(token, gift.id, Number(otherId), undefined, true);
+      setGiftPickerOpen(false);
+      toast.success('هدیه ارسال شد');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '';
+      toast.error(msg.includes('coin') || msg.includes('سکه') ? 'سکه کافی نداری' : 'ارسال هدیه ناموفق بود');
+    } finally {
+      setSendingGiftId(null);
+    }
   };
 
   const handleScroll = useCallback(({ nativeEvent }: { nativeEvent: { contentOffset: { y: number } } }) => {
@@ -436,8 +579,9 @@ export default function ConversationScreen() {
             maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
             onContentSizeChange={handleContentSizeChange}
             style={!listReady && { opacity: 0 }}
-            renderItem={({ item }) => {
+            renderItem={({ item, index }) => {
               if (item.is_deleted) return null;
+              const showDaySep = index === 0 || !isSameDay(item.created_at, messages[index - 1].created_at);
               const isMine = item.sender_user_id === myId;
               const isSending = item.status === 'sending';
               const isHighlighted = item.message_id === highlightId;
@@ -462,20 +606,37 @@ export default function ConversationScreen() {
                 start: { x: 0, y: 0 },
                 end: { x: 1, y: 1 },
               };
+              const imageUri = item.message_type === 'image' && item.media_url
+                ? (item.media_url.startsWith('http') || item.media_url.startsWith('file:')
+                  ? item.media_url
+                  : `${process.env.EXPO_PUBLIC_API_URL}/${item.media_url.replace(/^\//, '')}`)
+                : null;
+
               const bubbleContent = (
                 <>
-                  {item.message_type !== 'text' && item.message_type !== 'template_first_message' && (
+                  {imageUri ? (
+                    <Pressable onPress={() => setViewerUri(imageUri)}>
+                      <Image source={{ uri: imageUri }} style={styles.msgImage} contentFit="cover" transition={150} />
+                    </Pressable>
+                  ) : item.message_type === 'gift' ? (
+                    <View style={styles.giftBubble}>
+                      <Text style={styles.giftBubbleEmoji}>🎁</Text>
+                      <Text style={[styles.giftBubbleTxt, isMine ? styles.bubbleTxtMine : styles.bubbleTxtTheirs]}>
+                        {item.body_text || item.caption || 'یک هدیه فرستاد'}
+                      </Text>
+                    </View>
+                  ) : item.message_type !== 'text' && item.message_type !== 'template_first_message' ? (
                     <Text style={[styles.msgTypeBadge, isMine && { color: 'rgba(255,255,255,0.7)' }]}>
-                      {item.message_type === 'gift' ? '🎁' :
-                       item.message_type === 'image' ? '🖼' :
-                       item.message_type === 'voice' ? '🎤' :
+                      {item.message_type === 'voice' ? '🎤' :
                        item.message_type === 'sticker' ? '😊' :
-                       item.message_type === 'gif' ? 'GIF' : ''}
+                       item.message_type === 'gif' ? '🎞' : '🖼'}
+                    </Text>
+                  ) : null}
+                  {(item.message_type !== 'gift') && !!(imageUri ? item.caption : (item.body_text || item.caption)) && (
+                    <Text style={[styles.bubbleTxt, isMine ? styles.bubbleTxtMine : styles.bubbleTxtTheirs, imageUri != null && { marginTop: 6 }]}>
+                      {imageUri ? item.caption : (item.body_text || item.caption)}
                     </Text>
                   )}
-                  <Text style={[styles.bubbleTxt, isMine ? styles.bubbleTxtMine : styles.bubbleTxtTheirs]}>
-                    {item.body_text || item.caption}
-                  </Text>
                   {reactionEntries.length > 0 && (
                     <View style={styles.reactionsRow}>
                       {reactionEntries.map(([emoji, count]) => (
@@ -512,6 +673,13 @@ export default function ConversationScreen() {
 
               return (
                 <View style={[styles.msgWrap, isHighlighted && styles.msgHighlight]}>
+                  {showDaySep && (
+                    <View style={styles.daySepWrap}>
+                      <View style={styles.daySepPill}>
+                        <Text style={styles.daySepTxt}>{formatDayLabel(item.created_at)}</Text>
+                      </View>
+                    </View>
+                  )}
                   <Pressable
                     style={isMine ? styles.bubblePressMine : styles.bubblePressTheirs}
                     onLongPress={() => handleMessageLongPress(item.message_id, item.sender_user_id, item.body_text || item.caption, item.my_reaction)}
@@ -583,6 +751,20 @@ export default function ConversationScreen() {
           </View>
         )}
 
+        {pendingImage && (
+          <View style={styles.pendingImageBar}>
+            <Image source={{ uri: pendingImage.uri }} style={styles.pendingImageThumb} contentFit="cover" />
+            <Text style={styles.pendingImageTxt} numberOfLines={1}>
+              {uploadingImage ? 'در حال ارسال تصویر…' : 'تصویر آماده ارسال — می‌تونی زیرنویس بنویسی'}
+            </Text>
+            {!uploadingImage && (
+              <TouchableOpacity onPress={() => setPendingImage(null)} hitSlop={8}>
+                <X size={15} color={Colors.muted} strokeWidth={2} />
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
         <View style={[styles.inputBar, (!canChat || limitReached) && styles.inputBarDisabled]}>
           {!canChat || limitReached ? (
             <View style={styles.inputLocked}>
@@ -593,33 +775,43 @@ export default function ConversationScreen() {
             </View>
           ) : (
             <>
+              {!editingId && !pendingImage && (
+                <>
+                  <TouchableOpacity style={styles.attachBtn} onPress={handlePickImage} hitSlop={6} activeOpacity={0.7}>
+                    <ImagePlus size={20} color={Colors.muted} strokeWidth={1.8} />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.attachBtn} onPress={handleOpenGiftPicker} hitSlop={6} activeOpacity={0.7}>
+                    <GiftIcon size={20} color={Colors.goldDeep} strokeWidth={1.8} />
+                  </TouchableOpacity>
+                </>
+              )}
               <TextInput
                 style={styles.input}
                 value={text}
                 onChangeText={handleTextChange}
-                placeholder={editingId ? 'ویرایش' : 'پیام'}
+                placeholder={editingId ? 'ویرایش' : pendingImage ? 'زیرنویس (اختیاری)' : 'پیام'}
                 placeholderTextColor={Colors.muted}
                 multiline
-                maxLength={2000}
+                maxLength={pendingImage ? 500 : 2000}
                 textAlign="right"
                 textAlignVertical="top"
               />
               <TouchableOpacity
-                style={[styles.sendBtn, !!text.trim() && styles.sendBtnActive]}
-                onPress={handleSend}
-                disabled={!text.trim() || sending}
+                style={[styles.sendBtn, (!!text.trim() || !!pendingImage) && styles.sendBtnActive]}
+                onPress={pendingImage ? handleSendImage : handleSend}
+                disabled={pendingImage ? uploadingImage : (!text.trim() || sending)}
                 activeOpacity={0.8}
               >
-                {sending ? (
+                {(sending || uploadingImage) ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
                   <>
-                    {!!text.trim() && (
+                    {(!!text.trim() || !!pendingImage) && (
                       <LinearGradient colors={Colors.gradColors as [string, string]} style={StyleSheet.absoluteFill} />
                     )}
                     {editingId
                       ? <Pencil size={17} color={text.trim() ? '#fff' : Colors.muted} strokeWidth={2} />
-                      : <Send style={[styles.sendBtnIcon]} size={18} color={text.trim() ? '#fff' : Colors.muted} strokeWidth={2} />
+                      : <Send style={[styles.sendBtnIcon]} size={18} color={(text.trim() || pendingImage) ? '#fff' : Colors.muted} strokeWidth={2} />
                     }
                   </>
                 )}
@@ -741,6 +933,59 @@ export default function ConversationScreen() {
           </View>
         </Pressable>
       </Modal>
+
+      {/* Full-screen image viewer */}
+      <Modal visible={!!viewerUri} transparent animationType="fade" onRequestClose={() => setViewerUri(null)}>
+        <Pressable style={styles.viewerOverlay} onPress={() => setViewerUri(null)}>
+          {viewerUri && (
+            <Image source={{ uri: viewerUri }} style={styles.viewerImage} contentFit="contain" />
+          )}
+          <TouchableOpacity style={styles.viewerClose} onPress={() => setViewerUri(null)} hitSlop={10}>
+            <X size={22} color="#fff" strokeWidth={2.5} />
+          </TouchableOpacity>
+        </Pressable>
+      </Modal>
+
+      {/* Gift picker */}
+      <Modal visible={giftPickerOpen} transparent animationType="slide" onRequestClose={() => setGiftPickerOpen(false)}>
+        <Pressable style={styles.menuOverlay} onPress={() => setGiftPickerOpen(false)}>
+          <View style={styles.giftSheet}>
+            <View style={styles.menuHandle} />
+            <Text style={styles.giftSheetTitle}>ارسال هدیه در چت</Text>
+            {giftsLoading ? (
+              <ActivityIndicator color={Colors.goldDeep} style={{ paddingVertical: 32 }} />
+            ) : (
+              <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
+                {gifts.map(g => (
+                  <TouchableOpacity
+                    key={g.id}
+                    style={styles.giftRow}
+                    activeOpacity={0.75}
+                    disabled={sendingGiftId != null}
+                    onPress={() => handleSendGift(g)}
+                  >
+                    <Text style={styles.giftRowEmoji}>{GIFT_SLUG_EMOJI[g.slug] ?? '🎁'}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.giftRowTitle}>{g.title}</Text>
+                      {g.is_limited && <Text style={styles.giftRowLimited}>نسخه محدود</Text>}
+                    </View>
+                    {sendingGiftId === g.id ? (
+                      <ActivityIndicator size="small" color={Colors.goldDeep} />
+                    ) : (
+                      <View style={styles.giftRowPricePill}>
+                        <Text style={styles.giftRowPriceTxt}>{toPersianNum(g.coin_price)} سکه</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                ))}
+                {gifts.length === 0 && (
+                  <Text style={styles.giftEmptyTxt}>هدیه‌ای موجود نیست</Text>
+                )}
+              </ScrollView>
+            )}
+          </View>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -797,6 +1042,79 @@ const styles = StyleSheet.create({
 
   // Message rows
   msgWrap: { marginVertical: 3 },
+  msgImage: {
+    width: 220,
+    height: 220,
+    borderRadius: Radius.md,
+    backgroundColor: 'rgba(0,0,0,0.08)',
+  },
+  giftBubble: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 2 },
+  giftBubbleEmoji: { fontSize: 26 },
+  giftBubbleTxt: { fontFamily: Fonts.semiBold, fontSize: 13.5, flexShrink: 1 },
+  attachBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  pendingImageBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingHorizontal: Spacing.lg, paddingVertical: 8,
+    backgroundColor: Colors.surface,
+    borderTopWidth: 1, borderTopColor: Colors.hair,
+  },
+  pendingImageThumb: { width: 42, height: 42, borderRadius: 8 },
+  pendingImageTxt: { flex: 1, fontFamily: Fonts.regular, fontSize: 12, color: Colors.inkSoft },
+  viewerOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.92)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  viewerImage: { width: '100%', height: '80%' },
+  viewerClose: {
+    position: 'absolute', top: 56, left: 20,
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  giftSheet: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl,
+    paddingHorizontal: Spacing.lg, paddingBottom: 28, paddingTop: 8,
+  },
+  giftSheetTitle: {
+    fontFamily: Fonts.bold, fontSize: 15, color: Colors.ink,
+    textAlign: 'center', marginVertical: 10,
+  },
+  giftRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingVertical: 12,
+    borderBottomWidth: 1, borderBottomColor: Colors.hair,
+  },
+  giftRowEmoji: { fontSize: 26 },
+  giftRowTitle: { fontFamily: Fonts.semiBold, fontSize: 14, color: Colors.ink },
+  giftRowLimited: { fontFamily: Fonts.regular, fontSize: 11, color: Colors.accent, marginTop: 2 },
+  giftRowPricePill: {
+    backgroundColor: Colors.goldSoft, borderRadius: Radius.pill,
+    paddingHorizontal: 10, paddingVertical: 5,
+  },
+  giftRowPriceTxt: { fontFamily: Fonts.bold, fontSize: 12, color: Colors.goldDeep },
+  giftEmptyTxt: {
+    fontFamily: Fonts.regular, fontSize: 13, color: Colors.muted,
+    textAlign: 'center', paddingVertical: 24,
+  },
+  daySepWrap: {
+    alignItems: 'center',
+    marginVertical: Spacing.md,
+  },
+  daySepPill: {
+    backgroundColor: Colors.hair,
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 4,
+  },
+  daySepTxt: {
+    fontFamily: Fonts.semiBold,
+    fontSize: 11,
+    color: Colors.inkSoft,
+  },
   bubblePressMine: { marginLeft: 'auto', maxWidth: '78%' },
   bubblePressTheirs: { marginRight: 'auto', maxWidth: '78%' },
 

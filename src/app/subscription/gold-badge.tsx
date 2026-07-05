@@ -6,7 +6,7 @@ import { api } from '@/lib/api/client';
 import { profileApi } from '@/lib/api/profile';
 import { toast } from '@/lib/toast';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Coins, ShieldCheck, Star, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
@@ -40,10 +40,14 @@ const EXCLUDES = [
 
 export default function GoldBadgeScreen() {
   const { session } = useAuth();
+  const params = useLocalSearchParams<{ userId?: string; userName?: string }>();
+  const giftUserId = params.userId ? Number(params.userId) : null;
   const [coins, setCoins] = useState<number | null>(null);
   const [pkg, setPkg] = useState<Package | null>(null);
   const [loading, setLoading] = useState(true);
   const [buying, setBuying] = useState(false);
+
+  const badgeCost = pkg?.coin_price ?? BADGE_COST;
 
   useEffect(() => {
     if (!session?.accessToken) return;
@@ -62,10 +66,10 @@ export default function GoldBadgeScreen() {
 
   const handleBuy = async () => {
     if (!pkg || !session?.accessToken) return;
-    if ((coins ?? 0) < BADGE_COST) {
+    if ((coins ?? 0) < badgeCost) {
       Alert.alert(
         'سکه کافی نیست',
-        `برای خرید این بج به ${toPersian(BADGE_COST)} سکه نیاز داری. اکنون ${toPersian(coins ?? 0)} سکه داری.`,
+        `برای خرید این بج به ${toPersian(badgeCost)} سکه نیاز داری. اکنون ${toPersian(coins ?? 0)} سکه داری.`,
         [
           { text: 'خرید سکه', onPress: () => router.push('/gifts/buy-coins' as any) },
           { text: 'بعداً', style: 'cancel' },
@@ -74,10 +78,12 @@ export default function GoldBadgeScreen() {
       return;
     }
     Alert.alert(
-      'خرید بج طلایی',
-      `${toPersian(BADGE_COST)} سکه از کیف پول کسر می‌شود. ادامه می‌دهید؟`,
+      giftUserId ? 'اهدای نشان طلایی' : 'خرید بج طلایی',
+      giftUserId
+        ? `نشان طلایی به ${params.userName ?? 'این کاربر'} هدیه داده می‌شود و ${toPersian(badgeCost)} سکه کسر می‌شود. ادامه می‌دهید؟`
+        : `${toPersian(badgeCost)} سکه از کیف پول کسر می‌شود. ادامه می‌دهید؟`,
       [
-        { text: 'بله، بخر', onPress: confirmBuy },
+        { text: giftUserId ? 'بله، هدیه بده' : 'بله، بخر', onPress: confirmBuy },
         { text: 'لغو', style: 'cancel' },
       ],
     );
@@ -87,8 +93,17 @@ export default function GoldBadgeScreen() {
     if (!pkg || !session?.accessToken) return;
     setBuying(true);
     try {
-      await api.post('/api/client/gold-badge/purchase', { package_id: pkg.id }, session.accessToken);
-      toast.success('بج طلایی با موفقیت فعال شد!');
+      if (giftUserId) {
+        await api.post(
+          '/api/client/gold-badge/gifts',
+          { receiver_user_id: giftUserId, package_id: pkg.id },
+          session.accessToken,
+        );
+        toast.success('نشان طلایی هدیه داده شد!');
+      } else {
+        await api.post('/api/client/gold-badge/purchase', { package_id: pkg.id }, session.accessToken);
+        toast.success('بج طلایی با موفقیت فعال شد!');
+      }
       router.back();
     } catch (e: any) {
       toast.error(e.message ?? 'خطا در خرید');
@@ -97,7 +112,7 @@ export default function GoldBadgeScreen() {
     }
   };
 
-  const hasEnough = (coins ?? 0) >= BADGE_COST;
+  const hasEnough = (coins ?? 0) >= badgeCost;
 
   return (
     <SafeAreaView style={styles.root}>
@@ -121,11 +136,13 @@ export default function GoldBadgeScreen() {
             </View>
             <Text style={styles.heroTitle}>بج طلایی</Text>
             <Text style={styles.heroSub}>
-              تست شخصیت رو تکمیل کردی؟{'\n'}این بج رو روی پروفایلت نمایش بده.
+              {giftUserId
+                ? `این نشان به ${params.userName ?? 'کاربر انتخابی'} هدیه داده می‌شود.`
+                : 'تست شخصیت رو تکمیل کردی؟\nاین بج رو روی پروفایلت نمایش بده.'}
             </Text>
             <View style={styles.costRow}>
               <Coins size={18} color={Colors.gold} strokeWidth={2} />
-              <Text style={styles.costAmt}>{toPersian(BADGE_COST)} سکه</Text>
+              <Text style={styles.costAmt}>{toPersian(badgeCost)} سکه</Text>
               <Text style={styles.costDur}>· ۳۰ روز</Text>
             </View>
           </View>
@@ -143,7 +160,7 @@ export default function GoldBadgeScreen() {
             </View>
             {!hasEnough && (
               <Text style={styles.balanceNote}>
-                برای خرید به {toPersian(BADGE_COST - (coins ?? 0))} سکه بیشتر نیاز داری.
+                برای خرید به {toPersian(badgeCost - (coins ?? 0))} سکه بیشتر نیاز داری.
               </Text>
             )}
           </View>
@@ -181,7 +198,7 @@ export default function GoldBadgeScreen() {
             disabled={buying}
             onPress={hasEnough ? handleBuy : () => router.push('/gifts/buy-coins' as any)}
           >
-            {buying ? 'در حال خرید…' : hasEnough ? `خرید بج (${toPersian(BADGE_COST)} سکه)` : 'خرید سکه'}
+            {buying ? 'در حال خرید…' : hasEnough ? giftUserId ? `اهدای نشان (${toPersian(badgeCost)} سکه)` : `خرید بج (${toPersian(badgeCost)} سکه)` : 'خرید سکه'}
           </Button>
         </View>
       )}

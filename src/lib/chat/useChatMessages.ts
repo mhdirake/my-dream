@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Message, Reaction, chatApi } from '@/lib/api/chat';
+import { Message, Reaction, TypedMessagePayload, chatApi } from '@/lib/api/chat';
 import { useCentrifugoCtx } from './CentrifugoContext';
 
 // Go service publishes PascalCase until JSON tags are fixed on the backend.
@@ -50,6 +50,7 @@ export interface ChatMessagesHook {
   loading: boolean;
   sending: boolean;
   send: (body: string, myId: number) => Promise<void>;
+  sendTyped: (payload: TypedMessagePayload, myId: number, localUri?: string) => Promise<void>;
   pushMessage: (msg: Message) => void;
   loadMore: () => Promise<void>;
   hasMore: boolean;
@@ -214,6 +215,50 @@ export function useChatMessages(
     }
   }, [token, conversationId, conversationPublicId]);
 
+  const sendTyped = useCallback(async (payload: TypedMessagePayload, myId: number, localUri?: string) => {
+    if (!token) return;
+    setSending(true);
+
+    const clientMessageId = uuidv4();
+    const optimistic: Message = {
+      message_id: `optimistic-${clientMessageId}`,
+      client_message_id: clientMessageId,
+      conversation_id: conversationPublicId,
+      conversation_type: 'direct',
+      sender_user_id: myId,
+      message_type: payload.type,
+      body_text: payload.body ?? '',
+      caption: payload.caption ?? '',
+      media_url: localUri ?? payload.media_url ?? '',
+      sticker_id: payload.sticker_id ?? '',
+      gif_id: payload.gif_id ?? '',
+      gift_id: payload.gift_id ?? 0,
+      sent_gift_id: payload.sent_gift_id ?? 0,
+      reply_to_message_id: null,
+      status: 'sending',
+      is_edited: false,
+      is_deleted: false,
+      created_at: new Date().toISOString(),
+      reactions: [],
+      my_reaction: null,
+    };
+
+    setMessages(prev => [...prev, optimistic]);
+
+    try {
+      await chatApi.sendTypedMessage(token, conversationId, clientMessageId, payload);
+      if (!isConnectedRef.current) {
+        const fresh = await chatApi.getMessages(token, conversationId);
+        setMessages([...fresh].reverse());
+      }
+    } catch (err) {
+      setMessages(prev => prev.filter(m => m.client_message_id !== clientMessageId));
+      throw err;
+    } finally {
+      setSending(false);
+    }
+  }, [token, conversationId, conversationPublicId]);
+
   const deleteMsg = useCallback(async (messageId: string) => {
     setMessages(prev => prev.map(m => m.message_id === messageId ? { ...m, is_deleted: true } : m));
     try {
@@ -295,7 +340,7 @@ export function useChatMessages(
 
   return {
     messages, loading, sending,
-    send, pushMessage, loadMore, hasMore,
+    send, sendTyped, pushMessage, loadMore, hasMore,
     deleteMsg, editMsg,
     setReaction, removeReaction,
     loadContext, highlightId, clearHighlight,

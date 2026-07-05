@@ -4,7 +4,7 @@ import { Card } from '@/components/ui/Card';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { api } from '@/lib/api/client';
-import { giftsApi } from '@/lib/api/gifts';
+import { giftsApi, type CoinGiftRecord, type SubscriptionGiftRecord } from '@/lib/api/gifts';
 import { profileApi } from '@/lib/api/profile';
 import { toast } from '@/lib/toast';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -46,6 +46,32 @@ export default function GiftSubScreen() {
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [historyDir, setHistoryDir] = useState<'sent' | 'received'>('sent');
+  const [subHistory, setSubHistory] = useState<{ sent: SubscriptionGiftRecord[]; received: SubscriptionGiftRecord[] } | null>(null);
+  const [coinHistory, setCoinHistory] = useState<{ sent: CoinGiftRecord[]; received: CoinGiftRecord[] } | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  useEffect(() => {
+    if (!session?.accessToken) return;
+    setHistoryLoading(true);
+    if (tab === 'sub' && !subHistory) {
+      Promise.all([
+        giftsApi.subscriptionGiftsSent(session.accessToken).catch(() => []),
+        giftsApi.subscriptionGiftsReceived(session.accessToken).catch(() => []),
+      ])
+        .then(([sent, received]) => setSubHistory({ sent, received }))
+        .finally(() => setHistoryLoading(false));
+    } else if (tab === 'coin' && !coinHistory) {
+      Promise.all([
+        giftsApi.coinGiftsSent(session.accessToken).catch(() => []),
+        giftsApi.coinGiftsReceived(session.accessToken).catch(() => []),
+      ])
+        .then(([sent, received]) => setCoinHistory({ sent, received }))
+        .finally(() => setHistoryLoading(false));
+    } else {
+      setHistoryLoading(false);
+    }
+  }, [session?.accessToken, tab, subHistory, coinHistory]);
 
   useEffect(() => {
     if (!session?.accessToken) return;
@@ -232,6 +258,71 @@ export default function GiftSubScreen() {
             />
           </Card>
 
+          {/* History */}
+          <View style={styles.historySection}>
+            <Text style={styles.historyTitle}>
+              {tab === 'sub' ? 'تاریخچه هدایای اشتراک' : 'تاریخچه هدایای سکه'}
+            </Text>
+            <View style={styles.historySeg}>
+              {(['sent', 'received'] as const).map(dir => (
+                <TouchableOpacity
+                  key={dir}
+                  style={[styles.historySegBtn, historyDir === dir && styles.historySegBtnActive]}
+                  onPress={() => setHistoryDir(dir)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.historySegTxt, historyDir === dir && styles.historySegTxtActive]}>
+                    {dir === 'sent' ? 'ارسال‌شده' : 'دریافت‌شده'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            {historyLoading ? (
+              <ActivityIndicator color={Colors.accent} style={{ paddingVertical: 16 }} />
+            ) : tab === 'sub' ? (
+              (subHistory?.[historyDir] ?? []).length === 0 ? (
+                <Text style={styles.historyEmpty}>موردی ثبت نشده</Text>
+              ) : (
+                (subHistory?.[historyDir] ?? []).slice(0, 10).map(r => (
+                  <View key={r.id} style={styles.historyRow}>
+                    <Gift size={15} color={Colors.purple} strokeWidth={1.8} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.historyRowTitle}>
+                        {r.subscription_plan?.name ?? r.plan_slug} — {toPersian(r.duration_days)} روز
+                      </Text>
+                      <Text style={styles.historyRowSub}>
+                        {historyDir === 'sent'
+                          ? `به ${r.receiver?.first_name ?? `@${r.receiver?.username ?? ''}`}`
+                          : `از ${r.sender?.first_name ?? `@${r.sender?.username ?? ''}`}`}
+                      </Text>
+                    </View>
+                    <Text style={[styles.historyStatus, r.status === 'granted' && styles.historyStatusOk]}>
+                      {r.status === 'granted' ? 'فعال شد' : r.status === 'pending_payment' ? 'در انتظار پرداخت' : r.status === 'cancelled' ? 'لغو شده' : r.status === 'failed' ? 'ناموفق' : r.status}
+                    </Text>
+                  </View>
+                ))
+              )
+            ) : (
+              (coinHistory?.[historyDir] ?? []).length === 0 ? (
+                <Text style={styles.historyEmpty}>موردی ثبت نشده</Text>
+              ) : (
+                (coinHistory?.[historyDir] ?? []).slice(0, 10).map(r => (
+                  <View key={r.id} style={styles.historyRow}>
+                    <Coins size={15} color={Colors.goldDeep} strokeWidth={1.8} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.historyRowTitle}>{toPersian(r.amount)} سکه</Text>
+                      <Text style={styles.historyRowSub}>
+                        {historyDir === 'sent'
+                          ? `به ${r.receiver?.first_name ?? ''}`
+                          : `از ${r.sender?.first_name ?? ''}`}
+                      </Text>
+                    </View>
+                  </View>
+                ))
+              )
+            )}
+          </View>
+
           <View style={{ height: 100 }} />
         </ScrollView>
       )}
@@ -257,6 +348,32 @@ export default function GiftSubScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
+  historySection: { marginTop: 8, gap: 10 },
+  historyTitle: { fontSize: 13, fontFamily: Fonts.bold, color: Colors.ink },
+  historySeg: {
+    flexDirection: 'row', backgroundColor: Colors.ph2,
+    borderRadius: Radius.pill, padding: 3, gap: 4,
+  },
+  historySegBtn: {
+    flex: 1, alignItems: 'center', paddingVertical: 7,
+    borderRadius: Radius.pill,
+  },
+  historySegBtnActive: { backgroundColor: Colors.surface },
+  historySegTxt: { fontSize: 12, fontFamily: Fonts.semiBold, color: Colors.muted },
+  historySegTxtActive: { color: Colors.ink },
+  historyRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingVertical: 10,
+    borderBottomWidth: 1, borderBottomColor: Colors.hair,
+  },
+  historyRowTitle: { fontSize: 13, fontFamily: Fonts.semiBold, color: Colors.ink },
+  historyRowSub: { fontSize: 11, fontFamily: Fonts.regular, color: Colors.muted, marginTop: 2 },
+  historyStatus: { fontSize: 11, fontFamily: Fonts.semiBold, color: Colors.muted },
+  historyStatusOk: { color: Colors.ok },
+  historyEmpty: {
+    fontSize: 12.5, fontFamily: Fonts.regular, color: Colors.muted,
+    textAlign: 'center', paddingVertical: 14,
+  },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { padding: Spacing.lg, gap: 14 },
 

@@ -1,7 +1,11 @@
 import { Avatar } from '@/components/ui/Avatar';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
-import { ProfileView, discoverApi } from '@/lib/api/discover';
-import { profileApi } from '@/lib/api/profile';
+import {
+  ProfileViewSummary,
+  ProfileViewTimelineItem,
+  ViewPackage,
+  discoverApi,
+} from '@/lib/api/discover';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { toast } from '@/lib/toast';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -35,7 +39,21 @@ function timeAgo(iso: string) {
   return `${Math.floor(diff / 86400)} روز پیش`;
 }
 
-function LockedView({ count }: { count: number }) {
+function toPersianDigits(n: number) {
+  return String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
+}
+
+function LockedView({
+  count,
+  packages,
+  purchasing,
+  onPurchase,
+}: {
+  count: number;
+  packages: ViewPackage[];
+  purchasing: boolean;
+  onPurchase: (pkg: ViewPackage) => void;
+}) {
   const fakeCount = count || 4;
   return (
     <View style={styles.lockedWrap}>
@@ -50,8 +68,8 @@ function LockedView({ count }: { count: number }) {
           <Sparkles size={20} color={Colors.gold} strokeWidth={1.8} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.upsellTitle}>{fakeCount} نفر پروفایلت رو دیدن</Text>
-          <Text style={styles.upsellSub}>با Silver ببین کی نگاهت کرده</Text>
+          <Text style={styles.upsellTitle}>{toPersianDigits(fakeCount)} نفر پروفایلت رو دیدن</Text>
+          <Text style={styles.upsellSub}>با فعال‌سازی ببین کی نگاهت کرده</Text>
         </View>
       </View>
 
@@ -67,7 +85,35 @@ function LockedView({ count }: { count: number }) {
         </View>
       ))}
 
-      <TouchableOpacity style={styles.upgradeBtn} activeOpacity={0.85}>
+      {packages.map(pkg => (
+        <TouchableOpacity
+          key={pkg.id}
+          style={styles.pkgBtn}
+          activeOpacity={0.85}
+          disabled={purchasing}
+          onPress={() => onPurchase(pkg)}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={styles.pkgName}>{pkg.name}</Text>
+            {pkg.duration_days != null && (
+              <Text style={styles.pkgSub}>{toPersianDigits(pkg.duration_days)} روز دسترسی</Text>
+            )}
+          </View>
+          {purchasing ? (
+            <ActivityIndicator color={Colors.goldDeep} size="small" />
+          ) : (
+            <View style={styles.pkgPricePill}>
+              <Text style={styles.pkgPriceTxt}>{toPersianDigits(pkg.coin_price)} سکه</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      ))}
+
+      <TouchableOpacity
+        style={styles.upgradeBtn}
+        activeOpacity={0.85}
+        onPress={() => router.push('/subscription' as never)}
+      >
         <LinearGradient
           colors={Colors.gradColors}
           start={{ x: 0, y: 0 }}
@@ -75,47 +121,68 @@ function LockedView({ count }: { count: number }) {
           style={[StyleSheet.absoluteFill, { borderRadius: Radius.pill }]}
         />
         <Sparkles size={16} color="#fff" strokeWidth={2} />
-        <Text style={styles.upgradeBtnTxt}>ارتقا به Silver</Text>
+        <Text style={styles.upgradeBtnTxt}>ارتقا به اشتراک نقره‌ای</Text>
       </TouchableOpacity>
     </View>
   );
 }
 
-function ViewRow({ view }: { view: ProfileView }) {
-  const avatarUrl = absoluteUrl(view.viewer_user.profile_photo?.urls.medium);
-  return (
-    <View style={styles.viewRow}>
-      <Avatar size={50} name={view.viewer_user.first_name} photoUrl={avatarUrl} />
+function ViewRow({ item }: { item: ProfileViewTimelineItem }) {
+  const avatarUrl = item.viewer ? absoluteUrl(item.viewer.profile_photo?.urls?.medium) : null;
+  const content = (
+    <>
+      <Avatar size={50} name={item.display_name} photoUrl={avatarUrl} />
       <View style={styles.viewInfo}>
-        <Text style={styles.viewName}>{view.viewer_user.first_name}</Text>
-        <Text style={styles.viewTime}>{timeAgo(view.viewed_at)}</Text>
+        <Text style={styles.viewName}>{item.display_name}</Text>
+        <Text style={styles.viewTime}>
+          {item.last_viewed_at ? timeAgo(item.last_viewed_at) : ''}
+          {item.view_count > 1 ? ` · ${toPersianDigits(item.view_count)} بازدید` : ''}
+        </Text>
       </View>
       <View style={styles.viewEyeWrap}>
         <Eye size={14} color={Colors.muted} strokeWidth={1.8} />
       </View>
-    </View>
+    </>
   );
+  if (item.can_open_profile && item.viewer) {
+    return (
+      <TouchableOpacity
+        style={styles.viewRow}
+        activeOpacity={0.8}
+        onPress={() => router.push(`/user/${item.viewer!.id}` as never)}
+      >
+        {content}
+      </TouchableOpacity>
+    );
+  }
+  return <View style={[styles.viewRow, { opacity: 0.55 }]}>{content}</View>;
 }
 
 export default function ViewedMeScreen() {
   const { session } = useAuth();
-  const [views, setViews] = useState<ProfileView[]>([]);
-  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [summary, setSummary] = useState<ProfileViewSummary | null>(null);
+  const [views, setViews] = useState<ProfileViewTimelineItem[]>([]);
+  const [packages, setPackages] = useState<ViewPackage[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState(false);
+  const [purchasing, setPurchasing] = useState(false);
+
+  const isUnlocked = summary?.has_active_access === true;
 
   const load = useCallback(async () => {
     if (!session) return;
     setLoadError(false);
     try {
-      const [viewsData, profileData] = await Promise.all([
-        discoverApi.getProfileViews(session.accessToken),
-        profileApi.getProfile(session.accessToken),
-      ]);
-      setViews(viewsData);
-      const plan = profileData.active_subscription?.plan?.slug;
-      setIsUnlocked(plan === 'silver' || plan === 'gold');
+      const s = await discoverApi.getProfileViewSummary(session.accessToken);
+      setSummary(s);
+      if (s.has_active_access) {
+        const timeline = await discoverApi.getProfileViewTimeline(session.accessToken);
+        setViews(timeline.data?.data ?? []);
+      } else {
+        const pkgs = await discoverApi.getViewPackages(session.accessToken);
+        setPackages(pkgs);
+      }
     } catch {
       setLoadError(true);
       toast.error('خطا در بارگذاری');
@@ -129,6 +196,22 @@ export default function ViewedMeScreen() {
 
   const onRefresh = () => { setRefreshing(true); load(); };
 
+  const handlePurchase = async (pkg: ViewPackage) => {
+    if (!session || purchasing) return;
+    setPurchasing(true);
+    try {
+      await discoverApi.purchaseViewAccess(session.accessToken, pkg.id);
+      toast.success('دسترسی فعال شد');
+      setLoading(true);
+      await load();
+    } catch (e) {
+      const msg = e instanceof Error && e.message.includes('coin') ? 'سکه کافی نداری' : 'خرید انجام نشد';
+      toast.error(msg);
+    } finally {
+      setPurchasing(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <View style={styles.header}>
@@ -141,7 +224,7 @@ export default function ViewedMeScreen() {
         <Text style={styles.headerTitle}>کی منو دید؟</Text>
         {isUnlocked && views.length > 0 ? (
           <View style={styles.countBadge}>
-            <Text style={styles.countTxt}>{views.length}</Text>
+            <Text style={styles.countTxt}>{toPersianDigits(views.length)}</Text>
           </View>
         ) : (
           <View style={{ width: 36 }} />
@@ -163,8 +246,8 @@ export default function ViewedMeScreen() {
       ) : isUnlocked ? (
         <FlatList
           data={views}
-          keyExtractor={v => String(v.id)}
-          renderItem={({ item }) => <ViewRow view={item} />}
+          keyExtractor={v => String(v.profile_view_id)}
+          renderItem={({ item }) => <ViewRow item={item} />}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -179,7 +262,12 @@ export default function ViewedMeScreen() {
           }
         />
       ) : (
-        <LockedView count={views.length} />
+        <LockedView
+          count={summary?.total_count ?? 0}
+          packages={packages}
+          purchasing={purchasing}
+          onPurchase={handlePurchase}
+        />
       )}
     </SafeAreaView>
   );
@@ -279,6 +367,27 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: Colors.ph,
   },
+
+  pkgBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 16,
+    padding: 16,
+    borderRadius: Radius.lg,
+    borderWidth: 1.5,
+    borderColor: Colors.goldSoft,
+    backgroundColor: Colors.surface,
+  },
+  pkgName: { fontSize: 14, fontFamily: Fonts.bold, color: Colors.ink },
+  pkgSub: { fontSize: 11.5, fontFamily: Fonts.regular, color: Colors.muted, marginTop: 2 },
+  pkgPricePill: {
+    backgroundColor: Colors.goldSoft,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  pkgPriceTxt: { fontSize: 12.5, fontFamily: Fonts.bold, color: Colors.goldDeep },
 
   upgradeBtn: {
     height: 52,

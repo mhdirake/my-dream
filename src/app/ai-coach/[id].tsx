@@ -50,7 +50,7 @@ export default function AiCoachChat() {
 
   const fetchSession = useCallback(async () => {
     try {
-      const detail = await aiCoachApi.getSession(token, id);
+      const detail = await aiCoachApi.getSession(token, Number(id));
       setMessages(detail.messages ?? []);
     } catch {
       Alert.alert('خطا', 'بارگذاری گفتگو ممکن نشد.', [
@@ -74,7 +74,8 @@ export default function AiCoachChat() {
     if (!msg || sending) return;
 
     const optimistic: CoachMessage = {
-      id: `opt-${Date.now()}`,
+      id: -Date.now(),
+      session_id: Number(id),
       role: 'user',
       content: msg,
       created_at: new Date().toISOString(),
@@ -84,7 +85,7 @@ export default function AiCoachChat() {
     setSending(true);
 
     try {
-      const reply = await aiCoachApi.sendMessage(token, id, msg);
+      const reply = await aiCoachApi.sendMessage(token, Number(id), msg);
       setMessages(prev => [...prev, reply]);
     } catch {
       setMessages(prev => prev.filter(m => m.id !== optimistic.id));

@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Colors, Fonts, Spacing } from '@/constants/colors';
 import { blockApi, type BlockStatus } from '@/lib/api/block';
 import { discoverApi } from '@/lib/api/discover';
+import { giftsApi, type SentGift } from '@/lib/api/gifts';
 import { toast } from '@/lib/toast';
 import { profileApi, type ClientProfile, type UserProfile } from '@/lib/api/profile';
 import { profileCache } from '@/lib/cache/profileCache';
@@ -117,13 +118,14 @@ function ProgressRing({
 // ── ProfileActionsSheet ───────────────────────────────────────────────────────
 
 function ProfileActionsSheet({
-  visible, firstName, isBlocked, onClose, onGift, onAnon, onInsight, onBlock, onReport, onShare,
+  visible, firstName, isBlocked, onClose, onGift, onGoldBadge, onAnon, onInsight, onBlock, onReport, onShare,
 }: {
   visible: boolean;
   firstName: string;
   isBlocked: boolean;
   onClose: () => void;
   onGift: () => void;
+  onGoldBadge: () => void;
   onAnon: () => void;
   onInsight: () => void;
   onBlock: () => void;
@@ -143,6 +145,7 @@ function ProfileActionsSheet({
   const rows: { icon: React.ReactNode; label: string; sub?: string; danger?: boolean; onPress: () => void }[] = [
     { icon: <Share2 size={18} color={Colors.trust} strokeWidth={2} />, label: 'اشتراک‌گذاری پروفایل', onPress: onShare },
     { icon: <Gift size={18} color={Colors.goldDeep} strokeWidth={2} />, label: 'فرستادن هدیه', sub: 'با سکه', onPress: onGift },
+    { icon: <Star size={18} color={Colors.goldDeep} strokeWidth={2} />, label: 'اهدای نشان طلایی', sub: 'با سکه', onPress: onGoldBadge },
     { icon: <Eye size={18} color={Colors.purple} strokeWidth={2} />, label: 'علاقه ناشناس', onPress: onAnon },
     { icon: <Sparkles size={18} color={Colors.purple} strokeWidth={2} />, label: `AI Insight ${firstName}`, sub: '۵۰ سکه', onPress: onInsight },
     { icon: <UserX size={18} color={Colors.danger} strokeWidth={2} />, label: isBlocked ? 'رفع مسدودیت' : 'مسدود کردن', danger: true, onPress: onBlock },
@@ -239,6 +242,7 @@ export default function ProfileViewScreen() {
   const [giftOpen, setGiftOpen] = useState(false);
   const [templateOpen, setTemplateOpen] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
+  const [userGifts, setUserGifts] = useState<SentGift[]>([]);
 
   const goBack = () => {
     if (router.canGoBack()) router.back();
@@ -248,10 +252,11 @@ export default function ProfileViewScreen() {
   const fetchProfile = useCallback(async () => {
     if (!session) return;
     try {
-      const [data, me, bStatus] = await Promise.all([
+      const [data, me, bStatus, gifts] = await Promise.all([
         profileApi.getUserProfile(session.accessToken, userId),
         profileApi.getProfile(session.accessToken),
         blockApi.getBlockStatus(session.accessToken, userId).catch(() => null),
+        giftsApi.listUserGifts(session.accessToken, userId).catch(() => [] as SentGift[]),
       ]);
       setProfile(prev => ({
         ...data,
@@ -259,6 +264,7 @@ export default function ProfileViewScreen() {
       }));
       setMyProfile(me);
       setBlockStatus(bStatus);
+      setUserGifts(gifts);
       setError(false);
     } catch {
       if (!cached) setError(true);
@@ -676,6 +682,22 @@ export default function ProfileViewScreen() {
               </View>
             )}
 
+            {/* Received gifts */}
+            {userGifts.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>هدایای دریافتی</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.giftScroll}>
+                  {userGifts.slice(0, 12).map(g => (
+                    <View key={g.sent_gift_id} style={[styles.giftItem, g.is_pinned && styles.giftItemPinned]}>
+                      <Text style={styles.giftItemEmoji}>🎁</Text>
+                      <Text style={styles.giftItemTitle} numberOfLines={1}>{g.gift_title}</Text>
+                      {g.is_pinned && <Star size={10} color={Colors.goldDeep} fill={Colors.gold} strokeWidth={1.5} />}
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
             {/* Personality test */}
             {profile.latest_personality_test && (
               <View style={styles.section}>
@@ -774,6 +796,7 @@ export default function ProfileViewScreen() {
         isBlocked={blockStatus?.blocked_by_me ?? false}
         onClose={() => setActionsOpen(false)}
         onGift={() => setGiftOpen(true)}
+        onGoldBadge={() => router.push({ pathname: '/subscription/gold-badge', params: { userId: String(userId), userName: profile.first_name } } as never)}
         onAnon={handleAnon}
         onInsight={handleInsight}
         onBlock={handleBlock}
@@ -853,6 +876,17 @@ const styles = StyleSheet.create({
 
   section: { gap: 10 },
   sectionTitle: { fontSize: 11.5, fontFamily: Fonts.bold, color: Colors.muted, letterSpacing: 0.3 },
+  giftScroll: { gap: 8, paddingVertical: 2 },
+  giftItem: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: Colors.surface,
+    borderWidth: 1, borderColor: Colors.hair,
+    borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8,
+    maxWidth: 160,
+  },
+  giftItemPinned: { borderColor: Colors.gold, backgroundColor: Colors.goldSoft },
+  giftItemEmoji: { fontSize: 18 },
+  giftItemTitle: { fontSize: 12, fontFamily: Fonts.semiBold, color: Colors.ink, flexShrink: 1 },
   bio: { fontSize: 14, fontFamily: Fonts.regular, color: Colors.ink, lineHeight: 24 },
   plainTxt: { fontSize: 13, fontFamily: Fonts.regular, color: Colors.inkSoft, lineHeight: 20 },
 

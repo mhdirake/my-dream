@@ -97,7 +97,7 @@ export default function SearchScreen() {
           </Text>
           <View style={styles.badges}>
             {item.badges.slice(0, 2).map(b => (
-              <Badge key={b.id} kind={badgeKind(b.slug)} size={14} />
+              <Badge key={b.id} kind={badgeKind(b.slug)} />
             ))}
           </View>
         </View>

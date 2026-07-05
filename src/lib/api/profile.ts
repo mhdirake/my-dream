@@ -99,10 +99,22 @@ export const profileApi = {
   ) =>
     api.patch<ClientProfile>('/api/client/profile', data, token),
 
-  getBioSuggestions: (token: string, currentBio?: string): Promise<string[]> =>
-    api.post<{ data: string[] }>(
+  changePassword: (
+    token: string,
+    data: { current_password: string; password: string; password_confirmation: string },
+  ) =>
+    api.patch<{ message: string }>('/api/client/profile/password', data, token),
+
+  getBioSuggestions: (
+    token: string,
+    tone: 'friendly' | 'serious' | 'playful' | 'calm',
+    hint?: string,
+  ): Promise<string[]> =>
+    api.post<{ data: { suggestions: string[] } }>(
       '/api/client/profile/bio/suggestions',
-      currentBio ? { current_bio: currentBio } : {},
+      { tone, ...(hint ? { hint: hint.slice(0, 300) } : {}) },
       token,
-    ).then(r => r.data),
+    ).then(r => r.data.suggestions),
 };
+
+export type BioTone = 'friendly' | 'serious' | 'playful' | 'calm';

@@ -1,3 +1,5 @@
+import { File as FSFile, UploadType } from 'expo-file-system';
+import { Platform } from 'react-native';
 import { api } from './client';
 
 export type ConversationUserPhoto = {
@@ -95,6 +97,31 @@ export type ConversationTemplate = {
   body: string;
 };
 
+export type MediaUploadResult = {
+  media_url: string;
+  media_size: number;
+  mime_type: string;
+  width?: number;
+  height?: number;
+  duration_seconds?: number;
+};
+
+export type TypedMessagePayload = {
+  type: MessageType;
+  body?: string;
+  caption?: string;
+  media_url?: string;
+  media_size?: number;
+  mime_type?: string;
+  width?: number;
+  height?: number;
+  duration_seconds?: number;
+  sticker_id?: string;
+  gif_id?: string;
+  gift_id?: number;
+  sent_gift_id?: number;
+};
+
 export const chatApi = {
   listConversations: async (token: string): Promise<Conversation[]> => {
     const res = await api.get<{ data: Conversation[] }>('/api/client/conversations', token);
@@ -143,6 +170,57 @@ export const chatApi = {
       { client_message_id: clientMessageId, type: 'text', body },
       token,
     ),
+
+  sendTypedMessage: (
+    token: string,
+    conversationId: number,
+    clientMessageId: string,
+    payload: TypedMessagePayload,
+  ) =>
+    api.post(
+      `/api/client/conversations/${conversationId}/messages`,
+      { client_message_id: clientMessageId, ...payload },
+      token,
+    ),
+
+  uploadConversationImage: async (
+    token: string,
+    conversationId: number,
+    uri: string,
+    mimeType = 'image/jpeg',
+    caption?: string,
+  ): Promise<MediaUploadResult> => {
+    const url = `${process.env.EXPO_PUBLIC_API_URL}/api/client/conversations/${conversationId}/images`;
+
+    if (Platform.OS !== 'web') {
+      const file = new FSFile(uri);
+      const result = await file.upload(url, {
+        uploadType: UploadType.MULTIPART,
+        fieldName: 'image',
+        mimeType,
+        headers: { Authorization: `Bearer ${token}` },
+        ...(caption ? { parameters: { caption } } : {}),
+      });
+      const data = JSON.parse(result.body || '{}');
+      if (result.status < 200 || result.status >= 300)
+        throw new Error(data?.message ?? `HTTP ${result.status}`);
+      return data.data as MediaUploadResult;
+    }
+
+    const blob = await fetch(uri).then(r => r.blob());
+    const file = new File([blob], 'photo.jpg', { type: blob.type || mimeType });
+    const form = new FormData();
+    form.append('image', file);
+    if (caption) form.append('caption', caption);
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message ?? `HTTP ${res.status}`);
+    return data.data as MediaUploadResult;
+  },
 
   markRead: (token: string, conversationId: number, messageId: string) =>
     api.post(

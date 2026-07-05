@@ -4,8 +4,9 @@ import { Card } from '@/components/ui/Card';
 import { GiftModal } from '@/components/GiftModal';
 import { TemplateMessageModal } from '@/components/TemplateMessageModal';
 import { Colors, Fonts } from '@/constants/colors';
-import { DiscoverProfile, discoverApi } from '@/lib/api/discover';
+import { DailySuggestionProfile, DailySuggestionsMeta, DiscoverProfile, discoverApi } from '@/lib/api/discover';
 import { notificationsApi } from '@/lib/api/notifications';
+import { profileApi } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { profileCache } from '@/lib/cache/profileCache';
 import { Image } from 'expo-image';
@@ -50,6 +51,10 @@ const MODES: { id: Mode; label: string }[] = [
 
 function calcAge(d: string) {
   return Math.floor((Date.now() - new Date(d).getTime()) / (1000 * 60 * 60 * 24 * 365.25));
+}
+
+function toPersianDigits(n: number) {
+  return String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
 }
 
 function badgeKind(slug: string): 'ai' | 'community' | 'gold' | 'complete' | 'personality' | 'check' {
@@ -406,7 +411,7 @@ function SwipeView({
 }
 
 // ── DailyView ────────────────────────────────────────────────────────────────
-function DailyView({ profiles, loading }: { profiles: DiscoverProfile[]; loading: boolean }) {
+function DailyView({ profiles, loading, meta }: { profiles: DiscoverProfile[]; loading: boolean; meta: DailySuggestionsMeta | null }) {
   if (loading)
     return (
       <View style={styles.listCenter}>
@@ -418,6 +423,11 @@ function DailyView({ profiles, loading }: { profiles: DiscoverProfile[]; loading
       contentContainerStyle={styles.dailyContent}
       showsVerticalScrollIndicator={false}
     >
+      {meta != null && profiles.length > 0 && (
+        <Text style={styles.dailyMetaTxt}>
+          {toPersianDigits(meta.generated_count)} پیشنهاد از {toPersianDigits(meta.daily_limit)} پیشنهاد امروز
+        </Text>
+      )}
       {profiles.map(p => (
         <TouchableOpacity
           key={p.id}
@@ -488,26 +498,108 @@ function DailyView({ profiles, loading }: { profiles: DiscoverProfile[]; loading
 }
 
 // ── AiView ───────────────────────────────────────────────────────────────────
-function AiView() {
-  return (
-    <View style={styles.listCenter}>
-      <Sparkles size={52} color={Colors.purple} strokeWidth={1.3} />
-      <Text style={styles.aiTitle}>AI Match Assistant</Text>
-      <Text style={styles.aiSub}>این قابلیت فقط برای کاربران Gold فعال است</Text>
-      <TouchableOpacity
-        style={styles.goldBtn}
-        onPress={() => router.push('/subscription' as never)}
-      >
-        <LinearGradient
-          colors={['#6C4AB6', '#D94F70']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.goldBtnInner}
+function AiView({ plan, profiles, loading }: { plan: string; profiles: DailySuggestionProfile[]; loading: boolean }) {
+  if (plan !== 'gold') {
+    return (
+      <View style={styles.listCenter}>
+        <Sparkles size={52} color={Colors.purple} strokeWidth={1.3} />
+        <Text style={styles.aiTitle}>دستیار مچ هوشمند</Text>
+        <Text style={styles.aiSub}>این قابلیت فقط برای کاربران طلایی فعال است</Text>
+        <TouchableOpacity
+          style={styles.goldBtn}
+          onPress={() => router.push('/subscription' as never)}
         >
-          <Text style={styles.goldBtnTxt}>ارتقا به Gold</Text>
-        </LinearGradient>
-      </TouchableOpacity>
-    </View>
+          <LinearGradient
+            colors={['#6C4AB6', '#D94F70']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.goldBtnInner}
+          >
+            <Text style={styles.goldBtnTxt}>ارتقا به طلایی</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (loading)
+    return (
+      <View style={styles.listCenter}>
+        <ActivityIndicator color={Colors.purple} />
+      </View>
+    );
+
+  const sorted = [...profiles].sort(
+    (a, b) => (b.compatibility_score ?? 0) - (a.compatibility_score ?? 0),
+  );
+
+  return (
+    <ScrollView contentContainerStyle={styles.dailyContent} showsVerticalScrollIndicator={false}>
+      <View style={styles.aiHeaderRow}>
+        <Sparkles size={16} color={Colors.purple} strokeWidth={2} />
+        <Text style={styles.aiHeaderTxt}>مچ‌های هوشمند امروز بر اساس امتیاز سازگاری</Text>
+      </View>
+      {sorted.map(p => {
+        const exp = p.compatibility?.explanation;
+        return (
+          <TouchableOpacity
+            key={p.id}
+            activeOpacity={0.85}
+            onPress={() => {
+              profileCache.set(p);
+              router.push(`/user/${p.id}` as never);
+            }}
+          >
+            <Card style={styles.dailyCard}>
+              <View style={styles.dailyRow}>
+                <View style={styles.dailyAvatar}>
+                  {p.profile_photo?.urls.medium ? (
+                    <Image
+                      source={{ uri: p.profile_photo.urls.medium }}
+                      style={[StyleSheet.absoluteFill, { borderRadius: 16 }]}
+                      contentFit="cover"
+                      transition={200}
+                    />
+                  ) : (
+                    <User size={36} color="rgba(150,140,170,0.6)" strokeWidth={1.3} />
+                  )}
+                </View>
+                <View style={styles.dailyInfo}>
+                  <View style={styles.dailyNameRow}>
+                    <Text style={styles.dailyName}>
+                      {p.first_name}، {calcAge(p.birth_date)}
+                    </Text>
+                    {p.compatibility_score != null && (
+                      <View style={styles.aiScorePill}>
+                        <Sparkles size={11} color={Colors.purple} strokeWidth={2} />
+                        <Text style={styles.aiScoreTxt}>{toPersianDigits(p.compatibility_score)}٪ سازگاری</Text>
+                      </View>
+                    )}
+                  </View>
+                  {p.city && <Text style={styles.dailyCity}>{p.city}</Text>}
+                  {exp != null && (
+                    <View style={styles.aiExpRow}>
+                      {(exp.shared_lifestyle_tags ?? 0) > 0 && (
+                        <Chip small tone="purple">{toPersianDigits(exp.shared_lifestyle_tags!)} سبک زندگی مشترک</Chip>
+                      )}
+                      {(exp.shared_languages ?? 0) > 0 && (
+                        <Chip small tone="trust">{toPersianDigits(exp.shared_languages!)} زبان مشترک</Chip>
+                      )}
+                    </View>
+                  )}
+                </View>
+              </View>
+            </Card>
+          </TouchableOpacity>
+        );
+      })}
+      {sorted.length === 0 && (
+        <View style={styles.listCenter}>
+          <Text style={styles.emptyTxtDark}>هنوز مچ هوشمندی برای امروز نیست</Text>
+        </View>
+      )}
+      <View style={{ height: 100 }} />
+    </ScrollView>
   );
 }
 
@@ -593,6 +685,11 @@ export default function DiscoverScreen() {
   const [loading, setLoading] = useState(true);
   const [safeMode, setSafeMode] = useState(false);
   const [hasUnread, setHasUnread] = useState(false);
+  const [planSlug, setPlanSlug] = useState<string>('basic');
+  const [daily, setDaily] = useState<DailySuggestionProfile[]>([]);
+  const [dailyMeta, setDailyMeta] = useState<DailySuggestionsMeta | null>(null);
+  const [dailyLoading, setDailyLoading] = useState(false);
+  const [dailyLoaded, setDailyLoaded] = useState(false);
 
   const fetchUnread = useCallback(() => {
     if (!session?.accessToken) return;
@@ -623,6 +720,31 @@ export default function DiscoverScreen() {
     fetchProfiles(safeMode);
   }, [fetchProfiles]);
 
+  useEffect(() => {
+    if (!session?.accessToken) return;
+    profileApi.getProfile(session.accessToken)
+      .then(p => setPlanSlug(p.active_subscription?.plan?.slug ?? 'basic'))
+      .catch(() => {});
+  }, [session?.accessToken]);
+
+  const fetchDaily = useCallback(() => {
+    if (!session?.accessToken) return;
+    setDailyLoading(true);
+    discoverApi.getDailySuggestions(session.accessToken)
+      .then(({ data, meta }) => {
+        profileCache.setMany(data);
+        setDaily(data);
+        setDailyMeta(meta);
+        setDailyLoaded(true);
+      })
+      .catch(() => {})
+      .finally(() => setDailyLoading(false));
+  }, [session?.accessToken]);
+
+  useEffect(() => {
+    if ((mode === 'daily' || mode === 'ai') && !dailyLoaded && !dailyLoading) fetchDaily();
+  }, [mode, dailyLoaded, dailyLoading, fetchDaily]);
+
   const handleInteract = (userId: number, type: 'like' | 'pass') => {
     if (!session) return;
     discoverApi.interact(session.accessToken, userId, type).catch(() => {});
@@ -652,8 +774,8 @@ export default function DiscoverScreen() {
             onInteract={handleInteract}
           />
         )}
-        {mode === 'daily' && <DailyView profiles={profiles} loading={loading} />}
-        {mode === 'ai' && <AiView />}
+        {mode === 'daily' && <DailyView profiles={daily} loading={dailyLoading} meta={dailyMeta} />}
+        {mode === 'ai' && <AiView plan={planSlug} profiles={daily} loading={dailyLoading} />}
       </View>
     </SafeAreaView>
   );
@@ -896,6 +1018,22 @@ const styles = StyleSheet.create({
     textAlign: 'center', marginTop: 6, lineHeight: 20,
   },
   goldBtn: { marginTop: 24, borderRadius: 999, overflow: 'hidden', alignSelf: 'stretch' },
+  dailyMetaTxt: {
+    fontSize: 12, fontFamily: Fonts.semiBold, color: Colors.muted,
+    textAlign: 'center', marginBottom: 10,
+  },
+  aiHeaderRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 6, marginBottom: 12,
+  },
+  aiHeaderTxt: { fontSize: 12.5, fontFamily: Fonts.semiBold, color: Colors.purple },
+  aiScorePill: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: Colors.purple + '12',
+    borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3,
+  },
+  aiScoreTxt: { fontSize: 10.5, fontFamily: Fonts.bold, color: Colors.purple },
+  aiExpRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 },
   goldBtnInner: { paddingVertical: 14, alignItems: 'center' },
   goldBtnTxt: { fontSize: 15, fontFamily: Fonts.bold, color: '#fff' },
 });

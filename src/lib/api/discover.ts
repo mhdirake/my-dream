@@ -23,6 +23,29 @@ export type DiscoverProfile = {
 
 export type InteractionType = 'like' | 'pass' | 'skip' | 'anonymous_interest';
 
+export type DailyCompatibility = {
+  labels?: string[];
+  percentage?: number;
+  score?: number;
+  explanation?: {
+    summary?: string;
+    score?: number;
+    shared_lifestyle_tags?: number;
+    shared_languages?: number;
+  };
+};
+
+export type DailySuggestionProfile = DiscoverProfile & {
+  compatibility?: DailyCompatibility;
+};
+
+export type DailySuggestionsMeta = {
+  plan: string;
+  daily_limit: number;
+  generated_count: number;
+  remaining_today: number;
+};
+
 export type ProfileView = {
   id: number;
   viewer_user: {
@@ -31,6 +54,39 @@ export type ProfileView = {
     profile_photo: { urls: { medium: string; thumbnail: string } } | null;
   };
   viewed_at: string;
+};
+
+export type ProfileViewSummary = {
+  total_count: number;
+  has_active_access: boolean;
+  access_until: string | null;
+  locked: boolean;
+};
+
+export type ProfileViewTimelineItem = {
+  profile_view_id: number;
+  viewer: {
+    id: number;
+    username: string;
+    first_name: string;
+    last_name: string | null;
+    profile_photo?: { urls?: { medium?: string; thumbnail?: string } } | null;
+  } | null;
+  last_viewed_at: string | null;
+  view_count: number;
+  can_open_profile: boolean;
+  display_state: 'normal' | 'deleted' | 'banned' | 'suspended' | 'blocked';
+  display_name: string;
+};
+
+export type ViewPackage = {
+  id: number;
+  name: string;
+  slug: string;
+  feature: string;
+  coin_price: number;
+  duration_days: number | null;
+  description: string | null;
 };
 
 export type BackendGift = {
@@ -73,5 +129,45 @@ export const discoverApi = {
   getProfileViews: async (token: string) => {
     const res = await api.get<{ data: ProfileView[] }>('/api/client/profile-views', token);
     return res.data ?? [];
+  },
+
+  getProfileViewSummary: async (token: string) => {
+    const res = await api.get<ProfileViewSummary>('/api/client/profile-view-history/summary', token);
+    return res;
+  },
+
+  getProfileViewTimeline: async (token: string, page = 1) => {
+    const res = await api.get<{
+      summary: ProfileViewSummary;
+      data: { current_page: number; last_page: number; data: ProfileViewTimelineItem[] };
+    }>(`/api/client/profile-view-history/timeline?page_number=${page}`, token);
+    return res;
+  },
+
+  getViewPackages: async (token: string) => {
+    const res = await api.get<{ data: ViewPackage[] }>(
+      '/api/client/packages?feature=profile_view_history',
+      token,
+    );
+    return res.data ?? [];
+  },
+
+  purchaseViewAccess: (token: string, packageId: number) =>
+    api.post<{ access_until: string; coin_balance: number }>(
+      '/api/client/profile-view-history/purchase',
+      { package_id: packageId },
+      token,
+    ),
+
+  getDailySuggestions: async (token: string) => {
+    const res = await api.get<{ data: DailySuggestionProfile[]; meta: DailySuggestionsMeta }>(
+      '/api/client/discovery/daily-suggestions',
+      token,
+    );
+    const data = (res.data ?? []).map(p => ({
+      ...p,
+      compatibility_score: p.compatibility?.score ?? p.compatibility?.percentage ?? p.compatibility_score ?? null,
+    }));
+    return { data, meta: res.meta };
   },
 };

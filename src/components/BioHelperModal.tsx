@@ -1,5 +1,5 @@
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
-import { profileApi } from '@/lib/api/profile';
+import { profileApi, type BioTone } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { RefreshCw, Sparkles, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
@@ -21,6 +21,13 @@ type Props = {
   onClose: () => void;
 };
 
+const TONES: { value: BioTone; label: string }[] = [
+  { value: 'friendly', label: 'صمیمی' },
+  { value: 'serious', label: 'جدی' },
+  { value: 'playful', label: 'شوخ‌طبع' },
+  { value: 'calm', label: 'آرام' },
+];
+
 export function BioHelperModal({ visible, currentBio, onSelect, onClose }: Props) {
   const { session } = useAuth();
   const token = session?.accessToken ?? '';
@@ -28,18 +35,25 @@ export function BioHelperModal({ visible, currentBio, onSelect, onClose }: Props
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
+  const [tone, setTone] = useState<BioTone>('friendly');
 
-  const fetch = async () => {
+  const fetch = async (t: BioTone = tone) => {
     setLoading(true);
     setSelected(null);
     try {
-      const data = await profileApi.getBioSuggestions(token, currentBio);
+      const data = await profileApi.getBioSuggestions(token, t, currentBio);
       setSuggestions(data.slice(0, 3));
     } catch {
       setSuggestions([]);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleTone = (t: BioTone) => {
+    if (loading || t === tone) return;
+    setTone(t);
+    fetch(t);
   };
 
   useEffect(() => {
@@ -65,7 +79,7 @@ export function BioHelperModal({ visible, currentBio, onSelect, onClose }: Props
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <Sparkles size={16} color={Colors.purple} strokeWidth={2} />
-            <Text style={styles.headerTxt}>پیشنهاد Bio از AI</Text>
+            <Text style={styles.headerTxt}>پیشنهاد بیو با هوش مصنوعی</Text>
           </View>
           <TouchableOpacity style={styles.closeBtn} onPress={onClose} activeOpacity={0.7}>
             <X size={18} color={Colors.muted} strokeWidth={2.5} />
@@ -73,6 +87,20 @@ export function BioHelperModal({ visible, currentBio, onSelect, onClose }: Props
         </View>
 
         <Text style={styles.sub}>یکی از پیشنهادها رو انتخاب کن یا رفرش کن</Text>
+
+        <View style={styles.toneRow}>
+          {TONES.map(t => (
+            <TouchableOpacity
+              key={t.value}
+              style={[styles.toneChip, tone === t.value && styles.toneChipActive]}
+              onPress={() => handleTone(t.value)}
+              disabled={loading}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.toneTxt, tone === t.value && styles.toneTxtActive]}>{t.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           {loading ? (
@@ -103,7 +131,7 @@ export function BioHelperModal({ visible, currentBio, onSelect, onClose }: Props
 
         {/* Footer */}
         <View style={styles.footer}>
-          <TouchableOpacity style={styles.refreshBtn} onPress={fetch} disabled={loading} activeOpacity={0.8}>
+          <TouchableOpacity style={styles.refreshBtn} onPress={() => fetch()} disabled={loading} activeOpacity={0.8}>
             <RefreshCw size={14} color={loading ? Colors.muted : Colors.inkSoft} strokeWidth={2} />
             <Text style={[styles.refreshTxt, loading && { color: Colors.muted }]}>رفرش</Text>
           </TouchableOpacity>
@@ -113,7 +141,7 @@ export function BioHelperModal({ visible, currentBio, onSelect, onClose }: Props
             disabled={!selected}
             activeOpacity={0.85}
           >
-            <Text style={styles.useTxt}>استفاده از این Bio</Text>
+            <Text style={styles.useTxt}>استفاده از این بیو</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -145,6 +173,19 @@ const styles = StyleSheet.create({
   },
 
   content: { padding: Spacing.lg, gap: 10 },
+
+  toneRow: {
+    flexDirection: 'row', gap: 8,
+    paddingHorizontal: Spacing.lg, paddingTop: 10,
+  },
+  toneChip: {
+    borderWidth: 1.5, borderColor: Colors.hair,
+    borderRadius: Radius.pill, paddingHorizontal: 14, paddingVertical: 7,
+    backgroundColor: Colors.surface,
+  },
+  toneChipActive: { borderColor: Colors.purple, backgroundColor: Colors.purple + '10' },
+  toneTxt: { fontSize: 12.5, fontFamily: Fonts.semiBold, color: Colors.inkSoft },
+  toneTxtActive: { color: Colors.purple },
 
   card: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 10,

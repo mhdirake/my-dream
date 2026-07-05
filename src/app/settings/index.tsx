@@ -64,8 +64,8 @@ export default function SettingsScreen() {
         {
           icon: Lock, iconColor: Colors.purple,
           label: 'تغییر رمز عبور',
-          sub: 'از طریق Keycloak',
-          onPress: () => toast.info('این قابلیت به زودی اضافه می‌شود'),
+          sub: 'به‌روزرسانی رمز ورود',
+          route: '/settings/change-password',
         },
         {
           icon: LogOut, iconColor: Colors.danger,
