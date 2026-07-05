@@ -43,6 +43,19 @@ export type GenerateError = {
   refunded?: boolean;
 };
 
+export type AiInsightPurchase = {
+  id: number;
+  insight_type: string;
+  subject_user_id: number;
+  coin_amount: number;
+  status: string;
+  access_expires_at: string | null;
+  refunded_at: string | null;
+  purchased_at: string;
+};
+
+export type InsightVisibility = 'visible' | 'hidden';
+
 export const aiInsightApi = {
   getSelf: (token: string): Promise<SelfInsight> =>
     api.get<{ data: SelfInsight }>('/api/client/ai-insights/self/latest', token).then(r => r.data),
@@ -55,4 +68,15 @@ export const aiInsightApi = {
 
   purchaseUser: (token: string, userId: number): Promise<UserInsightUnlocked> =>
     api.post<{ data: UserInsightUnlocked }>(`/api/client/ai-insights/users/${userId}/purchase`, {}, token).then(r => r.data),
+
+  getPurchases: (token: string, page = 1): Promise<AiInsightPurchase[]> =>
+    api.get<{ data: AiInsightPurchase[] }>(`/api/client/ai-insights/purchases?page=${page}`, token)
+      .then(r => r.data ?? []),
+
+  setInsightPrivacy: (token: string, visibility: InsightVisibility) =>
+    api.patch<{ data: { ai_public_insight_visibility: InsightVisibility } }>(
+      '/api/client/me/ai-insight-privacy',
+      { ai_public_insight_visibility: visibility },
+      token,
+    ),
 };

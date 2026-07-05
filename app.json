@@ -46,6 +46,12 @@
           "icon": "./assets/images/logo.png",
           "color": "#D94F70"
         }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "برای ارسال پیام صوتی به میکروفون دسترسی لازم است."
+        }
       ]
     ],
     "experiments": {

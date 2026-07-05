@@ -63,6 +63,7 @@ export type ClientProfile = {
   dealbreakers: { id: number; body: string; moderation_status: string }[];
   badges: { id: number; title?: string; label?: string; slug?: string; icon?: string }[];
   active_subscription: { plan: { id: number; name: string; slug: string }; expires_at: string } | null;
+  ai_public_insight_visibility?: 'visible' | 'hidden';
   coins?: number;
   prompt_answers?: { id: number; answer: string; prompt: { id: number; text: string; body?: string } }[];
   likes_count?: number;

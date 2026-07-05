@@ -23,6 +23,24 @@ export type DiscoverProfile = {
 
 export type InteractionType = 'like' | 'pass' | 'skip' | 'anonymous_interest';
 
+export type MutualUser = {
+  id: number;
+  first_name: string;
+  username: string;
+  profile_photo?: { urls?: { medium?: string; thumbnail?: string } } | null;
+};
+
+export type InteractionResult = {
+  type: string;
+  action?: string;
+  sent_by_me?: boolean;
+  liked_by_me?: boolean;
+  likes_count?: number;
+  mutual?: boolean;
+  mutual_user?: MutualUser | null;
+  mutual_message?: string | null;
+};
+
 export type DailyCompatibility = {
   labels?: string[];
   percentage?: number;
@@ -113,7 +131,11 @@ export const discoverApi = {
   },
 
   interact: (token: string, userId: number, type: InteractionType) =>
-    api.post(`/api/client/users/${userId}/interactions`, { type, metadata: {} }, token),
+    api.post<{ data: InteractionResult }>(
+      `/api/client/users/${userId}/interactions`,
+      { type, metadata: {} },
+      token,
+    ),
 
   sendGift: (token: string, userId: number, giftId: number, message?: string) =>
     api.post(`/api/client/gifts/${giftId}/send`, { receiver_user_id: userId, note: message ?? null, show_in_chat: false }, token),

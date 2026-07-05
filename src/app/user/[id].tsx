@@ -1,9 +1,10 @@
 import { GiftModal } from '@/components/GiftModal';
+import { MatchCelebrationModal } from '@/components/MatchCelebrationModal';
 import { TemplateMessageModal } from '@/components/TemplateMessageModal';
 import { Badge } from '@/components/ui/Badge';
 import { Colors, Fonts, Spacing } from '@/constants/colors';
 import { blockApi, type BlockStatus } from '@/lib/api/block';
-import { discoverApi } from '@/lib/api/discover';
+import { discoverApi, type MutualUser } from '@/lib/api/discover';
 import { giftsApi, type SentGift } from '@/lib/api/gifts';
 import { toast } from '@/lib/toast';
 import { profileApi, type ClientProfile, type UserProfile } from '@/lib/api/profile';
@@ -243,6 +244,7 @@ export default function ProfileViewScreen() {
   const [templateOpen, setTemplateOpen] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [userGifts, setUserGifts] = useState<SentGift[]>([]);
+  const [matchInfo, setMatchInfo] = useState<{ user: MutualUser; message?: string | null } | null>(null);
 
   const goBack = () => {
     if (router.canGoBack()) router.back();
@@ -344,8 +346,15 @@ export default function ProfileViewScreen() {
 
   const handleLike = () => {
     if (!session) return;
-    discoverApi.interact(session.accessToken, profile.id, 'like').catch(() => {});
-    goBack();
+    discoverApi.interact(session.accessToken, profile.id, 'like')
+      .then(res => {
+        if (res.data?.mutual && res.data.mutual_user) {
+          setMatchInfo({ user: res.data.mutual_user, message: res.data.mutual_message });
+        } else {
+          goBack();
+        }
+      })
+      .catch(() => goBack());
   };
   const handlePass = () => {
     if (!session) return;
@@ -363,7 +372,13 @@ export default function ProfileViewScreen() {
           text: 'ارسال',
           onPress: () => {
             discoverApi.interact(session.accessToken, profile.id, 'anonymous_interest')
-              .then(() => toast.success('علاقه ناشناس فرستاده شد!'))
+              .then(res => {
+                if (res.data?.mutual && res.data.mutual_user) {
+                  setMatchInfo({ user: res.data.mutual_user, message: res.data.mutual_message });
+                } else {
+                  toast.success('علاقه ناشناس فرستاده شد!');
+                }
+              })
               .catch((e: any) => toast.error(e.message ?? 'خطا'));
           },
         },
@@ -802,6 +817,14 @@ export default function ProfileViewScreen() {
         onBlock={handleBlock}
         onReport={handleReport}
         onShare={handleShare}
+      />
+      <MatchCelebrationModal
+        visible={!!matchInfo}
+        otherName={matchInfo?.user.first_name ?? ''}
+        otherAvatarUrl={matchInfo?.user.profile_photo?.urls?.medium ?? null}
+        message={matchInfo?.message}
+        onClose={() => { setMatchInfo(null); goBack(); }}
+        onStartChat={() => { setMatchInfo(null); setTemplateOpen(true); }}
       />
     </View>
   );

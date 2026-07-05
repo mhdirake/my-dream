@@ -1,6 +1,6 @@
 import { AppBar } from '@/components/ui/AppBar';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
-import { aiInsightApi, type SelfInsight, type SelfInsightUnlocked, type GenerateError } from '@/lib/api/ai-insight';
+import { aiInsightApi, type AiInsightPurchase, type SelfInsight, type SelfInsightUnlocked, type GenerateError } from '@/lib/api/ai-insight';
 import { ApiError } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { toast } from '@/lib/toast';
@@ -29,6 +29,7 @@ export default function SelfInsightScreen() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [insight, setInsight] = useState<SelfInsight | null>(null);
+  const [purchases, setPurchases] = useState<AiInsightPurchase[]>([]);
 
   const load = async () => {
     if (!session?.accessToken) return;
@@ -43,6 +44,11 @@ export default function SelfInsightScreen() {
   };
 
   useEffect(() => { load(); }, [session?.accessToken]);
+
+  useEffect(() => {
+    if (!session?.accessToken) return;
+    aiInsightApi.getPurchases(session.accessToken).then(setPurchases).catch(() => {});
+  }, [session?.accessToken]);
 
   const handleGenerate = async () => {
     if (!session?.accessToken) return;
@@ -214,6 +220,25 @@ export default function SelfInsightScreen() {
             </>
           )}
 
+          {/* Purchase history */}
+          {purchases.length > 0 && (
+            <View style={styles.historyCard}>
+              <Text style={styles.historyTitle}>تاریخچه خریدها</Text>
+              {purchases.slice(0, 10).map(p => (
+                <View key={p.id} style={styles.historyRow}>
+                  <Coins size={14} color={Colors.goldDeep} strokeWidth={2} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.historyRowTitle}>
+                      {p.insight_type === 'self' ? 'آنالیز خودم' : 'آنالیز کاربر دیگر'} — {toPersian(p.coin_amount)} سکه
+                    </Text>
+                    <Text style={styles.historyRowSub}>{formatDate(p.purchased_at)}</Text>
+                  </View>
+                  {p.refunded_at && <Text style={styles.historyRefunded}>بازگشت وجه</Text>}
+                </View>
+              ))}
+            </View>
+          )}
+
           <View style={{ height: 40 }} />
         </ScrollView>
       )}
@@ -295,4 +320,17 @@ const styles = StyleSheet.create({
     fontSize: 12, fontFamily: Fonts.regular, color: Colors.muted,
     textAlign: 'center',
   },
+
+  historyCard: {
+    backgroundColor: Colors.surface, borderRadius: Radius.xl,
+    borderWidth: 1, borderColor: Colors.hair, padding: Spacing.lg, gap: 4,
+  },
+  historyTitle: { fontSize: 12.5, fontFamily: Fonts.bold, color: Colors.ink, marginBottom: 6 },
+  historyRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: Colors.hair,
+  },
+  historyRowTitle: { fontSize: 12.5, fontFamily: Fonts.semiBold, color: Colors.ink },
+  historyRowSub: { fontSize: 11, fontFamily: Fonts.regular, color: Colors.muted, marginTop: 2 },
+  historyRefunded: { fontSize: 11, fontFamily: Fonts.semiBold, color: Colors.danger },
 });

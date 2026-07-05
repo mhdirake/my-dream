@@ -222,6 +222,47 @@ export const chatApi = {
     return data.data as MediaUploadResult;
   },
 
+  uploadConversationVoice: async (
+    token: string,
+    conversationId: number,
+    uri: string,
+    durationSeconds: number,
+    mimeType = 'audio/m4a',
+  ): Promise<MediaUploadResult> => {
+    const url = `${process.env.EXPO_PUBLIC_API_URL}/api/client/conversations/${conversationId}/files`;
+    const parameters = { type: 'voice', duration_seconds: String(durationSeconds) };
+
+    if (Platform.OS !== 'web') {
+      const file = new FSFile(uri);
+      const result = await file.upload(url, {
+        uploadType: UploadType.MULTIPART,
+        fieldName: 'file',
+        mimeType,
+        headers: { Authorization: `Bearer ${token}` },
+        parameters,
+      });
+      const data = JSON.parse(result.body || '{}');
+      if (result.status < 200 || result.status >= 300)
+        throw new Error(data?.message ?? `HTTP ${result.status}`);
+      return data.data as MediaUploadResult;
+    }
+
+    const blob = await fetch(uri).then(r => r.blob());
+    const file = new File([blob], 'voice.m4a', { type: blob.type || mimeType });
+    const form = new FormData();
+    form.append('file', file);
+    form.append('type', 'voice');
+    form.append('duration_seconds', String(durationSeconds));
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message ?? `HTTP ${res.status}`);
+    return data.data as MediaUploadResult;
+  },
+
   markRead: (token: string, conversationId: number, messageId: string) =>
     api.post(
       `/api/client/conversations/${conversationId}/messages/${messageId}/read`,

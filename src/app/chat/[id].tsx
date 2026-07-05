@@ -4,6 +4,8 @@ import { BackendGift } from '@/lib/api/discover';
 import { giftsApi } from '@/lib/api/gifts';
 import { profileApi } from '@/lib/api/profile';
 import { useChatMessages } from '@/lib/chat/useChatMessages';
+import { useVoiceRecorder } from '@/lib/chat/useVoiceRecorder';
+import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { toast } from '@/lib/toast';
 import { Image } from 'expo-image';
@@ -12,7 +14,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
   ArrowLeft, Check, CheckCheck, Clock, Gift as GiftIcon,
-  ImagePlus, Lock, MoreVertical, Pencil, Search, Send, User, X,
+  ImagePlus, Lock, Mic, MoreVertical, Pause, Pencil, Play,
+  Search, Send, Trash2, User, X,
 } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -38,6 +41,49 @@ function formatTime(iso: string) {
 
 function toPersianNum(n: number) {
   return String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
+}
+
+function formatDuration(totalSeconds: number) {
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function VoiceBubblePlayer({
+  uri, durationSeconds, isMine, tint,
+}: {
+  uri: string;
+  durationSeconds: number;
+  isMine: boolean;
+  tint: string;
+}) {
+  const player = useAudioPlayer(uri);
+  const status = useAudioPlayerStatus(player);
+
+  const toggle = () => {
+    if (status.playing) player.pause();
+    else {
+      if (status.currentTime >= (status.duration || durationSeconds)) player.seekTo(0);
+      player.play();
+    }
+  };
+
+  const remaining = status.playing || status.currentTime > 0
+    ? Math.max(0, Math.ceil((status.duration || durationSeconds) - status.currentTime))
+    : durationSeconds;
+
+  return (
+    <View style={styles.voicePlayerRow}>
+      <TouchableOpacity style={[styles.voicePlayBtn, { backgroundColor: isMine ? 'rgba(255,255,255,0.25)' : Colors.purpleSoft }]} onPress={toggle} activeOpacity={0.8}>
+        {status.playing
+          ? <Pause size={14} color={tint} fill={tint} strokeWidth={0} />
+          : <Play size={14} color={tint} fill={tint} strokeWidth={0} />
+        }
+      </TouchableOpacity>
+      <View style={[styles.voiceWave, { backgroundColor: isMine ? 'rgba(255,255,255,0.3)' : Colors.lineSoft }]} />
+      <Text style={[styles.voiceDurationTxt, { color: tint }]}>{formatDuration(remaining)}</Text>
+    </View>
+  );
 }
 
 const GIFT_SLUG_EMOJI: Record<string, string> = {
@@ -180,6 +226,8 @@ export default function ConversationScreen() {
   const [giftsLoading, setGiftsLoading] = useState(false);
   const [sendingGiftId, setSendingGiftId] = useState<number | null>(null);
   const [viewerUri, setViewerUri] = useState<string | null>(null);
+  const [sendingVoice, setSendingVoice] = useState(false);
+  const voiceRecorder = useVoiceRecorder();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [limitReached, setLimitReached] = useState(false);
@@ -386,6 +434,57 @@ export default function ConversationScreen() {
       }
     } finally {
       setUploadingImage(false);
+    }
+  };
+
+  const handleMicPress = async () => {
+    if (myPlan === 'basic') {
+      toast.error('ارسال پیام صوتی مخصوص اشتراک نقره‌ای یا طلایی است');
+      router.push('/subscription' as never);
+      return;
+    }
+    if (voiceRecorder.isRecording) {
+      await voiceRecorder.stop();
+      return;
+    }
+    const started = await voiceRecorder.start();
+    if (!started) toast.error('دسترسی به میکروفون داده نشد');
+  };
+
+  const handleCancelVoice = async () => {
+    await voiceRecorder.cancel();
+  };
+
+  const handleSendVoice = async () => {
+    if (!voiceRecorder.recordedUri || sendingVoice) return;
+    const uri = voiceRecorder.recordedUri;
+    const duration = voiceRecorder.recordedDuration;
+    setSendingVoice(true);
+    try {
+      const media = await chatApi.uploadConversationVoice(token, conversationId, uri, duration);
+      await sendTyped(
+        {
+          type: 'voice',
+          media_url: media.media_url,
+          media_size: media.media_size,
+          mime_type: media.mime_type,
+          duration_seconds: media.duration_seconds ?? duration,
+        },
+        myId,
+        uri,
+      );
+      voiceRecorder.reset();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '';
+      if (msg.includes('403') || msg.includes('مجاز') || msg.toLowerCase().includes('forbidden')) {
+        toast.error('ارسال پیام صوتی مخصوص اشتراک نقره‌ای یا طلایی است');
+      } else if (msg.includes('limit exceeded') || msg.includes('Daily messages')) {
+        setLimitReached(true);
+      } else {
+        toast.error('ارسال پیام صوتی ناموفق بود');
+      }
+    } finally {
+      setSendingVoice(false);
     }
   };
 
@@ -606,10 +705,16 @@ export default function ConversationScreen() {
                 start: { x: 0, y: 0 },
                 end: { x: 1, y: 1 },
               };
+              const resolveMediaUrl = (url: string) =>
+                url.startsWith('http') || url.startsWith('file:')
+                  ? url
+                  : `${process.env.EXPO_PUBLIC_API_URL}/${url.replace(/^\//, '')}`;
+
               const imageUri = item.message_type === 'image' && item.media_url
-                ? (item.media_url.startsWith('http') || item.media_url.startsWith('file:')
-                  ? item.media_url
-                  : `${process.env.EXPO_PUBLIC_API_URL}/${item.media_url.replace(/^\//, '')}`)
+                ? resolveMediaUrl(item.media_url)
+                : null;
+              const voiceUri = item.message_type === 'voice' && item.media_url
+                ? resolveMediaUrl(item.media_url)
                 : null;
 
               const bubbleContent = (
@@ -618,6 +723,13 @@ export default function ConversationScreen() {
                     <Pressable onPress={() => setViewerUri(imageUri)}>
                       <Image source={{ uri: imageUri }} style={styles.msgImage} contentFit="cover" transition={150} />
                     </Pressable>
+                  ) : voiceUri ? (
+                    <VoiceBubblePlayer
+                      uri={voiceUri}
+                      durationSeconds={item.duration_seconds || 1}
+                      isMine={isMine}
+                      tint={isMine ? '#fff' : Colors.purple}
+                    />
                   ) : item.message_type === 'gift' ? (
                     <View style={styles.giftBubble}>
                       <Text style={styles.giftBubbleEmoji}>🎁</Text>
@@ -627,8 +739,7 @@ export default function ConversationScreen() {
                     </View>
                   ) : item.message_type !== 'text' && item.message_type !== 'template_first_message' ? (
                     <Text style={[styles.msgTypeBadge, isMine && { color: 'rgba(255,255,255,0.7)' }]}>
-                      {item.message_type === 'voice' ? '🎤' :
-                       item.message_type === 'sticker' ? '😊' :
+                      {item.message_type === 'sticker' ? '😊' :
                        item.message_type === 'gif' ? '🎞' : '🖼'}
                     </Text>
                   ) : null}
@@ -765,6 +876,29 @@ export default function ConversationScreen() {
           </View>
         )}
 
+        {voiceRecorder.isRecording && (
+          <View style={styles.voiceRecordingBar}>
+            <View style={styles.voiceRecDot} />
+            <Text style={styles.voiceRecordingTxt}>
+              در حال ضبط… {formatDuration(Math.floor(voiceRecorder.durationMillis / 1000))}
+            </Text>
+            <TouchableOpacity onPress={handleCancelVoice} hitSlop={8}>
+              <X size={16} color={Colors.muted} strokeWidth={2} />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {!voiceRecorder.isRecording && voiceRecorder.recordedUri && (
+          <View style={styles.voicePreviewBar}>
+            <VoiceBubblePlayer uri={voiceRecorder.recordedUri} durationSeconds={voiceRecorder.recordedDuration} isMine tint={Colors.ink} />
+            {!sendingVoice && (
+              <TouchableOpacity onPress={voiceRecorder.reset} hitSlop={8}>
+                <Trash2 size={16} color={Colors.danger} strokeWidth={2} />
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
         <View style={[styles.inputBar, (!canChat || limitReached) && styles.inputBarDisabled]}>
           {!canChat || limitReached ? (
             <View style={styles.inputLocked}>
@@ -773,6 +907,21 @@ export default function ConversationScreen() {
                 {limitReached ? 'سقف پیام روزانه' : isPending ? 'در انتظار تأیید…' : isExpired ? 'درخواست منقضی شده' : isRejected ? 'درخواست رد شده' : 'چت قفل است'}
               </Text>
             </View>
+          ) : voiceRecorder.isRecording ? (
+            <TouchableOpacity style={[styles.sendBtn, styles.sendBtnActive]} onPress={handleMicPress} activeOpacity={0.8}>
+              <LinearGradient colors={Colors.gradColors as [string, string]} style={StyleSheet.absoluteFill} />
+              <Check size={18} color="#fff" strokeWidth={2.5} />
+            </TouchableOpacity>
+          ) : voiceRecorder.recordedUri ? (
+            <TouchableOpacity
+              style={[styles.sendBtn, styles.sendBtnActive]}
+              onPress={handleSendVoice}
+              disabled={sendingVoice}
+              activeOpacity={0.8}
+            >
+              <LinearGradient colors={Colors.gradColors as [string, string]} style={StyleSheet.absoluteFill} />
+              {sendingVoice ? <ActivityIndicator size="small" color="#fff" /> : <Send size={18} color="#fff" strokeWidth={2} />}
+            </TouchableOpacity>
           ) : (
             <>
               {!editingId && !pendingImage && (
@@ -783,6 +932,11 @@ export default function ConversationScreen() {
                   <TouchableOpacity style={styles.attachBtn} onPress={handleOpenGiftPicker} hitSlop={6} activeOpacity={0.7}>
                     <GiftIcon size={20} color={Colors.goldDeep} strokeWidth={1.8} />
                   </TouchableOpacity>
+                  {!text.trim() && (
+                    <TouchableOpacity style={styles.attachBtn} onPress={handleMicPress} hitSlop={6} activeOpacity={0.7}>
+                      <Mic size={20} color={Colors.muted} strokeWidth={1.8} />
+                    </TouchableOpacity>
+                  )}
                 </>
               )}
               <TextInput

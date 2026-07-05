@@ -4,7 +4,8 @@ import { Card } from '@/components/ui/Card';
 import { GiftModal } from '@/components/GiftModal';
 import { TemplateMessageModal } from '@/components/TemplateMessageModal';
 import { Colors, Fonts } from '@/constants/colors';
-import { DailySuggestionProfile, DailySuggestionsMeta, DiscoverProfile, discoverApi } from '@/lib/api/discover';
+import { DailySuggestionProfile, DailySuggestionsMeta, DiscoverProfile, MutualUser, discoverApi } from '@/lib/api/discover';
+import { MatchCelebrationModal } from '@/components/MatchCelebrationModal';
 import { notificationsApi } from '@/lib/api/notifications';
 import { profileApi } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -745,9 +746,17 @@ export default function DiscoverScreen() {
     if ((mode === 'daily' || mode === 'ai') && !dailyLoaded && !dailyLoading) fetchDaily();
   }, [mode, dailyLoaded, dailyLoading, fetchDaily]);
 
+  const [matchInfo, setMatchInfo] = useState<{ user: MutualUser; message?: string | null } | null>(null);
+
   const handleInteract = (userId: number, type: 'like' | 'pass') => {
     if (!session) return;
-    discoverApi.interact(session.accessToken, userId, type).catch(() => {});
+    discoverApi.interact(session.accessToken, userId, type)
+      .then(res => {
+        if (res.data?.mutual && res.data.mutual_user) {
+          setMatchInfo({ user: res.data.mutual_user, message: res.data.mutual_message });
+        }
+      })
+      .catch(() => {});
   };
 
   const toggleSafe = () => {
@@ -777,6 +786,19 @@ export default function DiscoverScreen() {
         {mode === 'daily' && <DailyView profiles={daily} loading={dailyLoading} meta={dailyMeta} />}
         {mode === 'ai' && <AiView plan={planSlug} profiles={daily} loading={dailyLoading} />}
       </View>
+
+      <MatchCelebrationModal
+        visible={!!matchInfo}
+        otherName={matchInfo?.user.first_name ?? ''}
+        otherAvatarUrl={matchInfo?.user.profile_photo?.urls?.medium ?? null}
+        message={matchInfo?.message}
+        onClose={() => setMatchInfo(null)}
+        onStartChat={() => {
+          const u = matchInfo?.user;
+          setMatchInfo(null);
+          if (u) router.push({ pathname: '/user/[id]', params: { id: String(u.id) } } as never);
+        }}
+      />
     </SafeAreaView>
   );
 }

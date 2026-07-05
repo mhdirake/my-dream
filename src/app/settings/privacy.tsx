@@ -3,9 +3,11 @@ import { Card } from '@/components/ui/Card';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { api } from '@/lib/api/client';
+import { aiInsightApi } from '@/lib/api/ai-insight';
+import { profileApi } from '@/lib/api/profile';
 import { toast } from '@/lib/toast';
 import { router } from 'expo-router';
-import { ChevronLeft, Eye, MessageCircle, Shield, ShieldOff } from 'lucide-react-native';
+import { ChevronLeft, Eye, MessageCircle, Shield, ShieldOff, Sparkles } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator, ScrollView, StyleSheet, Switch,
@@ -46,6 +48,9 @@ export default function PrivacyScreen() {
   const [settings, setSettings] = useState<PrivacySettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [savingSafe, setSavingSafe] = useState(false);
+  const [isGold, setIsGold] = useState(false);
+  const [insightVisible, setInsightVisible] = useState(true);
+  const [savingInsight, setSavingInsight] = useState(false);
 
   useEffect(() => {
     if (!session?.accessToken) return;
@@ -53,7 +58,32 @@ export default function PrivacyScreen() {
       .then(res => setSettings(res.data))
       .catch(e => toast.error(e.message ?? 'خطا در بارگذاری'))
       .finally(() => setLoading(false));
+    profileApi.getProfile(session.accessToken)
+      .then(p => {
+        setIsGold(p.active_subscription?.plan?.slug === 'gold');
+        setInsightVisible((p.ai_public_insight_visibility ?? 'visible') !== 'hidden');
+      })
+      .catch(() => {});
   }, [session?.accessToken]);
+
+  const toggleInsightVisibility = async (val: boolean) => {
+    if (!session?.accessToken || savingInsight) return;
+    if (!val && !isGold) {
+      toast.error('مخفی‌کردن تحلیل مخصوص اشتراک طلایی است');
+      return;
+    }
+    setSavingInsight(true);
+    const prev = insightVisible;
+    setInsightVisible(val);
+    try {
+      await aiInsightApi.setInsightPrivacy(session.accessToken, val ? 'visible' : 'hidden');
+    } catch (e: any) {
+      setInsightVisible(prev);
+      toast.error(e.message ?? 'مخفی‌کردن تحلیل مخصوص اشتراک طلایی است');
+    } finally {
+      setSavingInsight(false);
+    }
+  };
 
   const toggleSafeMode = async (val: boolean) => {
     if (!session?.accessToken || !settings) return;
@@ -153,6 +183,32 @@ export default function PrivacyScreen() {
             </View>
             <ChevronLeft size={18} color={Colors.muted} strokeWidth={2} />
           </TouchableOpacity>
+
+          {/* AI Insight visibility */}
+          <Text style={styles.sectionTitle}>تحلیل هوش مصنوعی</Text>
+          <Card soft>
+            <View style={styles.safeModeRow}>
+              <View style={[styles.modeIcon, { backgroundColor: Colors.purpleSoft }]}>
+                <Sparkles size={20} color={Colors.purple} strokeWidth={2} />
+              </View>
+              <View style={styles.modeText}>
+                <Text style={styles.modeTitle}>نمایش تحلیل هوش مصنوعی در پروفایل عمومی</Text>
+                <Text style={styles.modeSub}>
+                  {insightVisible ? 'قابل مشاهده برای دیگران' : 'مخفی'}
+                </Text>
+              </View>
+              <Switch
+                value={insightVisible}
+                onValueChange={toggleInsightVisibility}
+                disabled={savingInsight}
+                trackColor={{ false: Colors.hair, true: Colors.purple + 'AA' }}
+                thumbColor={insightVisible ? Colors.purple : Colors.muted}
+              />
+            </View>
+            {!isGold && (
+              <Text style={styles.safeNote}>مخفی‌کردن تحلیل مخصوص کاربران اشتراک طلایی است.</Text>
+            )}
+          </Card>
 
           {/* Profile visibility note */}
           <Text style={styles.sectionTitle}>نمایش پروفایل</Text>
