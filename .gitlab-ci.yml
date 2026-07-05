@@ -9,7 +9,7 @@ variables:
   ANDROID_UBUNTU_IMAGE: "ubuntu:24.04"
   ANDROID_REPOSITORY_URL: "https://dl.google.com/android/repository"
   ANDROID_NPM_REGISTRY: "https://registry.npmjs.org/"
-  ANDROID_GRADLE_VARIANT: "Debug"
+  ANDROID_GRADLE_VARIANT: "Release"
 
 build-web:
   stage: build
@@ -57,8 +57,8 @@ build-android:
         .
     - ls -lah "$ANDROID_ARTIFACTS_DIR"
   artifacts:
-    name: "apk-$CI_COMMIT_REF_SLUG-$CI_PIPELINE_ID"
-    expose_as: "Android APK"
+    name: "release-apk-$CI_COMMIT_REF_SLUG-$CI_PIPELINE_ID"
+    expose_as: "Android Release APK"
     expire_in: 90 days
     paths:
       - artifacts/

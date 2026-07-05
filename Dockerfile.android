@@ -77,7 +77,7 @@ RUN --mount=type=cache,id=mydream-npm,target=/root/.npm,sharing=locked \
 FROM deps AS android-build
 COPY . .
 
-ARG ANDROID_GRADLE_VARIANT=Debug
+ARG ANDROID_GRADLE_VARIANT=Release
 ARG ANDROID_ARCHITECTURES=arm64-v8a
 ARG EXPO_PUBLIC_API_URL
 ARG EXPO_PUBLIC_KC_URL
@@ -99,8 +99,9 @@ RUN --mount=type=cache,id=mydream-expo,target=/root/.expo,sharing=locked \
     --build-cache \
     --max-workers=1 \
     --no-daemon \
-  && find /app/android/app/build/outputs/apk -type f -name "*.apk" -exec cp {} /out/ \; \
-  && test -n "$(find /out -type f -name '*.apk' -print -quit)"
+  && apk_path="$(find /app/android/app/build/outputs/apk -type f -path "*/release/*.apk" -print -quit)" \
+  && test -n "$apk_path" \
+  && cp "$apk_path" /out/app-release.apk
 
 FROM scratch AS android-artifacts
 COPY --from=android-build /out/ /
