@@ -14,8 +14,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import {
   ArrowLeft, Check, CheckCheck, Clock, Gift as GiftIcon,
-  ImagePlus, Lock, Mic, MoreVertical, Pause, Pencil, Play,
-  Search, Send, Trash2, User, X,
+  ImageOff, ImagePlus, Lock, Mic, MoreVertical, Pause, Pencil, Play,
+  RefreshCw, Search, Send, Trash2, User, X,
 } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -67,6 +67,15 @@ function VoiceBubblePlayer({
       player.play();
     }
   };
+
+  if (status.error) {
+    return (
+      <View style={styles.voicePlayerRow}>
+        <ImageOff size={16} color={tint} strokeWidth={1.8} />
+        <Text style={[styles.voiceDurationTxt, { color: tint }]}>پیام صوتی در دسترس نیست</Text>
+      </View>
+    );
+  }
 
   const remaining = status.playing || status.currentTime > 0
     ? Math.max(0, Math.ceil((status.duration || durationSeconds) - status.currentTime))
@@ -229,6 +238,7 @@ export default function ConversationScreen() {
   const [giftsLoading, setGiftsLoading] = useState(false);
   const [sendingGiftId, setSendingGiftId] = useState<number | null>(null);
   const [viewerUri, setViewerUri] = useState<string | null>(null);
+  const [failedImageUris, setFailedImageUris] = useState<Set<string>>(new Set());
   const [sendingVoice, setSendingVoice] = useState(false);
   const voiceRecorder = useVoiceRecorder();
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -721,11 +731,34 @@ export default function ConversationScreen() {
                 ? resolveMediaUrl(item.media_url)
                 : null;
 
+              const imageFailed = imageUri != null && failedImageUris.has(imageUri);
+
               const bubbleContent = (
                 <>
-                  {imageUri ? (
+                  {imageUri && imageFailed ? (
+                    <Pressable
+                      style={styles.msgImageError}
+                      onPress={() => setFailedImageUris(prev => {
+                        const next = new Set(prev);
+                        next.delete(imageUri);
+                        return next;
+                      })}
+                    >
+                      <ImageOff size={22} color={Colors.muted} strokeWidth={1.8} />
+                      <View style={styles.msgImageRetryRow}>
+                        <RefreshCw size={12} color={Colors.muted} strokeWidth={2} />
+                        <Text style={styles.msgImageErrorTxt}>تصویر بارگذاری نشد — تلاش دوباره</Text>
+                      </View>
+                    </Pressable>
+                  ) : imageUri ? (
                     <Pressable onPress={() => setViewerUri(imageUri)}>
-                      <Image source={{ uri: imageUri }} style={styles.msgImage} contentFit="cover" transition={150} />
+                      <Image
+                        source={{ uri: imageUri }}
+                        style={styles.msgImage}
+                        contentFit="cover"
+                        transition={150}
+                        onError={() => setFailedImageUris(prev => new Set(prev).add(imageUri))}
+                      />
                     </Pressable>
                   ) : voiceUri ? (
                     <VoiceBubblePlayer
@@ -1206,6 +1239,17 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     backgroundColor: 'rgba(0,0,0,0.08)',
   },
+  msgImageError: {
+    width: 220,
+    height: 120,
+    borderRadius: Radius.md,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  msgImageRetryRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  msgImageErrorTxt: { fontSize: 11, fontFamily: Fonts.regular, color: Colors.muted },
   giftBubble: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 2 },
   giftBubbleEmoji: { fontSize: 26 },
   giftBubbleTxt: { fontFamily: Fonts.semiBold, fontSize: 13.5, flexShrink: 1 },

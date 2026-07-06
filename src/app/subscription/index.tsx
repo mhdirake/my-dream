@@ -44,10 +44,10 @@ const PERIODS = [
   { label: 'سالانه', key: 'yearly',    multiplier: 9,   discount: '۲۵٪ تخفیف' },
 ] as const;
 
-function formatPrice(amount: number, multiplier: number): string {
-  if (amount === 0) return 'رایگان';
-  const total = Math.round(amount * multiplier);
-  const withSep = total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+function formatPrice(amountRial: number, multiplier: number): string {
+  if (amountRial === 0) return 'رایگان';
+  const toman = Math.round((amountRial * multiplier) / 10);
+  const withSep = toman.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   return withSep.replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]).replace(/,/g, '٬') + ' تومان';
 }
 

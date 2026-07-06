@@ -28,9 +28,9 @@ const METHODS = [
   { key: 'wallet',  label: 'کیف پول اپ', icon: Wallet },
 ] as const;
 
-function formatPrice(amount: number, mult: number): string {
-  const total = Math.round(amount * mult);
-  const withSep = total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+function formatPrice(amountRial: number, mult: number): string {
+  const toman = Math.round((amountRial * mult) / 10);
+  const withSep = toman.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   return withSep.replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]).replace(/,/g, '٬') + ' تومان';
 }
 
