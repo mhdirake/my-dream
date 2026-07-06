@@ -4,14 +4,16 @@ import { Card } from '@/components/ui/Card';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { api } from '@/lib/api/client';
+import { paymentsApi } from '@/lib/api/payments';
+import { payAndWait } from '@/lib/payments/payAndWait';
 import { toast } from '@/lib/toast';
-import { useLocalSearchParams } from 'expo-router';
-import { CreditCard, Tag, Wallet } from 'lucide-react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { CreditCard, Lock, Tag, Wallet } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
-  Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
+  ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Plan = { id: number; name: string; slug: string; price_amount: number };
 
@@ -33,6 +35,7 @@ function formatPrice(amount: number, mult: number): string {
 }
 
 export default function CheckoutScreen() {
+  const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const params = useLocalSearchParams<{ plan: string; planName: string }>();
   const planSlug = params.plan ?? 'silver';
@@ -42,6 +45,7 @@ export default function CheckoutScreen() {
   const [period, setPeriod] = useState<'monthly' | 'quarterly' | 'yearly'>('monthly');
   const [method, setMethod] = useState<'card' | 'wallet'>('card');
   const [discount, setDiscount] = useState('');
+  const [paying, setPaying] = useState(false);
 
   useEffect(() => {
     if (!session?.accessToken) return;
@@ -56,12 +60,23 @@ export default function CheckoutScreen() {
   const periodObj = PERIODS.find(p => p.key === period) ?? PERIODS[0];
   const basePrice = plan?.price_amount ?? 0;
 
-  const handlePay = () => {
-    Alert.alert(
-      'به زودی',
-      'سیستم پرداخت هنوز راه‌اندازی نشده. به زودی در دسترس خواهد بود.',
-      [{ text: 'باشه', style: 'default' }],
-    );
+  const handlePay = async () => {
+    if (!session?.accessToken || !plan || paying) return;
+    setPaying(true);
+    try {
+      const res = await paymentsApi.paySubscription(session.accessToken, plan.id);
+      const result = await payAndWait(session.accessToken, res.data.id, res.payment_url);
+      if (result.status === 'completed') {
+        toast.success('اشتراک با موفقیت فعال شد!');
+        router.back();
+      } else if (result.status === 'failed') {
+        toast.error(result.detail?.failure_message ?? 'پرداخت ناموفق بود');
+      }
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'خطا در شروع پرداخت');
+    } finally {
+      setPaying(false);
+    }
   };
 
   return (
@@ -77,44 +92,69 @@ export default function CheckoutScreen() {
           {/* Period selector */}
           <Text style={styles.periodLabel}>دوره اشتراک</Text>
           <View style={styles.periodRow}>
-            {PERIODS.map(p => (
-              <TouchableOpacity
-                key={p.key}
-                style={[styles.periodTab, period === p.key && styles.periodTabActive]}
-                onPress={() => setPeriod(p.key)}
-              >
-                <Text style={[styles.periodTabTxt, period === p.key && styles.periodTabTxtActive]}>
-                  {p.label}
-                </Text>
-                {p.discount && (
-                  <Text style={[styles.periodDiscount, period === p.key && styles.periodDiscountActive]}>
-                    {p.discount} تخفیف
+            {PERIODS.map(p => {
+              const isMonthly: boolean = p.key === 'monthly';
+              const discountLabel: string | null = p.discount;
+              const isActive = period === p.key;
+              return (
+                <TouchableOpacity
+                  key={p.key}
+                  style={[styles.periodTab, isActive && styles.periodTabActive, !isMonthly && styles.periodTabDisabled]}
+                  onPress={() => {
+                    if (!isMonthly) {
+                      toast.info('این دوره به‌زودی فعال می‌شود');
+                      return;
+                    }
+                    setPeriod(p.key);
+                  }}
+                >
+                  <Text style={[styles.periodTabTxt, isActive && styles.periodTabTxtActive]}>
+                    {p.label}
                   </Text>
-                )}
-              </TouchableOpacity>
-            ))}
+                  {!isMonthly && <Text style={styles.periodDiscount}>به‌زودی</Text>}
+                  {isMonthly && discountLabel && (
+                    <Text style={[styles.periodDiscount, isActive && styles.periodDiscountActive]}>
+                      {discountLabel} تخفیف
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </Card>
 
         {/* Payment method */}
         <Text style={styles.blockTitle}>روش پرداخت</Text>
-        {METHODS.map(m => (
-          <TouchableOpacity
-            key={m.key}
-            style={[styles.methodRow, method === m.key && styles.methodRowActive]}
-            onPress={() => setMethod(m.key)}
-          >
-            <View style={[styles.methodIcon, method === m.key && styles.methodIconActive]}>
-              <m.icon size={18} color={method === m.key ? Colors.accent : Colors.muted} strokeWidth={1.8} />
-            </View>
-            <Text style={[styles.methodLabel, method === m.key && styles.methodLabelActive]}>
-              {m.label}
-            </Text>
-            <View style={[styles.radioOuter, method === m.key && styles.radioOuterActive]}>
-              {method === m.key && <View style={styles.radioDot} />}
-            </View>
-          </TouchableOpacity>
-        ))}
+        {METHODS.map(m => {
+          const disabled = m.key !== 'card';
+          return (
+            <TouchableOpacity
+              key={m.key}
+              style={[styles.methodRow, method === m.key && styles.methodRowActive, disabled && styles.periodTabDisabled]}
+              onPress={() => {
+                if (disabled) {
+                  toast.info('این روش به‌زودی فعال می‌شود');
+                  return;
+                }
+                setMethod(m.key);
+              }}
+            >
+              <View style={[styles.methodIcon, method === m.key && styles.methodIconActive]}>
+                <m.icon size={18} color={method === m.key ? Colors.accent : Colors.muted} strokeWidth={1.8} />
+              </View>
+              <Text style={[styles.methodLabel, method === m.key && styles.methodLabelActive]}>
+                {m.label}
+              </Text>
+              {disabled ? (
+                <Lock size={14} color={Colors.muted} strokeWidth={2} />
+              ) : (
+                <View style={[styles.radioOuter, method === m.key && styles.radioOuterActive]}>
+                  {method === m.key && <View style={styles.radioDot} />}
+                </View>
+              )}
+            </TouchableOpacity>
+          );
+        })}
 
         {/* Discount code */}
         <Text style={styles.blockTitle}>کد تخفیف</Text>
@@ -160,13 +200,13 @@ export default function CheckoutScreen() {
         <View style={{ height: 110 }} />
       </ScrollView>
 
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <View style={styles.bottomAmountRow}>
           <Text style={styles.bottomAmountLabel}>مبلغ قابل پرداخت:</Text>
           <Text style={styles.bottomAmount}>{plan ? formatPrice(basePrice, periodObj.mult) : '—'}</Text>
         </View>
-        <Button variant="accent" onPress={handlePay}>
-          پرداخت و فعال‌سازی
+        <Button variant="accent" onPress={handlePay} disabled={!plan || paying}>
+          {paying ? 'در حال اتصال به درگاه…' : 'پرداخت و فعال‌سازی'}
         </Button>
       </View>
     </SafeAreaView>
@@ -189,6 +229,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5, borderColor: Colors.hair,
   },
   periodTabActive: { borderColor: Colors.accent, backgroundColor: Colors.accentSoft },
+  periodTabDisabled: { opacity: 0.5 },
   periodTabTxt: { fontSize: 11.5, fontFamily: Fonts.semiBold, color: Colors.muted },
   periodTabTxtActive: { color: Colors.accent },
   periodDiscount: { fontSize: 9.5, color: Colors.muted, fontFamily: Fonts.regular, marginTop: 2 },

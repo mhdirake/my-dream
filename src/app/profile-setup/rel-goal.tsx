@@ -16,7 +16,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const EMOJI_MAP: Record<string, string> = {
   'azdoag': '💍',
@@ -35,6 +35,7 @@ const EMOJI_MAP: Record<string, string> = {
 const toPersian = (n: number) => String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
 
 export default function RelGoalScreen() {
+  const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const { mode, currentGoalId } = useLocalSearchParams<{ mode?: string; currentGoalId?: string }>();
   const isEdit = mode === 'edit';
@@ -118,7 +119,7 @@ export default function RelGoalScreen() {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <View style={styles.btnRow}>
           <Button variant="ghost" onPress={() => router.back()} full={false} style={styles.btnSkip}>فعلاً نه</Button>
           <Button variant="accent" onPress={handleSave} disabled={selected === null || saving} full={false} style={styles.btnSave}>

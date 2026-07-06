@@ -13,7 +13,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const toPersian = (n: number) => String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
 
@@ -25,6 +25,7 @@ type Question = {
 };
 
 export default function PersonalityTestQuestionScreen() {
+  const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
@@ -136,7 +137,7 @@ export default function PersonalityTestQuestionScreen() {
         <View style={{ height: 110 }} />
       </ScrollView>
 
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <View style={styles.btnRow}>
           <Button
             variant="ghost"

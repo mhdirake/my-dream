@@ -1,141 +1,148 @@
 import { AppBar } from '@/components/ui/AppBar';
 import { Button } from '@/components/ui/Button';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
+import { useAuth } from '@/lib/auth/AuthContext';
+import { paymentsApi, type CoinPackage } from '@/lib/api/payments';
+import { payAndWait } from '@/lib/payments/payAndWait';
+import { toast } from '@/lib/toast';
 import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
 import { Coins } from 'lucide-react-native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View,
+  ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const toPersian = (n: number) => String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
 
-function formatPrice(amount: number): string {
-  const withSep = amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+function formatPrice(amountRial: number): string {
+  const toman = Math.round(amountRial / 10);
+  const withSep = toman.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   return withSep.replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]).replace(/,/g, '٬') + ' تومان';
 }
 
-type CoinPackage = {
-  id: string;
-  coins: number;
-  bonus: number;
-  price: number;
-  badge?: string;
-};
-
-const PACKAGES: CoinPackage[] = [
-  { id: '1', coins: 100,  bonus: 0,   price: 5_000 },
-  { id: '2', coins: 500,  bonus: 50,  price: 22_000,  badge: 'محبوب‌ترین' },
-  { id: '3', coins: 1000, bonus: 150, price: 38_000,  badge: 'بهترین ارزش' },
-  { id: '4', coins: 5000, bonus: 1000,price: 170_000 },
-];
-
 export default function BuyCoinsScreen() {
-  const [selected, setSelected] = useState<string>('2');
+  const insets = useSafeAreaInsets();
+  const { session } = useAuth();
+  const [packages, setPackages] = useState<CoinPackage[]>([]);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [paying, setPaying] = useState(false);
 
-  const pkg = PACKAGES.find(p => p.id === selected)!;
-  const total = pkg.coins + pkg.bonus;
+  useEffect(() => {
+    if (!session?.accessToken) return;
+    paymentsApi.getCoinPackages(session.accessToken)
+      .then(pkgs => {
+        setPackages(pkgs);
+        if (pkgs.length > 0) setSelectedId(pkgs[0].id);
+      })
+      .catch(() => toast.error('خطا در بارگذاری بسته‌ها'))
+      .finally(() => setLoading(false));
+  }, [session?.accessToken]);
 
-  const handleBuy = () => {
-    Alert.alert(
-      'به زودی',
-      'سیستم پرداخت هنوز راه‌اندازی نشده. به زودی در دسترس خواهد بود.',
-      [{ text: 'باشه' }],
-    );
+  const pkg = packages.find(p => p.id === selectedId) ?? null;
+
+  const handleBuy = async () => {
+    if (!session?.accessToken || !pkg || paying) return;
+    setPaying(true);
+    try {
+      const res = await paymentsApi.payCoinPackage(session.accessToken, pkg.id);
+      const result = await payAndWait(session.accessToken, res.data.id, res.payment_url);
+      if (result.status === 'completed') {
+        toast.success('سکه با موفقیت اضافه شد!');
+        router.back();
+      } else if (result.status === 'failed') {
+        toast.error(result.detail?.failure_message ?? 'پرداخت ناموفق بود');
+      }
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'خطا در شروع پرداخت');
+    } finally {
+      setPaying(false);
+    }
   };
 
   return (
     <SafeAreaView style={styles.root}>
       <AppBar title="خرید سکه" back />
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.coinWrap}>
-            <LinearGradient colors={[Colors.gold, Colors.goldDeep]} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
-            <Coins size={28} color="#fff" strokeWidth={2} />
-          </View>
-          <Text style={styles.headerTitle}>بسته سکه انتخاب کن</Text>
-          <Text style={styles.headerSub}>سکه‌ها برای ارسال هدیه، بج طلایی و AI Insight استفاده می‌شن</Text>
-        </View>
+      {loading ? (
+        <View style={styles.center}><ActivityIndicator color={Colors.gold} /></View>
+      ) : (
+        <>
+          <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+            {/* Header */}
+            <View style={styles.header}>
+              <View style={styles.coinWrap}>
+                <LinearGradient colors={[Colors.gold, Colors.goldDeep]} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+                <Coins size={28} color="#fff" strokeWidth={2} />
+              </View>
+              <Text style={styles.headerTitle}>بسته سکه انتخاب کن</Text>
+              <Text style={styles.headerSub}>سکه‌ها برای ارسال هدیه، بج طلایی و AI Insight استفاده می‌شن</Text>
+            </View>
 
-        {/* Packages */}
-        {PACKAGES.map(p => {
-          const isSelected = p.id === selected;
-          const totalCoins = p.coins + p.bonus;
-          return (
-            <TouchableOpacity
-              key={p.id}
-              style={[styles.pkgCard, isSelected && styles.pkgCardActive]}
-              onPress={() => setSelected(p.id)}
-              activeOpacity={0.8}
-            >
-              {p.badge && (
-                <View style={styles.pkgBadge}>
-                  <Text style={styles.pkgBadgeTxt}>{p.badge}</Text>
-                </View>
-              )}
-              <View style={styles.pkgLeft}>
-                <View style={styles.radioOuter}>
-                  {isSelected && <View style={styles.radioDot} />}
-                </View>
-                <View>
-                  <View style={styles.coinsRow}>
+            {/* Packages */}
+            {packages.map(p => {
+              const isSelected = p.id === selectedId;
+              return (
+                <TouchableOpacity
+                  key={p.id}
+                  style={[styles.pkgCard, isSelected && styles.pkgCardActive]}
+                  onPress={() => setSelectedId(p.id)}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.pkgLeft}>
+                    <View style={styles.radioOuter}>
+                      {isSelected && <View style={styles.radioDot} />}
+                    </View>
                     <Text style={[styles.pkgCoins, isSelected && styles.pkgCoinsActive]}>
-                      {toPersian(p.coins)} سکه
+                      {toPersian(p.metadata.coin_amount)} سکه
                     </Text>
-                    {p.bonus > 0 && (
-                      <View style={styles.bonusBadge}>
-                        <Text style={styles.bonusTxt}>+{toPersian(p.bonus)} بونوس</Text>
-                      </View>
-                    )}
                   </View>
-                  {p.bonus > 0 && (
-                    <Text style={styles.totalCoins}>جمع: {toPersian(totalCoins)} سکه</Text>
-                  )}
+                  <Text style={[styles.pkgPrice, isSelected && styles.pkgPriceActive]}>
+                    {formatPrice(p.metadata.price_amount)}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+
+            {packages.length === 0 && (
+              <Text style={styles.emptyTxt}>بسته‌ای موجود نیست</Text>
+            )}
+
+            {/* Summary */}
+            {pkg && (
+              <View style={styles.summaryCard}>
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>بسته انتخابی</Text>
+                  <Text style={styles.summaryVal}>{toPersian(pkg.metadata.coin_amount)} سکه</Text>
+                </View>
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>مبلغ</Text>
+                  <Text style={styles.summaryPrice}>{formatPrice(pkg.metadata.price_amount)}</Text>
                 </View>
               </View>
-              <Text style={[styles.pkgPrice, isSelected && styles.pkgPriceActive]}>
-                {formatPrice(p.price)}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
+            )}
 
-        {/* Summary */}
-        <View style={styles.summaryCard}>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>بسته انتخابی</Text>
-            <Text style={styles.summaryVal}>{toPersian(pkg.coins)} سکه{pkg.bonus > 0 ? ` + ${toPersian(pkg.bonus)} بونوس` : ''}</Text>
+            <View style={{ height: 110 }} />
+          </ScrollView>
+
+          <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
+            <Button variant="accent" onPress={handleBuy} disabled={!pkg || paying}>
+              {paying ? 'در حال اتصال به درگاه…' : pkg ? `پرداخت ${formatPrice(pkg.metadata.price_amount)}` : 'پرداخت'}
+            </Button>
           </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>مبلغ</Text>
-            <Text style={styles.summaryPrice}>{formatPrice(pkg.price)}</Text>
-          </View>
-          {pkg.bonus > 0 && (
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>جمع سکه دریافتی</Text>
-              <Text style={[styles.summaryVal, { color: Colors.ok }]}>{toPersian(total)} سکه</Text>
-            </View>
-          )}
-        </View>
-
-        <View style={{ height: 110 }} />
-      </ScrollView>
-
-      <View style={styles.bottomBar}>
-        <Button variant="accent" onPress={handleBuy}>
-          پرداخت {formatPrice(pkg.price)}
-        </Button>
-      </View>
+        </>
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { padding: Spacing.lg, gap: 12 },
+  emptyTxt: { fontSize: 13, color: Colors.muted, fontFamily: Fonts.regular, textAlign: 'center', paddingVertical: 20 },
 
   header: { alignItems: 'center', marginBottom: 8 },
   coinWrap: {
@@ -152,12 +159,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   pkgCardActive: { borderColor: Colors.accent, backgroundColor: Colors.accentSoft },
-  pkgBadge: {
-    position: 'absolute', top: -1, right: 14,
-    backgroundColor: Colors.accent, paddingHorizontal: 10,
-    paddingVertical: 3, borderBottomLeftRadius: 8, borderBottomRightRadius: 8,
-  },
-  pkgBadgeTxt: { fontSize: 9.5, fontFamily: Fonts.extraBold, color: '#fff' },
   pkgLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   radioOuter: {
     width: 20, height: 20, borderRadius: 10,
@@ -165,15 +166,8 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.accent },
-  coinsRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   pkgCoins: { fontSize: 15, fontFamily: Fonts.extraBold, color: Colors.ink },
   pkgCoinsActive: { color: Colors.accent },
-  bonusBadge: {
-    backgroundColor: Colors.okSoft, paddingHorizontal: 8,
-    paddingVertical: 2, borderRadius: Radius.pill,
-  },
-  bonusTxt: { fontSize: 9.5, fontFamily: Fonts.bold, color: Colors.ok },
-  totalCoins: { fontSize: 11, color: Colors.muted, fontFamily: Fonts.regular, marginTop: 2 },
   pkgPrice: { fontSize: 13, fontFamily: Fonts.bold, color: Colors.inkSoft },
   pkgPriceActive: { color: Colors.accent },
 

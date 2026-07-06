@@ -47,7 +47,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -256,6 +256,7 @@ function GoldLockedCard() {
 // ── Main Screen ───────────────────────────────────────────────────────────────
 
 export default function ProfileViewScreen() {
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { session } = useAuth();
   const userId = Number(id);
@@ -809,7 +810,7 @@ export default function ProfileViewScreen() {
       </ScrollView>
 
       {/* ── Action Bar ───────────────────────────────────────────────────── */}
-      <View style={styles.actions}>
+      <View style={[styles.actions, { paddingBottom: insets.bottom + 12 }]}>
         <TouchableOpacity style={styles.passBtn} onPress={handlePass}>
           <X size={22} color={Colors.danger} strokeWidth={2.5} />
         </TouchableOpacity>
@@ -1072,7 +1073,7 @@ const styles = StyleSheet.create({
   actions: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    paddingHorizontal: 16, paddingBottom: 34, paddingTop: 12,
+    paddingHorizontal: 16, paddingTop: 12,
     backgroundColor: Colors.bg,
     borderTopWidth: 1, borderTopColor: Colors.lineSoft,
   },

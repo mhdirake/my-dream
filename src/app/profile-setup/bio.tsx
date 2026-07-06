@@ -18,13 +18,14 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const MAX = 70;
 const TOTAL_OPT = 8;
 const toPersian = (n: number) => String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
 
 export default function BioScreen() {
+  const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const { mode, currentBio } = useLocalSearchParams<{ mode?: string; currentBio?: string }>();
   const isEdit = mode === 'edit';
@@ -90,7 +91,7 @@ export default function BioScreen() {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <View style={styles.btnRow}>
           <Button variant="ghost" onPress={() => isEdit ? safeBack() : router.push('/profile-setup/account-ready' as any)} full={false} style={styles.btnSkip}>
             {isEdit ? 'لغو' : 'فعلاً نه'}

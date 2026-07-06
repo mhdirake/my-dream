@@ -9,7 +9,7 @@ import {
 import {
   ScrollView, StyleSheet, Text, View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const LIMITS = [
   { label: 'کشف روزانه', basic: '۱۰', silver: '۴۰', gold: 'نامحدود' },
@@ -30,6 +30,7 @@ const FEATURES = [
 ];
 
 export default function GoldDetailScreen() {
+  const insets = useSafeAreaInsets();
   return (
     <SafeAreaView style={styles.root}>
       <AppBar title="اشتراک طلایی" back dark />
@@ -88,7 +89,7 @@ export default function GoldDetailScreen() {
         <View style={{ height: 110 }} />
       </ScrollView>
 
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <Button
           variant="gold"
           onPress={() => router.push({ pathname: '/subscription/checkout' as any, params: { plan: 'gold', planName: 'طلایی' } })}

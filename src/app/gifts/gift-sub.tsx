@@ -20,7 +20,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const toPersian = (n: number) => String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
 
@@ -34,6 +34,7 @@ const TABS = [
 ] as const;
 
 export default function GiftSubScreen() {
+  const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const params = useLocalSearchParams<{ tab?: string; userId?: string; userName?: string }>();
 
@@ -328,7 +329,7 @@ export default function GiftSubScreen() {
       )}
 
       {!loading && (
-        <View style={styles.bottomBar}>
+        <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
           <Button
             variant="accent"
             disabled={

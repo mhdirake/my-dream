@@ -10,7 +10,7 @@ import {
 import {
   ScrollView, StyleSheet, Text, View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const toPersian = (n: number) => String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
 
@@ -32,6 +32,7 @@ const FEATURES = [
 ];
 
 export default function SilverDetailScreen() {
+  const insets = useSafeAreaInsets();
   return (
     <SafeAreaView style={styles.root}>
       <AppBar title="اشتراک نقره‌ای" back />
@@ -87,7 +88,7 @@ export default function SilverDetailScreen() {
         <View style={{ height: 110 }} />
       </ScrollView>
 
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <Button
           variant="accent"
           onPress={() => router.push({ pathname: '/subscription/checkout' as any, params: { plan: 'silver', planName: 'نقره‌ای' } })}

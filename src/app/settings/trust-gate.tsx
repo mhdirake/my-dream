@@ -4,14 +4,15 @@ import { Card } from '@/components/ui/Card';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { api } from '@/lib/api/client';
+import { profileApi } from '@/lib/api/profile';
 import { toast } from '@/lib/toast';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Lock, Star, Zap } from 'lucide-react-native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ScrollView, StyleSheet, Text, TouchableOpacity, View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const toPersian = (n: number) => String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
 
@@ -74,12 +75,27 @@ const MODES: Mode[] = [
 const COMPLETION_STEPS = [30, 40, 50, 60, 70, 80, 90, 100];
 
 export default function TrustGateScreen() {
+  const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const params = useLocalSearchParams<{ current: string; completion: string }>();
 
   const [selected, setSelected] = useState(params.current ?? 'everyone');
   const [minCompletion, setMinCompletion] = useState(Number(params.completion ?? 60));
   const [saving, setSaving] = useState(false);
+  const [myPlan, setMyPlan] = useState<string>('basic');
+
+  useEffect(() => {
+    if (!session?.accessToken) return;
+    profileApi.getProfile(session.accessToken)
+      .then(p => setMyPlan(p.active_subscription?.plan?.slug ?? 'basic'))
+      .catch(() => {});
+  }, [session?.accessToken]);
+
+  const isModeLocked = (m: Mode) => {
+    if (m.lock === 'gold') return myPlan !== 'gold';
+    if (m.lock === 'silver') return myPlan !== 'silver' && myPlan !== 'gold';
+    return false;
+  };
 
   const handleSave = async () => {
     if (!session?.accessToken) return;
@@ -112,13 +128,20 @@ export default function TrustGateScreen() {
 
         {MODES.map(m => {
           const isSelected = selected === m.key;
+          const locked = isModeLocked(m);
           const lockColor = m.lock === 'gold' ? Colors.gold : Colors.trust;
 
           return (
             <TouchableOpacity
               key={m.key}
-              style={[styles.modeRow, isSelected && styles.modeRowActive]}
-              onPress={() => setSelected(m.key)}
+              style={[styles.modeRow, isSelected && styles.modeRowActive, locked && styles.modeRowLocked]}
+              onPress={() => {
+                if (locked) {
+                  toast.error(m.lock === 'gold' ? 'این گزینه مخصوص اشتراک طلایی است' : 'این گزینه نیاز به اشتراک نقره‌ای یا بالاتر دارد');
+                  return;
+                }
+                setSelected(m.key);
+              }}
               activeOpacity={0.8}
             >
               <View style={[styles.radioOuter, isSelected && styles.radioOuterActive]}>
@@ -141,6 +164,7 @@ export default function TrustGateScreen() {
                       </Text>
                     </View>
                   )}
+                  {locked && <Lock size={11} color={Colors.muted} strokeWidth={2} />}
                 </View>
                 <Text style={styles.modeDesc}>{m.desc}</Text>
 
@@ -183,7 +207,7 @@ export default function TrustGateScreen() {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <Button variant="accent" onPress={handleSave} disabled={saving}>
           {saving ? 'در حال ذخیره…' : 'ذخیره'}
         </Button>
@@ -207,6 +231,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5, borderColor: Colors.hair, padding: Spacing.lg,
   },
   modeRowActive: { borderColor: Colors.accent, backgroundColor: Colors.accentSoft },
+  modeRowLocked: { opacity: 0.5 },
 
   radioOuter: {
     width: 20, height: 20, borderRadius: 10, marginTop: 1,

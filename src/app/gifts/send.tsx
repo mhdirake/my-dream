@@ -17,11 +17,12 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const toPersian = (n: number) => String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
 
 export default function SendGiftScreen() {
+  const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const params = useLocalSearchParams<{
     giftId: string;
@@ -154,7 +155,7 @@ export default function SendGiftScreen() {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <Button
           variant="accent"
           disabled={!canSend}

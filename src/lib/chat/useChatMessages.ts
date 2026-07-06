@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Message, Reaction, TypedMessagePayload, chatApi } from '@/lib/api/chat';
 import { useCentrifugoCtx } from './CentrifugoContext';
 
@@ -46,10 +46,13 @@ function uuidv4(): string {
   });
 }
 
+const TYPING_CLEAR_MS = 4000;
+
 export interface ChatMessagesHook {
   messages: Message[];
   loading: boolean;
   sending: boolean;
+  typingUserId: number | null;
   send: (body: string, myId: number) => Promise<void>;
   sendTyped: (payload: TypedMessagePayload, myId: number, localUri?: string) => Promise<void>;
   pushMessage: (msg: Message) => void;
@@ -74,6 +77,8 @@ export function useChatMessages(
   const [sending, setSending] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [highlightId, setHighlightId] = useState<string | null>(null);
+  const [typingUserId, setTypingUserId] = useState<number | null>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { isConnectedRef, subscribeConversation, onConnect } = useCentrifugoCtx();
 
@@ -168,9 +173,19 @@ export function useChatMessages(
         setMessages(prev => prev.map(m =>
           m.message_id === msgId ? { ...m, delivered_at: new Date().toISOString() } : m,
         ));
+
+      } else if (data.event === 'typing') {
+        const userId = Number(raw.user_id);
+        setTypingUserId(userId);
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = setTimeout(() => setTypingUserId(null), TYPING_CLEAR_MS);
       }
     });
   }, [conversationPublicId, subscribeConversation, pushMessage]);
+
+  useEffect(() => () => {
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+  }, []);
 
   const send = useCallback(async (body: string, myId: number) => {
     if (!body.trim() || !token) return;
@@ -341,7 +356,7 @@ export function useChatMessages(
   const clearHighlight = useCallback(() => setHighlightId(null), []);
 
   return {
-    messages, loading, sending,
+    messages, loading, sending, typingUserId,
     send, sendTyped, pushMessage, loadMore, hasMore,
     deleteMsg, editMsg,
     setReaction, removeReaction,

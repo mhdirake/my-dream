@@ -8,9 +8,10 @@ import { toast } from '@/lib/toast';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ChangePasswordScreen() {
+  const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const [current, setCurrent] = useState('');
   const [password, setPassword] = useState('');
@@ -84,7 +85,7 @@ export default function ChangePasswordScreen() {
           error={confirmError}
         />
       </ScrollView>
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.xxl }]}>
         {saving ? (
           <ActivityIndicator color={Colors.accent} />
         ) : (

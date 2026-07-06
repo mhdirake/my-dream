@@ -10,7 +10,7 @@ import { router } from 'expo-router';
 import { Mic, Pause, Play, Square, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 function formatDuration(totalSeconds: number) {
   const m = Math.floor(totalSeconds / 60);
@@ -49,6 +49,7 @@ function PreviewPlayer({ uri, durationSeconds }: { uri: string; durationSeconds:
 }
 
 export default function VoiceIntroScreen() {
+  const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const recorder = useVoiceRecorder();
   const [uploading, setUploading] = useState(false);
@@ -113,7 +114,7 @@ export default function VoiceIntroScreen() {
       </ScrollView>
 
       {recorder.recordedUri && !recorder.isRecording && (
-        <View style={styles.bottomBar}>
+        <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.xxl }]}>
           {uploading ? (
             <ActivityIndicator color={Colors.accent} />
           ) : (

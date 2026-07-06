@@ -11,7 +11,7 @@ import { useSafeBack } from '@/lib/useSafeBack';
 import { Lock, Sparkles } from 'lucide-react-native';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const EDUCATION_OPTIONS: SelectOption[] = [
   { id: 1, name: 'زیردیپلم' },
@@ -25,6 +25,7 @@ const EDUCATION_OPTIONS: SelectOption[] = [
 const toPersian = (n: number) => String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
 
 export default function OptionalInfoScreen() {
+  const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const { mode, currentHeight, currentJob, currentEducation } = useLocalSearchParams<{
     mode?: string; currentHeight?: string; currentJob?: string; currentEducation?: string;
@@ -110,7 +111,7 @@ export default function OptionalInfoScreen() {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <View style={styles.btnRow}>
           <Button variant="ghost" onPress={() => router.back()} full={false} style={styles.btnSkip}>فعلاً نه</Button>
           <Button variant="accent" onPress={handleSave} disabled={!hasSomething || saving} full={false} style={styles.btnSave}>

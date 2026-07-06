@@ -99,7 +99,8 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.regular,
     color: Colors.ink,
     backgroundColor: Colors.surface,
-    textAlign: "left"
+    textAlign: "left",
+    writingDirection: 'ltr',
   },
   note: { marginVertical: 4, flexDirection: "row", textAlign: "right" },
   noteText: { writingDirection: 'rtl', textAlign: 'right', fontSize: 11.5, color: '#2C5C8F', fontFamily: Fonts.regular, lineHeight: 18 },

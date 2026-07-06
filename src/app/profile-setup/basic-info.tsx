@@ -16,7 +16,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Gender = 'female' | 'male' | 'prefer_not_to_say';
 const GENDERS: { key: Gender; label: string }[] = [
@@ -29,6 +29,7 @@ const toPersian = (n: number | string) =>
   String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
 
 export default function BasicInfoScreen() {
+  const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const [name, setName] = useState('');
   const [year, setYear] = useState('');
@@ -150,7 +151,7 @@ export default function BasicInfoScreen() {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <Button variant="accent" onPress={handleNext} disabled={!canContinue}>
           ادامه
         </Button>

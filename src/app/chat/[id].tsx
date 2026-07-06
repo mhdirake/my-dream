@@ -11,7 +11,7 @@ import { toast } from '@/lib/toast';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import {
   ArrowLeft, Check, CheckCheck, Clock, Gift as GiftIcon,
   ImagePlus, Lock, Mic, MoreVertical, Pause, Pencil, Play,
@@ -33,7 +33,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
@@ -196,6 +196,7 @@ function formatLastSeen(iso: string): string {
 }
 
 export default function ConversationScreen() {
+  const insets = useSafeAreaInsets();
   const { id, publicId, name, avatar, status, otherId } = useLocalSearchParams<{
     id: string;
     publicId: string;
@@ -211,11 +212,13 @@ export default function ConversationScreen() {
   const token = session?.accessToken ?? '';
 
   const {
-    messages, loading, sending, send, sendTyped,
+    messages, loading, sending, send, sendTyped, typingUserId,
     loadMore, hasMore, deleteMsg, editMsg,
     setReaction, removeReaction,
     loadContext, highlightId, clearHighlight,
   } = useChatMessages(conversationId, publicId ?? '', token);
+
+  const otherTyping = typingUserId != null && String(typingUserId) === otherId;
 
   const [text, setText] = useState('');
   const [pendingImage, setPendingImage] = useState<{ uri: string; mimeType: string } | null>(null);
@@ -365,12 +368,12 @@ export default function ConversationScreen() {
     if (val.length > 0) sendTypingSignal();
   };
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     if (!token) return;
     profileApi.getProfile(token)
       .then(p => setMyPlan(p.active_subscription?.plan?.slug ?? 'basic'))
       .catch(() => {});
-  }, [token]);
+  }, [token]));
 
   const handlePickImage = async () => {
     if (myPlan !== 'gold') {
@@ -565,7 +568,7 @@ export default function ConversationScreen() {
   }, []);
 
   return (
-    <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.root} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -593,6 +596,7 @@ export default function ConversationScreen() {
             <Text style={styles.headerName}>{name ?? '...'}</Text>
             <Text style={styles.headerSub}>
               {isPending ? 'در انتظار تأیید' :
+               otherTyping ? 'در حال تایپ...' :
                isOnline ? 'آنلاین' :
                lastSeen ? `آخرین بازدید: ${formatLastSeen(lastSeen)}` : ''}
             </Text>
@@ -899,7 +903,7 @@ export default function ConversationScreen() {
           </View>
         )}
 
-        <View style={[styles.inputBar, (!canChat || limitReached) && styles.inputBarDisabled]}>
+        <View style={[styles.inputBar, { paddingBottom: insets.bottom + 10 }, (!canChat || limitReached) && styles.inputBarDisabled]}>
           {!canChat || limitReached ? (
             <View style={styles.inputLocked}>
               <Lock size={14} color={Colors.muted} strokeWidth={1.8} />

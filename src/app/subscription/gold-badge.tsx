@@ -4,6 +4,8 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { api } from '@/lib/api/client';
 import { profileApi } from '@/lib/api/profile';
+import { paymentsApi } from '@/lib/api/payments';
+import { payAndWait } from '@/lib/payments/payAndWait';
 import { toast } from '@/lib/toast';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -12,7 +14,7 @@ import { useEffect, useState } from 'react';
 import {
   ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const toPersian = (n: number) => String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
 
@@ -22,9 +24,19 @@ type Package = {
   slug: string;
   coin_price: number;
   duration_days: number;
+  metadata?: { price_amount?: number };
 };
 
+function formatToman(amountRial: number): string {
+  const toman = Math.round(amountRial / 10);
+  const withSep = toman.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return withSep.replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]).replace(/,/g, '٬') + ' تومان';
+}
+
 const BADGE_COST = 5000;
+// backend's GET /api/client/packages فعلاً metadata رو در پاسخ نمی‌فرسته (فقط coin_price)،
+// این مقدار همون price_amount ثابتی هست که در PackageSeeder برای gold_badge_1_month ست شده
+const GOLD_BADGE_CASH_PRICE_RIAL = 490_000;
 
 const INCLUDES = [
   'نمایش بج طلایی «تست شخصیت» روی پروفایل',
@@ -39,6 +51,7 @@ const EXCLUDES = [
 ];
 
 export default function GoldBadgeScreen() {
+  const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const params = useLocalSearchParams<{ userId?: string; userName?: string }>();
   const giftUserId = params.userId ? Number(params.userId) : null;
@@ -46,6 +59,7 @@ export default function GoldBadgeScreen() {
   const [pkg, setPkg] = useState<Package | null>(null);
   const [loading, setLoading] = useState(true);
   const [buying, setBuying] = useState(false);
+  const [payingCash, setPayingCash] = useState(false);
 
   const badgeCost = pkg?.coin_price ?? BADGE_COST;
 
@@ -112,7 +126,27 @@ export default function GoldBadgeScreen() {
     }
   };
 
+  const handleCashPay = async () => {
+    if (!pkg || !session?.accessToken || payingCash) return;
+    setPayingCash(true);
+    try {
+      const res = await paymentsApi.payGoldBadge(session.accessToken, pkg.id);
+      const result = await payAndWait(session.accessToken, res.data.id, res.payment_url);
+      if (result.status === 'completed') {
+        toast.success('بج طلایی با موفقیت فعال شد!');
+        router.back();
+      } else if (result.status === 'failed') {
+        toast.error(result.detail?.failure_message ?? 'پرداخت ناموفق بود');
+      }
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'خطا در شروع پرداخت');
+    } finally {
+      setPayingCash(false);
+    }
+  };
+
   const hasEnough = (coins ?? 0) >= badgeCost;
+  const cashPrice = pkg?.metadata?.price_amount ?? GOLD_BADGE_CASH_PRICE_RIAL;
 
   return (
     <SafeAreaView style={styles.root}>
@@ -192,7 +226,7 @@ export default function GoldBadgeScreen() {
       )}
 
       {!loading && (
-        <View style={styles.bottomBar}>
+        <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
           <Button
             variant={hasEnough ? 'gold' : 'accent'}
             disabled={buying}
@@ -200,6 +234,11 @@ export default function GoldBadgeScreen() {
           >
             {buying ? 'در حال خرید…' : hasEnough ? giftUserId ? `اهدای نشان (${toPersian(badgeCost)} سکه)` : `خرید بج (${toPersian(badgeCost)} سکه)` : 'خرید سکه'}
           </Button>
+          {!giftUserId && pkg && (
+            <Button variant="ghost" disabled={payingCash} onPress={handleCashPay}>
+              {payingCash ? 'در حال اتصال به درگاه…' : `پرداخت با کارت بانکی (${formatToman(cashPrice)})`}
+            </Button>
+          )}
         </View>
       )}
     </SafeAreaView>

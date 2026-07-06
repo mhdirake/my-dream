@@ -4,9 +4,11 @@ import { ChatToastProvider } from '@/components/ui/ChatToast';
 import { RestrictionBanner } from '@/components/moderation/RestrictionBanner';
 import { UnreadProvider, useUnreadCtx } from '@/lib/chat/UnreadContext';
 import { useModerationCtx } from '@/lib/moderation/ModerationContext';
+import { registerAndSyncPushToken } from '@/lib/notifications/push';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Redirect, Tabs } from 'expo-router';
 import { Compass, Gift, Heart, MessageCircle, User } from 'lucide-react-native';
+import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -51,6 +53,11 @@ function ModerationGate() {
 function TabsNav() {
   const insets = useSafeAreaInsets();
   const { totalUnread } = useUnreadCtx();
+  const { session } = useAuth();
+
+  useEffect(() => {
+    if (session?.accessToken) registerAndSyncPushToken(session.accessToken);
+  }, [session?.accessToken]);
 
   return (
     <View style={{ flex: 1 }}>

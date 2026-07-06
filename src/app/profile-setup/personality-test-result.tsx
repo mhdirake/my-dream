@@ -15,7 +15,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const toPersian = (n: number) => String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
 
@@ -54,6 +54,7 @@ const DIM_COLORS: Record<string, string> = {
 };
 
 export default function PersonalityTestResultScreen() {
+  const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const [result, setResult] = useState<PTResult | null>(null);
   const [loading, setLoading] = useState(true);
@@ -156,7 +157,7 @@ export default function PersonalityTestResultScreen() {
         <View style={{ height: 120 }} />
       </ScrollView>
 
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <Button
           variant="accent"
           onPress={() => router.replace('/profile-setup/profile-preview' as any)}

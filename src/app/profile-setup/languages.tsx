@@ -16,11 +16,12 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const toPersian = (n: number) => String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
 
 export default function LanguagesScreen() {
+  const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const { mode, currentLangIds, currentPrimary: currentPrimaryParam } = useLocalSearchParams<{
     mode?: string; currentLangIds?: string; currentPrimary?: string;
@@ -157,7 +158,7 @@ export default function LanguagesScreen() {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <View style={styles.btnRow}>
           <Button variant="ghost" onPress={() => router.back()} full={false} style={styles.btnSkip}>فعلاً نه</Button>
           <Button variant="accent" onPress={handleSave} disabled={selected.length === 0 || saving} full={false} style={styles.btnSave}>

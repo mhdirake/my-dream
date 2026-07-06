@@ -19,7 +19,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const BASE = process.env.EXPO_PUBLIC_API_URL ?? '';
 
@@ -41,6 +41,7 @@ function calcAge(dateStr: string | null | undefined): number | null {
 }
 
 export default function ProfilePreviewScreen() {
+  const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const [status, setStatus] = useState<OnboardingStatus | null>(null);
   const [profile, setProfile] = useState<ClientProfile | null>(null);
@@ -185,7 +186,7 @@ export default function ProfilePreviewScreen() {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <Button variant="accent" onPress={() => router.replace('/(tabs)/' as any)}>
           ورود به اپ
         </Button>

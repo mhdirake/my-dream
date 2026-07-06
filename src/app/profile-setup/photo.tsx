@@ -19,7 +19,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const GUIDELINES = [
   'چهره شما به‌وضوح دیده شود',
@@ -31,6 +31,7 @@ const GUIDELINES = [
 const BASE = process.env.EXPO_PUBLIC_API_URL ?? '';
 
 export default function PhotoScreen() {
+  const insets = useSafeAreaInsets();
   const { session, logout } = useAuth();
   // existingPhotoUrl = عکس فعلی از سرور (برای نمایش)
   // newPhotoUri = عکس جدید انتخاب‌شده توسط کاربر (برای آپلود)
@@ -169,7 +170,7 @@ export default function PhotoScreen() {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <View style={styles.btnRow}>
           <Button
             variant="ghost"

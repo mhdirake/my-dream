@@ -8,11 +8,12 @@ import { toast } from '@/lib/toast';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const OTP_LENGTH = 5;
 
 export default function OTPScreen() {
+  const insets = useSafeAreaInsets();
   const { phone, resend_after } = useLocalSearchParams<{ phone: string; resend_after: string }>();
   const inputRef = useRef<TextInput>(null);
   const [otp, setOtp] = useState('');
@@ -66,30 +67,31 @@ export default function OTPScreen() {
         <Text style={styles.headline}>کد ۵ رقمی</Text>
         <Text style={styles.sub}>به شماره {displayPhone} ارسال شد</Text>
 
-        <Pressable style={styles.boxes} onPress={() => inputRef.current?.focus()}>
-          {Array.from({ length: OTP_LENGTH }).map((_, i) => {
-            const char = otp[i] || '';
-            const active = i === otp.length;
-            return (
-              <View key={i} style={[styles.box, active && styles.boxActive, char && styles.boxFilled]}>
-                {active && !char
-                  ? <View style={styles.cursor} />
-                  : <Text style={styles.digit}>{char}</Text>
-                }
-              </View>
-            );
-          })}
-        </Pressable>
-
-        <TextInput
-          ref={inputRef}
-          style={styles.hiddenInput}
-          value={otp}
-          onChangeText={handleChange}
-          keyboardType="numeric"
-          maxLength={OTP_LENGTH}
-          autoFocus
-        />
+        <View style={styles.boxesWrap}>
+          <View style={styles.boxes} pointerEvents="none">
+            {Array.from({ length: OTP_LENGTH }).map((_, i) => {
+              const char = otp[i] || '';
+              const active = i === otp.length;
+              return (
+                <View key={i} style={[styles.box, active && styles.boxActive, char && styles.boxFilled]}>
+                  {active && !char
+                    ? <View style={styles.cursor} />
+                    : <Text style={styles.digit}>{char}</Text>
+                  }
+                </View>
+              );
+            })}
+          </View>
+          <TextInput
+            ref={inputRef}
+            style={styles.hiddenInput}
+            value={otp}
+            onChangeText={handleChange}
+            keyboardType="numeric"
+            maxLength={OTP_LENGTH}
+            autoFocus
+          />
+        </View>
 
         {seconds > 0 ? (
           <Text style={styles.resend}>
@@ -104,7 +106,7 @@ export default function OTPScreen() {
           </Text>
         )}
 
-        <View style={styles.btnWrap}>
+        <View style={[styles.btnWrap, { bottom: insets.bottom + 32 }]}>
           <Button
             variant="accent"
             onPress={handleVerify}
@@ -123,11 +125,13 @@ const styles = StyleSheet.create({
   content: { flex: 1, padding: 20 },
   headline: { fontSize: 18, fontFamily: Fonts.bold, color: Colors.ink },
   sub: { fontSize: 12, color: Colors.muted, marginTop: 6, fontFamily: Fonts.regular },
+  boxesWrap: {
+    marginTop: 32,
+  },
   boxes: {
     flexDirection: 'row-reverse',
     justifyContent: 'center',
     gap: 8,
-    marginTop: 32,
   },
   box: {
     width: 48,
@@ -143,7 +147,11 @@ const styles = StyleSheet.create({
   boxFilled: { borderColor: Colors.ink },
   digit: { fontSize: 22, fontFamily: Fonts.bold, color: Colors.ink },
   cursor: { width: 1.5, height: 24, backgroundColor: Colors.ink, opacity: 0.6 },
-  hiddenInput: { position: 'absolute', top: 0, left: 0, width: 1, height: 1, opacity: 0 },
+  hiddenInput: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    opacity: 0,
+  },
   resend: {
     textAlign: 'center',
     marginTop: 24,

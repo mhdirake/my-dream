@@ -12,9 +12,10 @@ import { router } from 'expo-router';
 import { CheckCircle, Shield } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function LocationScreen() {
+  const insets = useSafeAreaInsets();
   const { session, logout } = useAuth();
   const [provinces, setProvinces] = useState<SelectOption[]>([]);
   const [cities, setCities] = useState<SelectOption[]>([]);
@@ -160,7 +161,7 @@ export default function LocationScreen() {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <View style={styles.btnRow}>
           <Button
             variant="ghost"

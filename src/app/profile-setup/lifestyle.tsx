@@ -16,13 +16,14 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const MIN = 3;
 const MAX = 7;
 const toPersian = (n: number) => String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
 
 export default function LifestyleScreen() {
+  const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const { mode, currentTagIds } = useLocalSearchParams<{ mode?: string; currentTagIds?: string }>();
   const isEdit = mode === 'edit';
@@ -135,7 +136,7 @@ export default function LifestyleScreen() {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <View style={styles.btnRow}>
           <Button variant="ghost" onPress={() => router.back()} full={false} style={styles.btnSkip}>فعلاً نه</Button>
           <Button variant="accent" onPress={handleSave} disabled={!canSave || saving} full={false} style={styles.btnSave}>

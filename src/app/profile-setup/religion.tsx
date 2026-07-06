@@ -14,7 +14,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const LEVELS = [
   'اصلاً مذهبی نیستم',
@@ -27,6 +27,7 @@ const LEVELS = [
 const toPersian = (n: number) => String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
 
 export default function ReligionScreen() {
+  const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const [selected, setSelected] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
@@ -81,7 +82,7 @@ export default function ReligionScreen() {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <View style={styles.btnRow}>
           <Button variant="ghost" onPress={() => router.back()} full={false} style={styles.btnSkip}>فعلاً نه</Button>
           <Button variant="accent" onPress={handleSave} disabled={selected === null || saving} full={false} style={styles.btnSave}>

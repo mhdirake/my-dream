@@ -5,9 +5,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Brain, Sparkles, Star } from 'lucide-react-native';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function PersonalityTestIntroScreen() {
+  const insets = useSafeAreaInsets();
   return (
     <SafeAreaView style={styles.root}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -51,7 +52,7 @@ export default function PersonalityTestIntroScreen() {
         <View style={{ height: 120 }} />
       </ScrollView>
 
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <Button variant="accent" onPress={() => router.push('/profile-setup/personality-test-question' as any)}>
           شروع تست
         </Button>

@@ -148,7 +148,7 @@ export default function WelcomeScreen() {
   const ctaStyle = useEnter(620);
 
   return (
-    <SafeAreaView style={styles.root} edges={[]}>
+    <SafeAreaView style={styles.root} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <Hero />
 

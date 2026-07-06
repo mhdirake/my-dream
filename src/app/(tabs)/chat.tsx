@@ -262,6 +262,16 @@ const MSG_TYPE_PREFIX: Record<string, string> = {
   gif: 'GIF · ',
 };
 
+// وقتی پیام کپشن/متن نداره (عکس/صوت/هدیه/استیکر بدون متن)، last_message_preview از سمت
+// backend خالی/null میاد — این fallback به‌جای نمایش «...» عنوان نوع پیام رو نشون می‌ده
+const MSG_TYPE_FALLBACK: Record<string, string> = {
+  image: '🖼 عکس',
+  voice: '🎤 پیام صوتی',
+  gift: '🎁 هدیه',
+  sticker: '😊 استیکر',
+  gif: '🎞 گیف',
+};
+
 // ── Active conversation row ───────────────────────────────────────
 
 function ActiveRow({
@@ -281,9 +291,12 @@ function ActiveRow({
   const isLastMine = c.last_message_sender_user_id === myId;
 
   const typePrefix = c.last_message_type ? (MSG_TYPE_PREFIX[c.last_message_type] ?? '') : '';
+  const typeFallback = c.last_message_type ? MSG_TYPE_FALLBACK[c.last_message_type] : undefined;
   const preview = c.last_message_preview
     ? `${isLastMine ? 'شما: ' : ''}${typePrefix}${c.last_message_preview}`
-    : '...';
+    : typeFallback
+      ? `${isLastMine ? 'شما: ' : ''}${typeFallback}`
+      : '...';
 
   return (
     <Pressable

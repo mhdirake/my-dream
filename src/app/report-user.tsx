@@ -12,11 +12,12 @@ import {
   ActivityIndicator, ScrollView,
   StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type ReportCategory = { id: number; name: string; slug: string; description: string | null };
 
 export default function ReportUserScreen() {
+  const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const params = useLocalSearchParams<{
     userId: string;
@@ -169,7 +170,7 @@ export default function ReportUserScreen() {
       )}
 
       {!loading && (
-        <View style={styles.bottomBar}>
+        <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
           <Button
             variant="accent"
             onPress={handleSubmit}

@@ -17,11 +17,12 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const toPersian = (n: number) => String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
 
 export default function AboutMeScreen() {
+  const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const { mode } = useLocalSearchParams<{ mode?: string }>();
   const isEdit = mode === 'edit';
@@ -140,7 +141,7 @@ export default function AboutMeScreen() {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <View style={styles.btnRow}>
           <Button variant="ghost" onPress={() => isEdit ? safeBack() : router.replace('/(tabs)/' as any)} full={false} style={styles.btnSkip}>
             {isEdit ? 'لغو' : 'بعداً'}
