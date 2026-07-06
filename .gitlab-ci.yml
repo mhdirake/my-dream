@@ -1,5 +1,6 @@
 stages:
   - build
+  - deploy
 
 variables:
   COMPOSE_DOCKER_CLI_BUILD: "1"
@@ -62,3 +63,19 @@ build-android:
     expire_in: 90 days
     paths:
       - artifacts/
+
+deploy-android-apk:
+  stage: deploy
+  tags:
+    - runner01
+  needs:
+    - job: build-android
+      artifacts: true
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+  script:
+    - test -f "$ANDROID_ARTIFACTS_DIR/app-release.apk"
+    - mkdir -p /home/gitlab-runner/mydream/apk
+    - cp "$ANDROID_ARTIFACTS_DIR/app-release.apk" /home/gitlab-runner/mydream/apk/my-dream-latest.apk.tmp
+    - mv /home/gitlab-runner/mydream/apk/my-dream-latest.apk.tmp /home/gitlab-runner/mydream/apk/my-dream-latest.apk
+    - ls -lah /home/gitlab-runner/mydream/apk/my-dream-latest.apk
