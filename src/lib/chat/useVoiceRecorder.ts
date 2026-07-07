@@ -15,6 +15,9 @@ export function useVoiceRecorder() {
   const [recordedUri, setRecordedUri] = useState<string | null>(null);
   const [recordedDuration, setRecordedDuration] = useState(0);
   const autoStopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // ref تا stop (که در setTimeout مسیر auto-stop از closure قدیمی صدا زده می‌شه) همیشه مدت واقعی رو بخونه
+  const durationMsRef = useRef(0);
+  durationMsRef.current = recorderState.durationMillis ?? 0;
 
   useEffect(() => () => {
     if (autoStopRef.current) clearTimeout(autoStopRef.current);
@@ -43,11 +46,11 @@ export function useVoiceRecorder() {
       autoStopRef.current = null;
     }
     if (!recorder.isRecording) return;
-    const durationMs = recorderState.durationMillis ?? 0;
+    const durationMs = durationMsRef.current;
     await recorder.stop();
     setRecordedUri(recorder.uri ?? null);
     setRecordedDuration(Math.min(60, Math.max(1, Math.round(durationMs / 1000))));
-  }, [recorder, recorderState.durationMillis]);
+  }, [recorder]);
 
   const cancel = useCallback(async () => {
     if (autoStopRef.current) {

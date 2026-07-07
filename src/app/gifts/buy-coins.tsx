@@ -34,8 +34,12 @@ export default function BuyCoinsScreen() {
     if (!session?.accessToken) return;
     paymentsApi.getCoinPackages(session.accessToken)
       .then(pkgs => {
-        setPackages(pkgs);
-        if (pkgs.length > 0) setSelectedId(pkgs[0].id);
+        // فقط پکیج‌هایی که metadata معتبر دارن — پکیج بدون قیمت/تعداد سکه crash و UI خراب می‌سازه
+        const valid = pkgs.filter(
+          p => typeof p.metadata?.coin_amount === 'number' && typeof p.metadata?.price_amount === 'number',
+        );
+        setPackages(valid);
+        if (valid.length > 0) setSelectedId(valid[0].id);
       })
       .catch(() => toast.error('خطا در بارگذاری بسته‌ها'))
       .finally(() => setLoading(false));
@@ -54,6 +58,8 @@ export default function BuyCoinsScreen() {
         router.back();
       } else if (result.status === 'failed') {
         toast.error(result.detail?.failure_message ?? 'پرداخت ناموفق بود');
+      } else {
+        toast.info('پرداخت تکمیل نشد');
       }
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'خطا در شروع پرداخت');

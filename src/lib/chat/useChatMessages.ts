@@ -149,7 +149,8 @@ export function useChatMessages(
         const userId = Number(raw.user_id);
         setMessages(prev => prev.map(m => {
           if (m.message_id !== msgId) return m;
-          const existing = m.reactions ?? [];
+          // echo واقعی جایگزین entry موقتِ optimistic (user_id: -1) می‌شه — وگرنه دوبار شمرده می‌شه
+          const existing = (m.reactions ?? []).filter(r => !(r.user_id === -1 && r.reaction === reaction));
           const already = existing.some(r => r.reaction === reaction && r.user_id === userId);
           return { ...m, reactions: already ? existing : [...existing, { reaction, user_id: userId }] };
         }));

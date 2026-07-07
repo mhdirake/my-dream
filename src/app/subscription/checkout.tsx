@@ -71,6 +71,8 @@ export default function CheckoutScreen() {
         router.back();
       } else if (result.status === 'failed') {
         toast.error(result.detail?.failure_message ?? 'پرداخت ناموفق بود');
+      } else {
+        toast.info('پرداخت تکمیل نشد');
       }
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'خطا در شروع پرداخت');

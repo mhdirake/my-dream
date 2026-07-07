@@ -1,4 +1,5 @@
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
+import { ApiError } from '@/lib/api/client';
 import { chatApi } from '@/lib/api/chat';
 import { BackendGift } from '@/lib/api/discover';
 import { giftsApi } from '@/lib/api/gifts';
@@ -261,7 +262,7 @@ export default function ConversationScreen() {
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const listRef = useRef<FlatList>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const markedReadRef = useRef(false);
+  const lastMarkedReadIdRef = useRef<string | null>(null);
 
   const isPending = status === 'pending';
   const isLocked = status === 'locked';
@@ -269,13 +270,17 @@ export default function ConversationScreen() {
   const isRejected = status === 'rejected';
   const canChat = status === 'accepted';
 
-  // Mark latest message as read on open (once)
+  // Mark latest inbound message as read — روی هر پیام جدیدی که حین باز بودن صفحه می‌رسه هم اجرا می‌شه
   useEffect(() => {
-    if (!token || !conversationId || markedReadRef.current) return;
+    if (!token || !conversationId) return;
     const others = messages.filter(m => m.sender_user_id !== myId && !m.is_deleted);
     const latest = others[others.length - 1];
-    if (latest?.message_id && !latest.message_id.startsWith('optimistic')) {
-      markedReadRef.current = true;
+    if (
+      latest?.message_id &&
+      !latest.message_id.startsWith('optimistic') &&
+      lastMarkedReadIdRef.current !== latest.message_id
+    ) {
+      lastMarkedReadIdRef.current = latest.message_id;
       chatApi.markRead(token, conversationId, latest.message_id).catch(() => {});
     }
   }, [messages, token, conversationId, myId]);
@@ -289,7 +294,11 @@ export default function ConversationScreen() {
   // onContentSizeChange fires after FlatList has measured content — reliable for initial scroll
   const handleContentSizeChange = useCallback(() => {
     if (initialScrollDoneRef.current) return;
-    if (messages.length === 0) return;
+    if (messages.length === 0) {
+      // چت خالی: empty state باید دیده بشه — بدون این، لیست برای همیشه opacity:0 می‌مونه
+      setListReady(true);
+      return;
+    }
     listRef.current?.scrollToEnd({ animated: false });
     initialScrollDoneRef.current = true;
     lastMsgIdRef.current = messages[messages.length - 1]?.message_id ?? null;
@@ -437,10 +446,11 @@ export default function ConversationScreen() {
       setPendingImage(null);
       setText('');
     } catch (err: unknown) {
+      const status = err instanceof ApiError ? err.status : null;
       const msg = err instanceof Error ? err.message : '';
-      if (msg.includes('403') || msg.includes('مجاز') || msg.toLowerCase().includes('forbidden')) {
+      if (status === 403 || msg.includes('403') || msg.includes('مجاز') || msg.toLowerCase().includes('forbidden')) {
         toast.error('ارسال تصویر مخصوص اشتراک طلایی است');
-      } else if (msg.includes('limit exceeded') || msg.includes('Daily messages')) {
+      } else if (status === 429 || msg.includes('limit exceeded') || msg.includes('Daily messages')) {
         setLimitReached(true);
       } else {
         toast.error('ارسال تصویر ناموفق بود');
@@ -488,10 +498,11 @@ export default function ConversationScreen() {
       );
       voiceRecorder.reset();
     } catch (err: unknown) {
+      const status = err instanceof ApiError ? err.status : null;
       const msg = err instanceof Error ? err.message : '';
-      if (msg.includes('403') || msg.includes('مجاز') || msg.toLowerCase().includes('forbidden')) {
+      if (status === 403 || msg.includes('403') || msg.includes('مجاز') || msg.toLowerCase().includes('forbidden')) {
         toast.error('ارسال پیام صوتی مخصوص اشتراک نقره‌ای یا طلایی است');
-      } else if (msg.includes('limit exceeded') || msg.includes('Daily messages')) {
+      } else if (status === 429 || msg.includes('limit exceeded') || msg.includes('Daily messages')) {
         setLimitReached(true);
       } else {
         toast.error('ارسال پیام صوتی ناموفق بود');

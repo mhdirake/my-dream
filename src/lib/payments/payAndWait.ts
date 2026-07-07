@@ -16,6 +16,15 @@ export async function payAndWait(
   const result = await WebBrowser.openAuthSessionAsync(paymentUrl, redirectUrl);
 
   if (result.type !== 'success') {
+    // کاربر مرورگر رو بست — ولی ممکنه پرداخت واقعاً انجام شده باشه (مثلاً redirect به scheme
+    // در بعضی مرورگرها session رو close می‌کنه). یک‌بار از سرور وضعیت قطعی رو می‌گیریم.
+    try {
+      const detail = await paymentsApi.getStatus(token, paymentId);
+      if (detail.status === 'completed') return { status: 'completed', detail };
+      if (detail.status === 'failed') return { status: 'failed', detail };
+    } catch {
+      // بدون شبکه/خطا — همون cancelled می‌مونه
+    }
     return { status: 'cancelled' };
   }
 

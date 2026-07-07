@@ -82,7 +82,9 @@ export default function TrustGateScreen() {
   const [selected, setSelected] = useState(params.current ?? 'everyone');
   const [minCompletion, setMinCompletion] = useState(Number(params.completion ?? 60));
   const [saving, setSaving] = useState(false);
-  const [myPlan, setMyPlan] = useState<string>('basic');
+  // null = پلن هنوز از سرور نیومده (یا fetch خطا داده) — در این حالت قفل نمی‌کنیم
+  // و enforcement به 403 سرور در handleSave واگذار می‌شه
+  const [myPlan, setMyPlan] = useState<string | null>(null);
 
   useEffect(() => {
     if (!session?.accessToken) return;
@@ -92,6 +94,7 @@ export default function TrustGateScreen() {
   }, [session?.accessToken]);
 
   const isModeLocked = (m: Mode) => {
+    if (myPlan == null) return false;
     if (m.lock === 'gold') return myPlan !== 'gold';
     if (m.lock === 'silver') return myPlan !== 'silver' && myPlan !== 'gold';
     return false;

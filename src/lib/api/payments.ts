@@ -1,4 +1,11 @@
+import { Platform } from 'react-native';
 import { api } from './client';
+
+// قرارداد backend (commit f3d641d): فیلد required با مقادیر web_app | mobile_app —
+// خود backend بر اساسش به FRONTEND_PAYMENT_CALLBACK_URL_MOBILE/_WEB ری‌دایرکت می‌کنه
+const paymentPayload = () => ({
+  redirect_to: Platform.OS === 'web' ? 'web_app' : 'mobile_app',
+});
 
 export type PaymentTransactionStatus =
   | 'pending' | 'requested' | 'verified' | 'completed' | 'failed';
@@ -44,21 +51,21 @@ export const paymentsApi = {
   paySubscription: (token: string, subscriptionPlanId: number) =>
     api.post<PaymentRequestResponse>(
       '/api/client/payments/subscriptions',
-      { subscription_plan_id: subscriptionPlanId },
+      { subscription_plan_id: subscriptionPlanId, ...paymentPayload() },
       token,
     ),
 
   payGoldBadge: (token: string, packageId: number) =>
     api.post<PaymentRequestResponse>(
       '/api/client/payments/gold-badge',
-      { package_id: packageId },
+      { package_id: packageId, ...paymentPayload() },
       token,
     ),
 
   payCoinPackage: (token: string, packageId: number) =>
     api.post<PaymentRequestResponse>(
       '/api/client/payments/coin-packages',
-      { package_id: packageId },
+      { package_id: packageId, ...paymentPayload() },
       token,
     ),
 
