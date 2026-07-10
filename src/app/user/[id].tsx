@@ -2,8 +2,9 @@ import { GiftModal } from '@/components/GiftModal';
 import { MatchCelebrationModal } from '@/components/MatchCelebrationModal';
 import { TemplateMessageModal } from '@/components/TemplateMessageModal';
 import { Badge } from '@/components/ui/Badge';
-import { Colors, Fonts, Spacing } from '@/constants/colors';
+import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { blockApi, type BlockStatus } from '@/lib/api/block';
+import { chatApi, type Conversation } from '@/lib/api/chat';
 import { discoverApi, type MutualUser } from '@/lib/api/discover';
 import { giftsApi, type SentGift } from '@/lib/api/gifts';
 import { toast } from '@/lib/toast';
@@ -17,20 +18,26 @@ import { router, useLocalSearchParams } from 'expo-router';
 import {
   AlertTriangle,
   ArrowLeft,
-  BookOpen,
   Brain,
+  Briefcase,
   Eye,
   Flag,
   Gift,
+  GraduationCap,
   Heart,
+  Languages as LanguagesIcon,
   Lock,
+  MapPin,
   MessageCircle,
+  Moon,
   MoreVertical,
   Pause,
   Play,
   Share2,
+  ShieldAlert,
   Sparkles,
   Star,
+  Target,
   UserX,
   X,
 } from 'lucide-react-native';
@@ -39,6 +46,7 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  Easing,
   Modal,
   Pressable,
   ScrollView,
@@ -109,6 +117,11 @@ const RELIGIOSITY: Record<number, string> = {
   5: 'بسیار مذهبی',
 };
 
+const TRAIT_LABELS: Record<string, string> = {
+  warmth: 'صمیمیت',
+  energy: 'انرژی',
+};
+
 function computeLifestyleMatch(mine: { id: number }[], theirs: { id: number }[]) {
   if (!mine.length || !theirs.length) return null;
   const myIds = new Set(mine.map(t => t.id));
@@ -151,6 +164,59 @@ function ProgressRing({
         />
       </Svg>
       <View style={{ alignItems: 'center' }}>{children}</View>
+    </View>
+  );
+}
+
+// ── AnimatedBanner ────────────────────────────────────────────────────────────
+// Abstract gradient banner with slow-floating blobs — decorative, not tied to the
+// viewed user's photo (the photo already shows prominently in the avatar circle).
+
+function AnimatedBanner() {
+  const float1 = useRef(new Animated.Value(0)).current;
+  const float2 = useRef(new Animated.Value(0)).current;
+  const float3 = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = (val: Animated.Value, duration: number, delay: number) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(val, { toValue: 1, duration, delay, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(val, { toValue: 0, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        ]),
+      ).start();
+    loop(float1, 5200, 0);
+    loop(float2, 6400, 400);
+    loop(float3, 4600, 900);
+  }, [float1, float2, float3]);
+
+  const t1 = float1.interpolate({ inputRange: [0, 1], outputRange: [0, -16] });
+  const t2 = float2.interpolate({ inputRange: [0, 1], outputRange: [0, 14] });
+  const t3 = float3.interpolate({ inputRange: [0, 1], outputRange: [0, -10] });
+  const s3 = float3.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] });
+
+  return (
+    <LinearGradient
+      colors={Colors.gradColors}
+      start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }}
+      style={StyleSheet.absoluteFill}
+    >
+      <Animated.View style={[styles.blobA, { transform: [{ translateY: t1 }] }]} />
+      <Animated.View style={[styles.blobB, { transform: [{ translateY: t2 }] }]} />
+      <Animated.View style={[styles.blobC, { transform: [{ translateY: t3 }, { scale: s3 }] }]} />
+    </LinearGradient>
+  );
+}
+
+function TraitBar({ label, value }: { label: string; value: number }) {
+  const pct = Math.max(0, Math.min(100, value));
+  return (
+    <View style={styles.traitRow}>
+      <Text style={styles.traitLabel}>{label}</Text>
+      <View style={styles.traitTrack}>
+        <View style={[styles.traitFill, { width: `${pct}%` }]} />
+      </View>
+      <Text style={styles.traitValue}>{pct}</Text>
     </View>
   );
 }
@@ -253,13 +319,133 @@ function GoldLockedCard() {
   );
 }
 
+// ── AboutCard ──────────────────────────────────────────────────────────────────
+// Consolidates bio/goal/lifestyle/languages/religiosity/dealbreakers into one
+// compact grouped card (icon-led rows with thin dividers) instead of five
+// separate top-level sections each with their own heading and margins.
+
+function AboutCard({
+  bio, relationshipGoal, lifestyleTags, myTagIds, matchCount,
+  languages, religiosityLevel, religioDiff, dealbreakers, firstName,
+}: {
+  bio: string | null;
+  relationshipGoal: { title: string } | null;
+  lifestyleTags: { id: number; title: string }[];
+  myTagIds: Set<number>;
+  matchCount?: number | null;
+  languages: { id: number; title: string }[];
+  religiosityLevel: number | null;
+  religioDiff: string | null;
+  dealbreakers: { id: number; body: string }[];
+  firstName: string;
+}) {
+  const hasFacts =
+    !!relationshipGoal || lifestyleTags.length > 0 || languages.length > 0 ||
+    religiosityLevel != null || dealbreakers.length > 0;
+
+  return (
+    <View style={styles.infoCard}>
+      {bio ? <Text style={styles.bio}>{bio}</Text> : null}
+      {bio && hasFacts && <View style={styles.infoDivider} />}
+
+      {relationshipGoal && (
+        <View style={styles.infoRow}>
+          <View style={styles.infoRowIcon}>
+            <Target size={15} color={Colors.accent} strokeWidth={2} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.infoRowLabel}>هدف رابطه</Text>
+            <Text style={styles.infoRowValue}>{relationshipGoal.title}</Text>
+          </View>
+        </View>
+      )}
+
+      {lifestyleTags.length > 0 && (
+        <>
+          {relationshipGoal && <View style={styles.infoDivider} />}
+          <View style={styles.infoBlock}>
+            <View style={styles.infoBlockHead}>
+              <Text style={styles.infoBlockLabel}>سبک زندگی</Text>
+              {!!matchCount && (
+                <Text style={styles.infoMatchTxt}>{matchCount} تگ مشترک</Text>
+              )}
+            </View>
+            <View style={styles.tagRow}>
+              {lifestyleTags.map(t => (
+                <View key={t.id} style={[styles.tag, myTagIds.has(t.id) && styles.tagMatch]}>
+                  <Text style={[styles.tagTxt, myTagIds.has(t.id) && styles.tagTxtMatch]}>
+                    {myTagIds.has(t.id) ? '✓ ' : ''}{t.title}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        </>
+      )}
+
+      {languages.length > 0 && (
+        <>
+          <View style={styles.infoDivider} />
+          <View style={styles.infoRow}>
+            <View style={styles.infoRowIcon}>
+              <LanguagesIcon size={15} color={Colors.purple} strokeWidth={2} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.infoRowLabel}>زبان‌ها</Text>
+              <Text style={styles.infoRowValue}>{languages.map(l => l.title).join(' · ')}</Text>
+            </View>
+          </View>
+        </>
+      )}
+
+      {religiosityLevel != null && (
+        <>
+          <View style={styles.infoDivider} />
+          <View style={styles.infoRow}>
+            <View style={styles.infoRowIcon}>
+              <Moon size={15} color={Colors.trust} strokeWidth={2} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.infoRowLabel}>میزان مذهبی</Text>
+              <Text style={styles.infoRowValue}>
+                {RELIGIOSITY[religiosityLevel]}
+                {religioDiff && <Text style={{ color: Colors.muted }}> · {religioDiff}</Text>}
+              </Text>
+            </View>
+          </View>
+        </>
+      )}
+
+      {dealbreakers.length > 0 && (
+        <>
+          <View style={styles.infoDivider} />
+          <View style={styles.infoBlock}>
+            <View style={styles.infoBlockHead}>
+              <ShieldAlert size={13} color={Colors.danger} strokeWidth={2} />
+              <Text style={[styles.infoBlockLabel, { color: Colors.danger }]}>خط قرمزهای {firstName}</Text>
+            </View>
+            <View style={styles.tagRow}>
+              {dealbreakers.map(d => (
+                <View key={d.id} style={styles.dealbreakerTag}>
+                  <Text style={styles.dealbreakerTxt}>{d.body}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        </>
+      )}
+    </View>
+  );
+}
+
 // ── Main Screen ───────────────────────────────────────────────────────────────
 
 export default function ProfileViewScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { session } = useAuth();
+  const { session, user } = useAuth();
   const userId = Number(id);
+  const myId = user?.id ?? -1;
 
   const cached = profileCache.get(userId);
   const [profile, setProfile] = useState<UserProfile | null>(
@@ -285,6 +471,8 @@ export default function ProfileViewScreen() {
   const [actionsOpen, setActionsOpen] = useState(false);
   const [userGifts, setUserGifts] = useState<SentGift[]>([]);
   const [matchInfo, setMatchInfo] = useState<{ user: MutualUser; message?: string | null } | null>(null);
+  const [existingConversation, setExistingConversation] = useState<Conversation | null>(null);
+  const [avatarViewerOpen, setAvatarViewerOpen] = useState(false);
 
   const goBack = () => {
     if (router.canGoBack()) router.back();
@@ -294,11 +482,14 @@ export default function ProfileViewScreen() {
   const fetchProfile = useCallback(async () => {
     if (!session) return;
     try {
-      const [data, me, bStatus, gifts] = await Promise.all([
+      const [data, me, bStatus, gifts, convs, pendingIn, pendingOut] = await Promise.all([
         profileApi.getUserProfile(session.accessToken, userId),
         profileApi.getProfile(session.accessToken),
         blockApi.getBlockStatus(session.accessToken, userId).catch(() => null),
         giftsApi.listUserGifts(session.accessToken, userId).catch(() => [] as SentGift[]),
+        chatApi.listConversations(session.accessToken).catch(() => [] as Conversation[]),
+        chatApi.listPendingIncoming(session.accessToken).catch(() => [] as Conversation[]),
+        chatApi.listPendingOutgoing(session.accessToken).catch(() => [] as Conversation[]),
       ]);
       setProfile(prev => ({
         ...data,
@@ -307,6 +498,11 @@ export default function ProfileViewScreen() {
       setMyProfile(me);
       setBlockStatus(bStatus);
       setUserGifts(gifts);
+      setExistingConversation(
+        [...convs, ...pendingIn, ...pendingOut].find(
+          c => c.first_user_id === userId || c.second_user_id === userId,
+        ) ?? null,
+      );
       setError(false);
     } catch {
       if (!cached) setError(true);
@@ -382,7 +578,14 @@ export default function ProfileViewScreen() {
   );
   const religioDiff = religiosityDiff(myProfile?.religiosity_level, profile.religiosity_level);
   const myTagIds = new Set((myProfile?.lifestyle_tags ?? []).map(t => t.id));
-  const promptAnswers = (profile.prompt_answers ?? []).filter(a => a.answer?.trim());
+  const promptAnswers = (profile.prompt_answers ?? []).filter(
+    a => a.answer?.trim() && a.moderation_status === 'approved',
+  );
+  const dealbreakers = (profile.dealbreakers ?? []).filter(d => d.moderation_status === 'approved');
+  const traitScores = Object.entries(profile.latest_personality_test?.scores ?? {});
+  const showAiSummary =
+    profile.latest_personality_test?.assistant_analysis_status === 'completed' &&
+    !!profile.latest_personality_test?.assistant_analysis?.summary;
 
   const handleLike = () => {
     if (!session) return;
@@ -473,39 +676,56 @@ export default function ProfileViewScreen() {
   const handleShare = () => {
     Alert.alert('اشتراک‌گذاری', 'این قابلیت به زودی اضافه می‌شه.', [{ text: 'باشه' }]);
   };
+  const handleMessagePress = () => {
+    if (!profile) return;
+    if (existingConversation) {
+      router.push({
+        pathname: '/chat/[id]',
+        params: {
+          id: String(existingConversation.id),
+          publicId: existingConversation.public_id,
+          otherId: String(profile.id),
+          name: profile.first_name,
+          avatar: photoUrl ?? '',
+          status: existingConversation.status,
+          isSender: existingConversation.first_user_id === myId ? '1' : '0',
+        },
+      } as never);
+    } else {
+      setTemplateOpen(true);
+    }
+  };
+
+  const stats: { label: string; value: string; accent?: boolean; onPress?: () => void }[] = [
+    { label: 'سن', value: String(age) },
+  ];
+  if (profile.height_cm != null) stats.push({ label: 'قد', value: `${profile.height_cm}` });
+  if (profile.compatibility_score != null) {
+    stats.push({
+      label: 'تطابق', value: `${profile.compatibility_score}٪`, accent: true,
+      onPress: () => router.push(`/user/compatibility?id=${profile.id}` as never),
+    });
+  }
 
   return (
     <View style={styles.root}>
-      {/* ── Hero ──────────────────────────────────────────────────────────── */}
-      <View style={styles.hero}>
-        {photoUrl ? (
-          <Image
-            source={{ uri: photoUrl }}
-            style={StyleSheet.absoluteFill}
-            contentFit="cover"
-            transition={200}
-          />
-        ) : (
-          <View style={[StyleSheet.absoluteFill, styles.heroPh]} />
-        )}
-        <LinearGradient
-          colors={['rgba(0,0,0,0.42)', 'transparent', 'transparent', 'rgba(0,0,0,0.72)']}
-          locations={[0, 0.18, 0.5, 1]}
-          style={StyleSheet.absoluteFill}
-          pointerEvents="none"
-        />
+      <View style={styles.heroWrap}>
+        {/* ── Banner ──────────────────────────────────────────────────────── */}
+        <View style={styles.banner}>
+          <AnimatedBanner />
 
-        <SafeAreaView style={styles.heroTop} edges={['top']}>
-          <TouchableOpacity style={styles.backBtnLight} onPress={goBack}>
-            <ArrowLeft size={20} color="#fff" strokeWidth={2.5} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.moreBtn} onPress={() => setActionsOpen(true)}>
-            <MoreVertical size={20} color="#fff" strokeWidth={2} />
-          </TouchableOpacity>
-        </SafeAreaView>
+          <SafeAreaView style={styles.heroTop} edges={['top']}>
+            <TouchableOpacity style={styles.backBtnLight} onPress={goBack}>
+              <ArrowLeft size={20} color="#fff" strokeWidth={2.5} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.moreBtn} onPress={() => setActionsOpen(true)}>
+              <MoreVertical size={20} color="#fff" strokeWidth={2} />
+            </TouchableOpacity>
+          </SafeAreaView>
+        </View>
 
-        {/* Glass name overlay */}
-        <View style={styles.heroGlass}>
+        {/* ── Profile card ────────────────────────────────────────────────── */}
+        <View style={styles.profileCard}>
           {profile.badges.length > 0 && (
             <View style={styles.badgeRow}>
               {profile.badges.map(b => (
@@ -513,27 +733,63 @@ export default function ProfileViewScreen() {
               ))}
             </View>
           )}
-          <Text style={styles.heroName}>{profile.first_name}، {age}</Text>
+          <View style={styles.heroNameRow}>
+            <Text style={styles.heroName}>{profile.first_name}، {age}</Text>
+            {profile.username && <Text style={styles.usernameTxt}>@{profile.username}</Text>}
+          </View>
           <View style={styles.metaRow}>
             {(profile.city || profile.province) && (
-              <Text style={styles.metaTxt}>
-                📍 {profile.city ?? profile.province}
-              </Text>
+              <View style={styles.metaChip}>
+                <MapPin size={11.5} color={Colors.muted} strokeWidth={2} />
+                <Text style={styles.metaTxt}>{profile.city ?? profile.province}</Text>
+              </View>
             )}
             {profile.job && (
-              <Text style={styles.metaTxt}>· 💼 {profile.job}</Text>
+              <View style={styles.metaChip}>
+                <Briefcase size={11.5} color={Colors.muted} strokeWidth={2} />
+                <Text style={styles.metaTxt}>{profile.job}</Text>
+              </View>
+            )}
+            {profile.education && (
+              <View style={styles.metaChip}>
+                <GraduationCap size={11.5} color={Colors.muted} strokeWidth={2} />
+                <Text style={styles.metaTxt}>{profile.education}</Text>
+              </View>
             )}
           </View>
-          {profile.compatibility_score != null && (
-            <TouchableOpacity
-              style={styles.compatPill}
-              onPress={() => router.push(`/user/compatibility?id=${profile.id}` as never)}
-              activeOpacity={0.75}
-            >
-              <Sparkles size={11} color={Colors.purple} strokeWidth={2} />
-              <Text style={styles.compatTxt}>{profile.compatibility_score}٪ تطابق</Text>
-            </TouchableOpacity>
-          )}
+
+          <View style={styles.statsRow}>
+            {stats.map(s => {
+              const Wrap = s.onPress ? TouchableOpacity : View;
+              return (
+                <Wrap
+                  key={s.label}
+                  style={[styles.statBox, s.accent && styles.statBoxAccent]}
+                  onPress={s.onPress}
+                  activeOpacity={0.75}
+                >
+                  <Text style={[styles.statValue, s.accent && styles.statValueAccent]}>{s.value}</Text>
+                  <Text style={styles.statLabel}>{s.label}</Text>
+                </Wrap>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* Avatar overlapping the banner/card boundary — painted last so it sits on top */}
+        <View style={styles.avatarOverlap} pointerEvents="box-none">
+          <TouchableOpacity
+            style={styles.avatarRing}
+            activeOpacity={photoUrl ? 0.85 : 1}
+            disabled={!photoUrl}
+            onPress={() => setAvatarViewerOpen(true)}
+          >
+            {photoUrl ? (
+              <Image source={{ uri: photoUrl }} style={styles.avatarImg} contentFit="cover" />
+            ) : (
+              <View style={[styles.avatarImg, styles.heroPh]} />
+            )}
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -573,21 +829,21 @@ export default function ProfileViewScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Bio */}
-            {profile.bio ? (
-              <Text style={styles.bio}>{profile.bio}</Text>
-            ) : null}
-
-            {/* Relationship goal */}
-            {profile.relationship_goal && (
-              <View style={styles.goalPill}>
-                <Text style={styles.goalTxt}>{profile.relationship_goal.title}</Text>
-              </View>
-            )}
+            <AboutCard
+              bio={profile.bio}
+              relationshipGoal={profile.relationship_goal}
+              lifestyleTags={[]}
+              myTagIds={myTagIds}
+              languages={[]}
+              religiosityLevel={null}
+              religioDiff={null}
+              dealbreakers={[]}
+              firstName={profile.first_name}
+            />
 
             {/* Locked rows */}
             <View style={styles.lockedList}>
-              <Text style={styles.sectionTitle}>قفل در Basic</Text>
+              <Text style={styles.infoBlockLabel}>قفل در Basic</Text>
               {['تطابق سبک زندگی', 'سبک زندگی', 'تست شخصیت', 'پاسخ آشنایی', 'معرفی صوتی'].map(l => (
                 <LockedRow key={l} label={l} />
               ))}
@@ -598,7 +854,7 @@ export default function ProfileViewScreen() {
         {/* ── SILVER ────────────────────────────────────────────────── */}
         {isAtLeastSilver && profile.voice_intro_url && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>معرفی صوتی</Text>
+            <Text style={styles.infoBlockLabel}>معرفی صوتی</Text>
             <VoiceIntroPlayer uri={profile.voice_intro_url} durationSeconds={profile.voice_intro_duration_seconds ?? 1} />
           </View>
         )}
@@ -623,59 +879,18 @@ export default function ProfileViewScreen() {
               </View>
             )}
 
-            {/* Bio */}
-            {profile.bio ? <Text style={styles.bio}>{profile.bio}</Text> : null}
-
-            {/* Relationship goal */}
-            {profile.relationship_goal && (
-              <View style={styles.goalPill}>
-                <Text style={styles.goalTxt}>{profile.relationship_goal.title}</Text>
-              </View>
-            )}
-
-            {/* Lifestyle tags */}
-            {profile.lifestyle_tags.length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>
-                  سبک زندگی
-                  {lifestyleMatchPct != null && (
-                    <Text style={{ color: Colors.ok }}> · {profile.lifestyle_tags.filter(t => myTagIds.has(t.id)).length} تگ مشترک</Text>
-                  )}
-                </Text>
-                <View style={styles.tagRow}>
-                  {profile.lifestyle_tags.map(t => (
-                    <View key={t.id} style={[styles.tag, myTagIds.has(t.id) && styles.tagMatch]}>
-                      <Text style={[styles.tagTxt, myTagIds.has(t.id) && styles.tagTxtMatch]}>
-                        {myTagIds.has(t.id) ? '✓ ' : ''}{t.title}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            )}
-
-            {/* Languages */}
-            {profile.languages.length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>زبان‌ها</Text>
-                <Text style={styles.plainTxt}>
-                  {profile.languages.map(l => l.title).join(' · ')}
-                </Text>
-              </View>
-            )}
-
-            {/* Religiosity */}
-            {profile.religiosity_level != null && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>میزان مذهبی</Text>
-                <Text style={styles.plainTxt}>
-                  {RELIGIOSITY[profile.religiosity_level]}
-                  {religioDiff && (
-                    <Text style={{ color: Colors.muted }}> · {religioDiff}</Text>
-                  )}
-                </Text>
-              </View>
-            )}
+            <AboutCard
+              bio={profile.bio}
+              relationshipGoal={profile.relationship_goal}
+              lifestyleTags={profile.lifestyle_tags}
+              myTagIds={myTagIds}
+              matchCount={profile.lifestyle_tags.filter(t => myTagIds.has(t.id)).length}
+              languages={profile.languages}
+              religiosityLevel={profile.religiosity_level}
+              religioDiff={religioDiff}
+              dealbreakers={dealbreakers}
+              firstName={profile.first_name}
+            />
 
             {/* Gold locked */}
             <GoldLockedCard />
@@ -721,23 +936,56 @@ export default function ProfileViewScreen() {
               </View>
             )}
 
-            {/* Bio */}
-            {profile.bio ? <Text style={styles.bio}>{profile.bio}</Text> : null}
+            <AboutCard
+              bio={profile.bio}
+              relationshipGoal={profile.relationship_goal}
+              lifestyleTags={profile.lifestyle_tags}
+              myTagIds={myTagIds}
+              languages={profile.languages}
+              religiosityLevel={profile.religiosity_level}
+              religioDiff={religioDiff}
+              dealbreakers={dealbreakers}
+              firstName={profile.first_name}
+            />
+
+            {/* Personality test */}
+            {profile.latest_personality_test && (
+              <View style={styles.section}>
+                <Text style={styles.infoBlockLabel}>تست شخصیت</Text>
+                <View style={styles.personalityChip}>
+                  <Brain size={13} color={Colors.purple} strokeWidth={2} />
+                  <Text style={styles.personalityTxt}>{profile.latest_personality_test.result_title}</Text>
+                </View>
+                {traitScores.length > 0 && (
+                  <View style={styles.traitList}>
+                    {traitScores.map(([key, value]) => (
+                      <TraitBar key={key} label={TRAIT_LABELS[key] ?? key} value={value} />
+                    ))}
+                  </View>
+                )}
+                {showAiSummary && (
+                  <View style={styles.aiSummaryCard}>
+                    <Sparkles size={13} color={Colors.purple} strokeWidth={2} style={{ marginTop: 2 }} />
+                    <Text style={styles.aiSummaryTxt}>
+                      {profile.latest_personality_test!.assistant_analysis!.summary}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
 
             {/* Prompt answers */}
             {promptAnswers.length > 0 && (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>آشنایی با من</Text>
+                <Text style={styles.infoBlockLabel}>آشنایی با من</Text>
                 <View style={styles.promptList}>
                   {promptAnswers.slice(0, 5).map(a => (
                     <View key={a.id} style={styles.promptCard}>
-                      <BookOpen size={13} color={Colors.purple} strokeWidth={2} style={{ marginTop: 2 }} />
-                      <View style={{ flex: 1 }}>
-                        {a.prompt?.text && (
-                          <Text style={styles.promptQ}>{a.prompt.text}</Text>
-                        )}
-                        <Text style={styles.promptA}>{a.answer}</Text>
-                      </View>
+                      <Text style={styles.promptMark}>”</Text>
+                      {a.prompt?.body && (
+                        <Text style={styles.promptQ}>{a.prompt.body}</Text>
+                      )}
+                      <Text style={styles.promptA}>{a.answer}</Text>
                     </View>
                   ))}
                 </View>
@@ -747,7 +995,7 @@ export default function ProfileViewScreen() {
             {/* Received gifts */}
             {userGifts.length > 0 && (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>هدایای دریافتی</Text>
+                <Text style={styles.infoBlockLabel}>هدایای دریافتی</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.giftScroll}>
                   {userGifts.slice(0, 12).map(g => (
                     <View key={g.sent_gift_id} style={[styles.giftItem, g.is_pinned && styles.giftItemPinned]}>
@@ -757,50 +1005,6 @@ export default function ProfileViewScreen() {
                     </View>
                   ))}
                 </ScrollView>
-              </View>
-            )}
-
-            {/* Personality test */}
-            {profile.latest_personality_test && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>تست شخصیت</Text>
-                <View style={styles.personalityChip}>
-                  <Brain size={13} color={Colors.purple} strokeWidth={2} />
-                  <Text style={styles.personalityTxt}>{profile.latest_personality_test.result_title}</Text>
-                </View>
-              </View>
-            )}
-
-            {/* Relationship goal */}
-            {profile.relationship_goal && (
-              <View style={styles.goalPill}>
-                <Text style={styles.goalTxt}>{profile.relationship_goal.title}</Text>
-              </View>
-            )}
-
-            {/* Lifestyle tags (all visible, with match highlight) */}
-            {profile.lifestyle_tags.length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>سبک زندگی</Text>
-                <View style={styles.tagRow}>
-                  {profile.lifestyle_tags.map(t => (
-                    <View key={t.id} style={[styles.tag, myTagIds.has(t.id) && styles.tagMatch]}>
-                      <Text style={[styles.tagTxt, myTagIds.has(t.id) && styles.tagTxtMatch]}>
-                        {myTagIds.has(t.id) ? '✓ ' : ''}{t.title}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            )}
-
-            {/* Languages */}
-            {profile.languages.length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>زبان‌ها</Text>
-                <Text style={styles.plainTxt}>
-                  {profile.languages.map(l => l.title).join(' · ')}
-                </Text>
               </View>
             )}
           </>
@@ -819,7 +1023,7 @@ export default function ProfileViewScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.chatGradBtn}
-          onPress={() => setTemplateOpen(true)}
+          onPress={handleMessagePress}
           activeOpacity={0.85}
         >
           <LinearGradient
@@ -828,7 +1032,7 @@ export default function ProfileViewScreen() {
             style={styles.chatGradInner}
           >
             <MessageCircle size={16} color="#fff" strokeWidth={2} />
-            <Text style={styles.chatGradTxt}>پیام بفرست</Text>
+            <Text style={styles.chatGradTxt}>{existingConversation ? 'برو به چت' : 'پیام بفرست'}</Text>
           </LinearGradient>
         </TouchableOpacity>
         <TouchableOpacity style={styles.likeBtn} onPress={handleLike}>
@@ -873,6 +1077,18 @@ export default function ProfileViewScreen() {
         onClose={() => { setMatchInfo(null); goBack(); }}
         onStartChat={() => { setMatchInfo(null); setTemplateOpen(true); }}
       />
+
+      {/* Full-screen avatar viewer */}
+      <Modal visible={avatarViewerOpen} transparent animationType="fade" onRequestClose={() => setAvatarViewerOpen(false)}>
+        <Pressable style={styles.viewerOverlay} onPress={() => setAvatarViewerOpen(false)}>
+          {photoUrl && (
+            <Image source={{ uri: photoUrl }} style={styles.viewerImage} contentFit="contain" />
+          )}
+          <TouchableOpacity style={styles.viewerClose} onPress={() => setAvatarViewerOpen(false)} hitSlop={10}>
+            <X size={22} color="#fff" strokeWidth={2.5} />
+          </TouchableOpacity>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -895,8 +1111,9 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
 
-  // ── Hero ──────────────────────────────────────────────────────────────────
-  hero: { height: 400, position: 'relative' },
+  // ── Banner + Profile card ────────────────────────────────────────────────
+  heroWrap: { position: 'relative' },
+  banner: { height: 132, backgroundColor: Colors.purpleSoft, overflow: 'hidden' },
   heroPh: { backgroundColor: Colors.purpleSoft },
   heroTop: {
     position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10,
@@ -912,23 +1129,63 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.28)',
     alignItems: 'center', justifyContent: 'center',
   },
-  heroGlass: {
-    position: 'absolute', bottom: 14, left: 14, right: 14,
-    backgroundColor: 'rgba(255,255,255,0.46)',
-    borderRadius: 22, padding: 14,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)',
+  blobA: {
+    position: 'absolute', top: -30, right: -30,
+    width: 160, height: 160, borderRadius: 80,
+    backgroundColor: 'rgba(255,255,255,0.16)',
   },
-  badgeRow: { flexDirection: 'row', gap: 6, marginBottom: 8 },
-  heroName: { fontSize: 24, fontFamily: Fonts.extraBold, color: Colors.ink, letterSpacing: -0.5 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' },
-  metaTxt: { fontSize: 12, color: Colors.inkSoft, fontFamily: Fonts.regular },
-  compatPill: {
-    flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8,
-    backgroundColor: Colors.purpleSoft, alignSelf: 'flex-start',
-    borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5,
-    borderWidth: 1, borderColor: Colors.purple + '33',
+  blobB: {
+    position: 'absolute', bottom: -50, left: -40,
+    width: 190, height: 190, borderRadius: 95,
+    backgroundColor: 'rgba(255,255,255,0.12)',
   },
-  compatTxt: { fontSize: 12, fontFamily: Fonts.bold, color: Colors.purple },
+  blobC: {
+    position: 'absolute', top: 20, left: '38%',
+    width: 90, height: 90, borderRadius: 45,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+  },
+  avatarOverlap: {
+    position: 'absolute', top: 78, left: 0, right: 0, zIndex: 20,
+    alignItems: 'center',
+  },
+  avatarRing: {
+    width: 108, height: 108, borderRadius: 54, padding: 4,
+    backgroundColor: Colors.bg,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15, shadowRadius: 10, elevation: 6,
+  },
+  avatarImg: { width: 100, height: 100, borderRadius: 50 },
+  profileCard: {
+    backgroundColor: Colors.surface,
+    alignItems: 'center',
+    paddingTop: 58, paddingBottom: 18, paddingHorizontal: 20,
+    borderBottomLeftRadius: 28, borderBottomRightRadius: 28,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06, shadowRadius: 12, elevation: 3,
+  },
+  badgeRow: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginBottom: 8 },
+  heroNameRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', gap: 8 },
+  heroName: { fontSize: 21, fontFamily: Fonts.extraBold, color: Colors.ink, letterSpacing: -0.5, textAlign: 'center' },
+  usernameTxt: { fontSize: 12.5, fontFamily: Fonts.regular, color: Colors.inkSoft },
+  metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 8, flexWrap: 'wrap' },
+  metaChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: Colors.bg, borderRadius: 999,
+    paddingHorizontal: 9, paddingVertical: 4.5,
+  },
+  metaTxt: { fontSize: 11.5, color: Colors.inkSoft, fontFamily: Fonts.semiBold },
+
+  statsRow: { flexDirection: 'row', gap: 10, marginTop: 16, alignSelf: 'stretch' },
+  statBox: {
+    flex: 1, alignItems: 'center',
+    backgroundColor: Colors.bg, borderRadius: 14,
+    paddingVertical: 12, paddingHorizontal: 8,
+    borderWidth: 1, borderColor: Colors.lineSoft,
+  },
+  statBoxAccent: { backgroundColor: Colors.purpleSoft, borderColor: Colors.purple + '33' },
+  statValue: { fontSize: 16, fontFamily: Fonts.extraBold, color: Colors.ink },
+  statValueAccent: { color: Colors.purple },
+  statLabel: { fontSize: 10.5, fontFamily: Fonts.regular, color: Colors.muted, marginTop: 2 },
 
   // ── Red Flag ──────────────────────────────────────────────────────────────
   redFlagBanner: {
@@ -942,7 +1199,7 @@ const styles = StyleSheet.create({
 
   // ── Scroll ────────────────────────────────────────────────────────────────
   scroll: { flex: 1 },
-  scrollContent: { padding: Spacing.lg, gap: 16 },
+  scrollContent: { padding: Spacing.lg, gap: 14 },
 
   section: { gap: 10 },
   voiceIntroRow: {
@@ -958,7 +1215,7 @@ const styles = StyleSheet.create({
   },
   voiceIntroWave: { flex: 1, height: 3, borderRadius: 2, backgroundColor: Colors.lineSoft },
   voiceIntroDuration: { fontSize: 12.5, fontFamily: Fonts.semiBold, color: Colors.ink },
-  sectionTitle: { fontSize: 11.5, fontFamily: Fonts.bold, color: Colors.muted, letterSpacing: 0.3 },
+  infoBlockLabel: { fontSize: 11.5, fontFamily: Fonts.bold, color: Colors.muted, letterSpacing: 0.3 },
   giftScroll: { gap: 8, paddingVertical: 2 },
   giftItem: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
@@ -971,15 +1228,20 @@ const styles = StyleSheet.create({
   giftItemEmoji: { fontSize: 18 },
   giftItemTitle: { fontSize: 12, fontFamily: Fonts.semiBold, color: Colors.ink, flexShrink: 1 },
   bio: { fontSize: 14, fontFamily: Fonts.regular, color: Colors.ink, lineHeight: 24 },
-  plainTxt: { fontSize: 13, fontFamily: Fonts.regular, color: Colors.inkSoft, lineHeight: 20 },
 
-  goalPill: {
-    alignSelf: 'flex-start',
-    backgroundColor: Colors.accentSoft, borderRadius: 999,
-    paddingHorizontal: 14, paddingVertical: 7,
-    borderWidth: 1, borderColor: Colors.accent + '22',
+  // ── AboutCard (compact grouped info) ─────────────────────────────────────
+  infoCard: {
+    backgroundColor: Colors.surface, borderRadius: Radius.xl,
+    padding: 16, borderWidth: 1, borderColor: Colors.lineSoft,
   },
-  goalTxt: { fontSize: 13, fontFamily: Fonts.bold, color: Colors.accent },
+  infoDivider: { height: 1, backgroundColor: Colors.hair, marginVertical: 12 },
+  infoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  infoRowIcon: { width: 24, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
+  infoRowLabel: { fontSize: 10.5, fontFamily: Fonts.regular, color: Colors.muted, marginBottom: 3 },
+  infoRowValue: { fontSize: 13.5, fontFamily: Fonts.semiBold, color: Colors.ink, lineHeight: 19 },
+  infoBlock: { gap: 8 },
+  infoBlockHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  infoMatchTxt: { fontSize: 11, fontFamily: Fonts.semiBold, color: Colors.ok },
 
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   tag: {
@@ -989,15 +1251,25 @@ const styles = StyleSheet.create({
   tagMatch: { backgroundColor: Colors.okSoft },
   tagTxt: { fontSize: 12, fontFamily: Fonts.semiBold, color: Colors.purple },
   tagTxtMatch: { color: Colors.ok },
+  dealbreakerTag: {
+    backgroundColor: Colors.dangerSoft, borderRadius: 999,
+    paddingHorizontal: 12, paddingVertical: 6,
+  },
+  dealbreakerTxt: { fontSize: 12, fontFamily: Fonts.semiBold, color: Colors.danger },
 
   promptList: { gap: 10 },
   promptCard: {
-    flexDirection: 'row', gap: 10, alignItems: 'flex-start',
-    backgroundColor: Colors.surface, borderRadius: 14, padding: 14,
-    borderWidth: 1, borderColor: Colors.lineSoft,
+    position: 'relative', overflow: 'hidden',
+    backgroundColor: Colors.purpleSoft, borderRadius: 14,
+    padding: 14, paddingTop: 12,
+    borderRightWidth: 3, borderRightColor: Colors.purple,
   },
-  promptQ: { fontSize: 11, fontFamily: Fonts.semiBold, color: Colors.purple, marginBottom: 4 },
-  promptA: { fontSize: 13, fontFamily: Fonts.regular, color: Colors.ink, lineHeight: 20 },
+  promptMark: {
+    position: 'absolute', top: -14, right: 6,
+    fontSize: 56, fontFamily: Fonts.extraBold, color: Colors.purple, opacity: 0.14,
+  },
+  promptQ: { fontSize: 11, fontFamily: Fonts.bold, color: Colors.purple, marginBottom: 5 },
+  promptA: { fontSize: 13.5, fontFamily: Fonts.regular, color: Colors.ink, lineHeight: 20 },
 
   personalityChip: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
@@ -1006,6 +1278,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 6,
   },
   personalityTxt: { fontSize: 12, fontFamily: Fonts.semiBold, color: Colors.purple },
+  traitList: { gap: 8, marginTop: 10 },
+  traitRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  traitLabel: { width: 56, fontSize: 11.5, fontFamily: Fonts.semiBold, color: Colors.inkSoft },
+  traitTrack: { flex: 1, height: 6, borderRadius: 3, backgroundColor: Colors.lineSoft, overflow: 'hidden' },
+  traitFill: { height: '100%', borderRadius: 3, backgroundColor: Colors.purple },
+  traitValue: { width: 22, fontSize: 11, fontFamily: Fonts.bold, color: Colors.purple, textAlign: 'left' },
+  aiSummaryCard: {
+    flexDirection: 'row', gap: 8, alignItems: 'flex-start',
+    backgroundColor: Colors.purpleSoft, borderRadius: 14, padding: 12, marginTop: 10,
+  },
+  aiSummaryTxt: { flex: 1, fontSize: 12.5, fontFamily: Fonts.regular, color: Colors.ink, lineHeight: 19 },
 
   // ── Basic ─────────────────────────────────────────────────────────────────
   upsellCard: {
@@ -1140,4 +1423,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sheetCancelTxt: { fontSize: 14, fontFamily: Fonts.bold, color: Colors.inkSoft },
+
+  // ── Avatar viewer ─────────────────────────────────────────────────────────
+  viewerOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.92)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  viewerImage: { width: '100%', height: '80%' },
+  viewerClose: {
+    position: 'absolute', top: 56, left: 20,
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center', justifyContent: 'center',
+  },
 });

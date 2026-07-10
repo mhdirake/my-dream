@@ -200,6 +200,8 @@ const styles = StyleSheet.create({
   input: {
     flex: 1, fontSize: 14, fontFamily: Fonts.regular,
     color: Colors.ink, textAlign: 'auto',
+    height: 40, paddingVertical: 0, margin: 0,
+    textAlignVertical: 'center', includeFontPadding: false,
   },
 
   list: { padding: Spacing.lg, gap: 2 },

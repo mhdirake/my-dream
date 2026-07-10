@@ -6,6 +6,7 @@ import { giftsApi } from '@/lib/api/gifts';
 import { profileApi } from '@/lib/api/profile';
 import { useChatMessages } from '@/lib/chat/useChatMessages';
 import { useVoiceRecorder } from '@/lib/chat/useVoiceRecorder';
+import { useKeyboardHeight } from '@/lib/useKeyboardHeight';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { toast } from '@/lib/toast';
@@ -22,9 +23,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   Share,
@@ -207,6 +206,7 @@ function formatLastSeen(iso: string): string {
 
 export default function ConversationScreen() {
   const insets = useSafeAreaInsets();
+  const keyboardHeight = useKeyboardHeight();
   const { id, publicId, name, avatar, status, otherId, isSender } = useLocalSearchParams<{
     id: string;
     publicId: string;
@@ -239,6 +239,8 @@ export default function ConversationScreen() {
   const [gifts, setGifts] = useState<BackendGift[]>([]);
   const [giftsLoading, setGiftsLoading] = useState(false);
   const [sendingGiftId, setSendingGiftId] = useState<number | null>(null);
+  const [selectedGift, setSelectedGift] = useState<BackendGift | null>(null);
+  const [giftNote, setGiftNote] = useState('');
   const [viewerUri, setViewerUri] = useState<string | null>(null);
   const [failedImageUris, setFailedImageUris] = useState<Set<string>>(new Set());
   const [sendingVoice, setSendingVoice] = useState(false);
@@ -248,6 +250,12 @@ export default function ConversationScreen() {
   const [limitReached, setLimitReached] = useState(false);
   const [msgMenu, setMsgMenu] = useState<{ id: string; sender: number; body: string; myReaction?: string | null } | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  // پیش‌بارگذاری کاتالوگ هدیه‌ها تا پیام‌های نوع gift (حتی قبل از باز کردن picker) بتونن به عکس/عنوان واقعی وصل بشن
+  useEffect(() => {
+    if (!token || gifts.length > 0) return;
+    giftsApi.list(token).then(setGifts).catch(() => {});
+  }, [token]);
 
   // Presence
   const [isOnline, setIsOnline] = useState(false);
@@ -538,6 +546,8 @@ export default function ConversationScreen() {
 
   const handleOpenGiftPicker = async () => {
     setGiftPickerOpen(true);
+    setSelectedGift(null);
+    setGiftNote('');
     if (gifts.length > 0 || giftsLoading) return;
     setGiftsLoading(true);
     try {
@@ -550,12 +560,18 @@ export default function ConversationScreen() {
     }
   };
 
-  const handleSendGift = async (gift: BackendGift) => {
+  const closeGiftPicker = () => {
+    setGiftPickerOpen(false);
+    setSelectedGift(null);
+    setGiftNote('');
+  };
+
+  const handleSendGift = async (gift: BackendGift, note?: string) => {
     if (sendingGiftId != null || !otherId) return;
     setSendingGiftId(gift.id);
     try {
-      await giftsApi.send(token, gift.id, Number(otherId), undefined, true);
-      setGiftPickerOpen(false);
+      await giftsApi.send(token, gift.id, Number(otherId), note?.trim() || undefined, true);
+      closeGiftPicker();
       toast.success('هدیه ارسال شد');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '';
@@ -676,11 +692,7 @@ export default function ConversationScreen() {
         </View>
       )}
 
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={0}
-      >
+      <View style={[styles.flex, { paddingBottom: keyboardHeight }]}>
         {loading ? (
           <View style={styles.center}>
             <ActivityIndicator color={Colors.accent} />
@@ -802,14 +814,29 @@ export default function ConversationScreen() {
                       isMine={isMine}
                       tint={isMine ? '#fff' : Colors.purple}
                     />
-                  ) : item.message_type === 'gift' ? (
-                    <View style={styles.giftBubble}>
-                      <Text style={styles.giftBubbleEmoji}>🎁</Text>
-                      <Text style={[styles.giftBubbleTxt, isMine ? styles.bubbleTxtMine : styles.bubbleTxtTheirs]}>
-                        {item.body_text || item.caption || 'یک هدیه فرستاد'}
-                      </Text>
-                    </View>
-                  ) : item.message_type !== 'text' && item.message_type !== 'template_first_message' ? (
+                  ) : item.message_type === 'gift' ? (() => {
+                    const giftMeta = gifts.find(g => g.id === item.gift_id);
+                    const giftTitle = giftMeta?.title ?? 'هدیه';
+                    const noteText = item.body_text || item.caption;
+                    const hasCustomNote = !!noteText && noteText !== giftTitle;
+                    return (
+                      <View style={styles.giftMsgCard}>
+                        {giftMeta?.asset_url ? (
+                          <Image source={{ uri: giftMeta.asset_url }} style={styles.giftMsgImage} contentFit="contain" />
+                        ) : (
+                          <Text style={styles.giftMsgEmoji}>{GIFT_SLUG_EMOJI[giftMeta?.slug ?? ''] ?? '🎁'}</Text>
+                        )}
+                        <Text style={[styles.giftMsgTitle, isMine ? styles.bubbleTxtMine : styles.bubbleTxtTheirs]}>
+                          {giftTitle}
+                        </Text>
+                        {hasCustomNote && (
+                          <Text style={[styles.giftMsgNote, isMine ? styles.bubbleTxtMine : styles.bubbleTxtTheirs]}>
+                            {noteText}
+                          </Text>
+                        )}
+                      </View>
+                    );
+                  })() : item.message_type !== 'text' && item.message_type !== 'template_first_message' ? (
                     <Text style={[styles.msgTypeBadge, isMine && { color: 'rgba(255,255,255,0.7)' }]}>
                       {item.message_type === 'sticker' ? '😊' :
                        item.message_type === 'gif' ? '🎞' : '🖼'}
@@ -1037,32 +1064,6 @@ export default function ConversationScreen() {
             </TouchableOpacity>
           ) : (
             <>
-              {!editingId && !pendingImage && (
-                <>
-                  <TouchableOpacity style={styles.attachBtn} onPress={handlePickImage} hitSlop={6} activeOpacity={0.7}>
-                    <ImagePlus size={20} color={Colors.muted} strokeWidth={1.8} />
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.attachBtn} onPress={handleOpenGiftPicker} hitSlop={6} activeOpacity={0.7}>
-                    <GiftIcon size={20} color={Colors.goldDeep} strokeWidth={1.8} />
-                  </TouchableOpacity>
-                  {!text.trim() && (
-                    <TouchableOpacity style={styles.attachBtn} onPress={handleMicPress} hitSlop={6} activeOpacity={0.7}>
-                      <Mic size={20} color={Colors.muted} strokeWidth={1.8} />
-                    </TouchableOpacity>
-                  )}
-                </>
-              )}
-              <TextInput
-                style={styles.input}
-                value={text}
-                onChangeText={handleTextChange}
-                placeholder={editingId ? 'ویرایش' : pendingImage ? 'زیرنویس (اختیاری)' : 'پیام'}
-                placeholderTextColor={Colors.muted}
-                multiline
-                maxLength={pendingImage ? 500 : 2000}
-                textAlign="right"
-                textAlignVertical="top"
-              />
               <TouchableOpacity
                 style={[styles.sendBtn, (!!text.trim() || !!pendingImage) && styles.sendBtnActive]}
                 onPress={pendingImage ? handleSendImage : handleSend}
@@ -1083,10 +1084,36 @@ export default function ConversationScreen() {
                   </>
                 )}
               </TouchableOpacity>
+              <TextInput
+                style={styles.input}
+                value={text}
+                onChangeText={handleTextChange}
+                placeholder={editingId ? 'ویرایش' : pendingImage ? 'زیرنویس (اختیاری)' : 'پیام'}
+                placeholderTextColor={Colors.muted}
+                multiline
+                maxLength={pendingImage ? 500 : 2000}
+                textAlign="right"
+                textAlignVertical="top"
+              />
+              {!editingId && !pendingImage && (
+                <>
+                  <TouchableOpacity style={styles.attachBtn} onPress={handlePickImage} hitSlop={6} activeOpacity={0.7}>
+                    <ImagePlus size={20} color={Colors.muted} strokeWidth={1.8} />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.giftAttachBtn} onPress={handleOpenGiftPicker} hitSlop={6} activeOpacity={0.7}>
+                    <GiftIcon size={18} color={Colors.goldDeep} strokeWidth={1.8} />
+                  </TouchableOpacity>
+                  {!text.trim() && (
+                    <TouchableOpacity style={styles.micAttachBtn} onPress={handleMicPress} hitSlop={6} activeOpacity={0.7}>
+                      <Mic size={18} color={Colors.trust} strokeWidth={1.8} />
+                    </TouchableOpacity>
+                  )}
+                </>
+              )}
             </>
           )}
         </View>
-      </KeyboardAvoidingView>
+      </View>
 
       {/* Message long-press menu */}
       <Modal visible={!!msgMenu} transparent animationType="fade" onRequestClose={() => { setMsgMenu(null); setConfirmDeleteId(null); }}>
@@ -1214,41 +1241,93 @@ export default function ConversationScreen() {
       </Modal>
 
       {/* Gift picker */}
-      <Modal visible={giftPickerOpen} transparent animationType="slide" onRequestClose={() => setGiftPickerOpen(false)}>
-        <Pressable style={styles.menuOverlay} onPress={() => setGiftPickerOpen(false)}>
+      <Modal visible={giftPickerOpen} transparent animationType="slide" onRequestClose={closeGiftPicker}>
+        <Pressable style={styles.menuOverlay} onPress={closeGiftPicker}>
           <View style={styles.giftSheet}>
             <View style={styles.menuHandle} />
-            <Text style={styles.giftSheetTitle}>ارسال هدیه در چت</Text>
-            {giftsLoading ? (
-              <ActivityIndicator color={Colors.goldDeep} style={{ paddingVertical: 32 }} />
-            ) : (
-              <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
-                {gifts.map(g => (
+            {selectedGift ? (
+              <>
+                <Text style={styles.giftSheetTitle}>ارسال {selectedGift.title}</Text>
+                <View style={styles.giftPreviewCard}>
+                  <LinearGradient
+                    colors={['#FEF3DD', '#FCE8ED']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  {selectedGift.asset_url ? (
+                    <Image source={{ uri: selectedGift.asset_url }} style={styles.giftPreviewImage} contentFit="contain" />
+                  ) : (
+                    <Text style={styles.giftPreviewEmoji}>{GIFT_SLUG_EMOJI[selectedGift.slug] ?? '🎁'}</Text>
+                  )}
+                  <Text style={styles.giftPreviewTitle}>{selectedGift.title}</Text>
+                  <View style={styles.giftRowPricePill}>
+                    <Text style={styles.giftRowPriceTxt}>{toPersianNum(selectedGift.coin_price)} سکه</Text>
+                  </View>
+                </View>
+                <TextInput
+                  style={styles.giftNoteInput}
+                  placeholder="یه پیام همراه هدیه بنویس… (اختیاری)"
+                  placeholderTextColor={Colors.muted}
+                  value={giftNote}
+                  onChangeText={setGiftNote}
+                  multiline
+                  maxLength={200}
+                  textAlign="right"
+                />
+                <View style={styles.giftComposeActions}>
                   <TouchableOpacity
-                    key={g.id}
-                    style={styles.giftRow}
-                    activeOpacity={0.75}
+                    style={styles.giftCancelBtn}
+                    onPress={() => setSelectedGift(null)}
                     disabled={sendingGiftId != null}
-                    onPress={() => handleSendGift(g)}
                   >
-                    <Text style={styles.giftRowEmoji}>{GIFT_SLUG_EMOJI[g.slug] ?? '🎁'}</Text>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.giftRowTitle}>{g.title}</Text>
-                      {g.is_limited && <Text style={styles.giftRowLimited}>نسخه محدود</Text>}
-                    </View>
-                    {sendingGiftId === g.id ? (
-                      <ActivityIndicator size="small" color={Colors.goldDeep} />
+                    <Text style={styles.giftCancelTxt}>بازگشت</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.giftConfirmBtn, sendingGiftId != null && { opacity: 0.6 }]}
+                    onPress={() => handleSendGift(selectedGift, giftNote)}
+                    disabled={sendingGiftId != null}
+                  >
+                    <LinearGradient colors={Colors.gradColors as [string, string]} style={StyleSheet.absoluteFill} />
+                    {sendingGiftId === selectedGift.id ? (
+                      <ActivityIndicator size="small" color="#fff" />
                     ) : (
-                      <View style={styles.giftRowPricePill}>
-                        <Text style={styles.giftRowPriceTxt}>{toPersianNum(g.coin_price)} سکه</Text>
-                      </View>
+                      <Text style={styles.giftConfirmTxt}>ارسال هدیه</Text>
                     )}
                   </TouchableOpacity>
-                ))}
-                {gifts.length === 0 && (
-                  <Text style={styles.giftEmptyTxt}>هدیه‌ای موجود نیست</Text>
+                </View>
+              </>
+            ) : (
+              <>
+                <Text style={styles.giftSheetTitle}>ارسال هدیه در چت</Text>
+                {giftsLoading ? (
+                  <ActivityIndicator color={Colors.goldDeep} style={{ paddingVertical: 32 }} />
+                ) : (
+                  <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
+                    {gifts.map(g => (
+                      <TouchableOpacity
+                        key={g.id}
+                        style={styles.giftRow}
+                        activeOpacity={0.75}
+                        disabled={sendingGiftId != null}
+                        onPress={() => setSelectedGift(g)}
+                      >
+                        <Text style={styles.giftRowEmoji}>{GIFT_SLUG_EMOJI[g.slug] ?? '🎁'}</Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.giftRowTitle}>{g.title}</Text>
+                          {g.is_limited && <Text style={styles.giftRowLimited}>نسخه محدود</Text>}
+                        </View>
+                        <View style={styles.giftRowPricePill}>
+                          <Text style={styles.giftRowPriceTxt}>{toPersianNum(g.coin_price)} سکه</Text>
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                    {gifts.length === 0 && (
+                      <Text style={styles.giftEmptyTxt}>هدیه‌ای موجود نیست</Text>
+                    )}
+                  </ScrollView>
                 )}
-              </ScrollView>
+              </>
             )}
           </View>
         </Pressable>
@@ -1326,12 +1405,30 @@ const styles = StyleSheet.create({
   },
   msgImageRetryRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   msgImageErrorTxt: { fontSize: 11, fontFamily: Fonts.regular, color: Colors.muted },
-  giftBubble: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 2 },
-  giftBubbleEmoji: { fontSize: 26 },
-  giftBubbleTxt: { fontFamily: Fonts.semiBold, fontSize: 13.5, flexShrink: 1 },
+  giftMsgCard: {
+    alignItems: 'center', gap: 4,
+    paddingVertical: 14, paddingHorizontal: 18,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.35)',
+    minWidth: 140,
+  },
+  giftMsgImage: { width: 56, height: 56 },
+  giftMsgEmoji: { fontSize: 44 },
+  giftMsgTitle: { fontFamily: Fonts.bold, fontSize: 13.5, marginTop: 2 },
+  giftMsgNote: { fontFamily: Fonts.regular, fontSize: 12, marginTop: 2, textAlign: 'center' },
   attachBtn: {
     width: 36, height: 36, borderRadius: 18,
     alignItems: 'center', justifyContent: 'center',
+  },
+  giftAttachBtn: {
+    width: 34, height: 34, borderRadius: 17,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: Colors.goldSoft,
+  },
+  micAttachBtn: {
+    width: 34, height: 34, borderRadius: 17,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: Colors.trustSoft,
   },
   pendingImageBar: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
@@ -1401,6 +1498,34 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.regular, fontSize: 13, color: Colors.muted,
     textAlign: 'center', paddingVertical: 24,
   },
+  giftPreviewCard: {
+    alignItems: 'center', gap: 8,
+    borderRadius: Radius.xl, overflow: 'hidden',
+    paddingVertical: 24, paddingHorizontal: 16,
+    marginTop: 4,
+  },
+  giftPreviewImage: { width: 72, height: 72 },
+  giftPreviewEmoji: { fontSize: 56 },
+  giftPreviewTitle: { fontFamily: Fonts.bold, fontSize: 16, color: Colors.ink, marginTop: 4 },
+  giftNoteInput: {
+    marginTop: 16, minHeight: 60, maxHeight: 100,
+    borderWidth: 1.5, borderColor: Colors.hair, borderRadius: Radius.lg,
+    paddingHorizontal: 14, paddingVertical: 10,
+    fontFamily: Fonts.regular, fontSize: 13.5, color: Colors.ink,
+    textAlignVertical: 'top',
+  },
+  giftComposeActions: { flexDirection: 'row', gap: 10, marginTop: 16 },
+  giftCancelBtn: {
+    flex: 1, height: 48, borderRadius: Radius.pill,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: Colors.ph2,
+  },
+  giftCancelTxt: { fontFamily: Fonts.bold, fontSize: 14, color: Colors.inkSoft },
+  giftConfirmBtn: {
+    flex: 2, height: 48, borderRadius: Radius.pill, overflow: 'hidden',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  giftConfirmTxt: { fontFamily: Fonts.bold, fontSize: 14, color: '#fff' },
   daySepWrap: {
     alignItems: 'center',
     marginVertical: Spacing.md,

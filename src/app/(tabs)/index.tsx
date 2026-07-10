@@ -4,17 +4,18 @@ import { Card } from '@/components/ui/Card';
 import { GiftModal } from '@/components/GiftModal';
 import { TemplateMessageModal } from '@/components/TemplateMessageModal';
 import { Colors, Fonts } from '@/constants/colors';
-import { DailySuggestionProfile, DailySuggestionsMeta, DiscoverProfile, MutualUser, discoverApi } from '@/lib/api/discover';
+import { DailySuggestionProfile, DailySuggestionsMeta, DiscoverProfile, MutualUser, SwipePoolMeta, discoverApi } from '@/lib/api/discover';
 import { MatchCelebrationModal } from '@/components/MatchCelebrationModal';
 import { notificationsApi } from '@/lib/api/notifications';
 import { profileApi } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { profileCache } from '@/lib/cache/profileCache';
+import { toast } from '@/lib/toast';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
 import {
-  Bell, Gift, Heart, MessageCircle,
+  Bell, Clock, Gift, Heart, MessageCircle,
   Search, ShieldCheck, Sparkles, User, X,
 } from 'lucide-react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -58,6 +59,19 @@ function toPersianDigits(n: number) {
   return String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
 }
 
+function formatUnlockLabel(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const startOfDay = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diffDays = Math.round((startOfDay(d) - startOfDay(now)) / 86400000);
+  const time = d.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
+  if (diffDays <= 0) return `امروز ساعت ${time}`;
+  if (diffDays === 1) return `فردا ساعت ${time}`;
+  const opts: Intl.DateTimeFormatOptions = { month: 'long', day: 'numeric' };
+  if (d.getFullYear() !== now.getFullYear()) opts.year = 'numeric';
+  return `${d.toLocaleDateString('fa-IR', opts)} ساعت ${time}`;
+}
+
 function badgeKind(slug: string): 'ai' | 'community' | 'gold' | 'complete' | 'personality' | 'check' {
   if (slug === 'ai_trusted' || slug === 'ai-trusted') return 'ai';
   if (slug === 'community_verified' || slug === 'community-verified') return 'community';
@@ -92,23 +106,38 @@ function LikeButton({ onPress, liked }: { onPress: () => void; liked: boolean })
 function SwipeCard({
   profile,
   liked,
-  onSwipeLeft,
-  onSwipeRight,
+  onInteract,
+  onSwiped,
   onLike,
 }: {
   profile: DiscoverProfile;
   liked: boolean;
-  onSwipeLeft: () => void;
-  onSwipeRight: () => void;
+  onInteract: (type: 'swipe_like' | 'swipe_pass') => Promise<boolean>;
+  onSwiped: () => void;
   onLike: () => void;
 }) {
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
+  const [checking, setChecking] = useState(false);
   const age = calcAge(profile.birth_date);
   const photoUrl = profile.profile_photo?.urls.large;
 
+  const attemptSwipe = async (dir: 1 | -1) => {
+    if (checking) return;
+    setChecking(true);
+    const ok = await onInteract(dir > 0 ? 'swipe_like' : 'swipe_pass');
+    setChecking(false);
+    if (ok) {
+      translateX.value = withTiming(dir * SW * 1.5, { duration: 220 }, () => runOnJS(onSwiped)());
+    } else {
+      translateX.value = withSpring(0, { damping: 15, stiffness: 150 });
+      translateY.value = withSpring(0, { damping: 15, stiffness: 150 });
+    }
+  };
+
   const pan = Gesture.Pan()
     .minDistance(10)
+    .enabled(!checking)
     .onUpdate((e) => {
       translateX.value = e.translationX;
       translateY.value = e.translationY;
@@ -116,8 +145,7 @@ function SwipeCard({
     .onEnd((e) => {
       if (Math.abs(e.translationX) > SWIPE_THRESHOLD) {
         const dir = e.translationX > 0 ? 1 : -1;
-        const cb = dir > 0 ? onSwipeRight : onSwipeLeft;
-        translateX.value = withTiming(dir * SW * 1.5, { duration: 260 }, () => runOnJS(cb)());
+        runOnJS(attemptSwipe)(dir);
       } else {
         translateX.value = withSpring(0, { damping: 15, stiffness: 150 });
         translateY.value = withSpring(0, { damping: 15, stiffness: 150 });
@@ -163,6 +191,12 @@ function SwipeCard({
             <Text style={styles.cardPhInitialTxt}>{profile.first_name[0]}</Text>
           </View>
         </LinearGradient>
+      )}
+
+      {checking && (
+        <View style={styles.checkingOverlay} pointerEvents="none">
+          <ActivityIndicator color="#fff" />
+        </View>
       )}
 
       {/* Bottom gradient for readability */}
@@ -304,12 +338,14 @@ function SwipeView({
   profiles,
   loading,
   token,
+  swipeMeta,
   onInteract,
 }: {
   profiles: DiscoverProfile[];
   loading: boolean;
   token: string;
-  onInteract: (userId: number, type: 'like' | 'pass') => void;
+  swipeMeta: SwipePoolMeta | null;
+  onInteract: (userId: number, type: 'like' | 'pass' | 'swipe_like' | 'swipe_pass') => Promise<boolean>;
 }) {
   const { bottom } = useSafeAreaInsets();
   // tab bar: height 68 + bottom: insets.bottom + 8 (from _layout.tsx)
@@ -330,22 +366,20 @@ function SwipeView({
     setLiked(current?.liked_by_me ?? false);
   }, [index, current]);
 
-  const handleSwipeLeft = () => {
-    if (!current) return;
-    onInteract(current.id, 'pass');
-    setIndex(i => i + 1);
+  const handleCardInteract = (type: 'swipe_like' | 'swipe_pass') => {
+    if (!current) return Promise.resolve(false);
+    return onInteract(current.id, type);
   };
 
-  const handleSwipeRight = () => {
-    if (!current) return;
-    onInteract(current.id, 'like');
-    setIndex(i => i + 1);
-  };
+  const handleSwiped = () => setIndex(i => i + 1);
 
-  const handleLike = () => {
-    if (!current) return;
-    if (!liked) onInteract(current.id, 'like');
-    setLiked(l => !l);
+  const handleLike = async () => {
+    if (!current || liked) {
+      setLiked(l => !l);
+      return;
+    }
+    const ok = await onInteract(current.id, 'like');
+    if (ok) setLiked(true);
   };
 
   if (loading) {
@@ -360,6 +394,8 @@ function SwipeView({
   }
 
   if (!current) {
+    const limitReached = swipeMeta != null && !swipeMeta.available;
+    const unlocksAtLabel = swipeMeta?.unlocks_at ? formatUnlockLabel(swipeMeta.unlocks_at) : null;
     return (
       <LinearGradient
         colors={[Colors.purpleSoft, Colors.accentSoft]}
@@ -367,9 +403,23 @@ function SwipeView({
         end={{ x: 1, y: 1 }}
         style={styles.fullCenter}
       >
-        <Text style={styles.emptyEmoji}>🌸</Text>
-        <Text style={styles.emptyTxtDark}>کشف جدیدی نیست</Text>
-        <Text style={styles.emptySubDark}>بعداً دوباره بیا</Text>
+        {limitReached ? (
+          <View style={styles.emptyIconWrap}>
+            <Clock size={34} color={Colors.purple} strokeWidth={1.6} />
+          </View>
+        ) : (
+          <Text style={styles.emptyEmoji}>🌸</Text>
+        )}
+        <Text style={styles.emptyTxtDark}>
+          {limitReached ? 'سقف کشف امروزت تمام شد' : 'کشف جدیدی نیست'}
+        </Text>
+        <Text style={styles.emptySubDark}>
+          {limitReached
+            ? unlocksAtLabel
+              ? `${unlocksAtLabel} دوباره باز می‌شود`
+              : 'فردا دوباره سر بزن یا با ارتقای اشتراک بیشتر کشف کن'
+            : 'بعداً دوباره بیا'}
+        </Text>
       </LinearGradient>
     );
   }
@@ -397,8 +447,8 @@ function SwipeView({
           key={current.id}
           profile={current}
           liked={liked}
-          onSwipeLeft={handleSwipeLeft}
-          onSwipeRight={handleSwipeRight}
+          onInteract={handleCardInteract}
+          onSwiped={handleSwiped}
           onLike={handleLike}
         />
 
@@ -721,6 +771,7 @@ export default function DiscoverScreen() {
   const [mode, setMode] = useState<Mode>('swipe');
   const { session } = useAuth();
   const [profiles, setProfiles] = useState<DiscoverProfile[]>([]);
+  const [swipeMeta, setSwipeMeta] = useState<SwipePoolMeta | null>(null);
   const [loading, setLoading] = useState(true);
   const [safeMode, setSafeMode] = useState(false);
   const [hasUnread, setHasUnread] = useState(false);
@@ -745,9 +796,10 @@ export default function DiscoverScreen() {
       setLoading(true);
       discoverApi
         .getProfiles(session.accessToken, 15, safe)
-        .then(data => {
+        .then(({ data, meta }) => {
           profileCache.setMany(data);
           setProfiles(data);
+          setSwipeMeta(meta);
         })
         .catch(() => {})
         .finally(() => setLoading(false));
@@ -755,9 +807,9 @@ export default function DiscoverScreen() {
     [session],
   );
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     fetchProfiles(safeMode);
-  }, [fetchProfiles]);
+  }, [fetchProfiles, safeMode]));
 
   useEffect(() => {
     if (!session?.accessToken) return;
@@ -786,15 +838,21 @@ export default function DiscoverScreen() {
 
   const [matchInfo, setMatchInfo] = useState<{ user: MutualUser; message?: string | null } | null>(null);
 
-  const handleInteract = (userId: number, type: 'like' | 'pass') => {
-    if (!session) return;
-    discoverApi.interact(session.accessToken, userId, type)
-      .then(res => {
-        if (res.data?.mutual && res.data.mutual_user) {
-          setMatchInfo({ user: res.data.mutual_user, message: res.data.mutual_message });
-        }
-      })
-      .catch(() => {});
+  const handleInteract = async (
+    userId: number,
+    type: 'like' | 'pass' | 'swipe_like' | 'swipe_pass',
+  ): Promise<boolean> => {
+    if (!session) return false;
+    try {
+      const res = await discoverApi.interact(session.accessToken, userId, type);
+      if (res.data?.mutual && res.data.mutual_user) {
+        setMatchInfo({ user: res.data.mutual_user, message: res.data.mutual_message });
+      }
+      return true;
+    } catch (e: any) {
+      toast.error(e?.message ?? 'خطا در ثبت واکنش');
+      return false;
+    }
   };
 
   const toggleSafe = () => {
@@ -818,6 +876,7 @@ export default function DiscoverScreen() {
             profiles={profiles}
             loading={loading}
             token={session?.accessToken ?? ''}
+            swipeMeta={swipeMeta}
             onInteract={handleInteract}
           />
         )}
@@ -918,6 +977,11 @@ const styles = StyleSheet.create({
     top: 6,
   },
   cardPh: { backgroundColor: Colors.purpleSoft, alignItems: 'center', justifyContent: 'center' },
+  checkingOverlay: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.15)', zIndex: 5,
+  },
   cardPhInitial: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   cardPhInitialTxt: { fontSize: 96, fontFamily: Fonts.extraBold, color: 'rgba(255,255,255,0.9)' },
 
@@ -1067,6 +1131,12 @@ const styles = StyleSheet.create({
   // ── States ──────────────────────────────────────────────────────────────────
   fullCenter: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
   emptyEmoji: { fontSize: 44 },
+  emptyIconWrap: {
+    width: 68, height: 68, borderRadius: 34,
+    backgroundColor: 'rgba(255,255,255,0.55)',
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 4,
+  },
   emptyTxtDark: { fontSize: 16, color: Colors.ink, fontFamily: Fonts.bold, marginTop: 4 },
   emptySubDark: { fontSize: 12, color: Colors.muted, fontFamily: Fonts.regular },
 

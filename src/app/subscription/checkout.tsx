@@ -20,8 +20,8 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 type Plan = { id: number; name: string; slug: string; price_amount: number };
 
 const PERIODS = [
-  { key: 'monthly',  label: 'ماهانه',  mult: 1,   discount: null },
   { key: 'quarterly',label: '۳ ماهه', mult: 2.7, discount: '۱۰٪' },
+  { key: 'monthly',  label: 'ماهانه',  mult: 1,   discount: null },
   { key: 'yearly',   label: 'سالانه', mult: 9,   discount: '۲۵٪' },
 ] as const;
 

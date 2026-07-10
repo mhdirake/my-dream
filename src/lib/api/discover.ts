@@ -21,7 +21,15 @@ export type DiscoverProfile = {
   liked_by_me: boolean;
 };
 
-export type InteractionType = 'like' | 'pass' | 'skip' | 'anonymous_interest';
+export type InteractionType = 'like' | 'pass' | 'swipe_like' | 'swipe_pass' | 'anonymous_interest';
+
+export type SwipePoolMeta = {
+  daily_limit: number | null;
+  used_today: number;
+  remaining_today: number | null;
+  available: boolean;
+  unlocks_at: string | null;
+};
 
 export type MutualUser = {
   id: number;
@@ -123,11 +131,11 @@ export const discoverApi = {
   getProfiles: async (token: string, limit = 10, safeMode = false) => {
     const params = new URLSearchParams({ limit: String(limit) });
     if (safeMode) params.set('safe_mode', '1');
-    const res = await api.get<{ data: DiscoverProfile[] }>(
-      `/api/client/discover?${params}`,
+    const res = await api.get<{ data: DiscoverProfile[]; meta: SwipePoolMeta }>(
+      `/api/client/discovery/swipe-pool?${params}`,
       token,
     );
-    return res.data ?? [];
+    return { data: res.data ?? [], meta: res.meta };
   },
 
   interact: (token: string, userId: number, type: InteractionType) =>

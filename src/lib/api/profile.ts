@@ -33,8 +33,15 @@ export type UserProfile = {
   languages: { id: number; title: string; slug: string; pivot?: { is_primary: number } }[];
   dealbreakers: { id: number; body: string; moderation_status: string }[];
   badges: { id: number; title: string; slug: string; is_active?: boolean }[];
-  prompt_answers?: { id: number; answer: string; prompt: { id: number; text: string } }[];
-  latest_personality_test?: { result_key: string; result_title: string; completed_at: string } | null;
+  prompt_answers?: { id: number; answer: string; moderation_status: string; prompt: { id: number; body: string } }[];
+  latest_personality_test?: {
+    result_key: string;
+    result_title: string;
+    completed_at: string | null;
+    scores?: Record<string, number> | null;
+    assistant_analysis?: { summary?: string } | null;
+    assistant_analysis_status?: string;
+  } | null;
   voice_intro_url?: string | null;
   voice_intro_duration_seconds?: number | null;
   // Preserved from cache when available — not in API response
