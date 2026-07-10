@@ -2,6 +2,7 @@ import { AppBar } from '@/components/ui/AppBar';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Field } from '@/components/ui/Field';
+import { KeyboardAvoider } from '@/components/ui/KeyboardAvoider';
 import { Colors, Fonts } from '@/constants/colors';
 import { authApi } from '@/lib/api/auth';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -57,9 +58,10 @@ export default function UserPassScreen() {
   return (
     <SafeAreaView style={styles.root}>
       <AppBar title="انتخاب نام کاربری" back />
+      <KeyboardAvoider>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.headline}>یک قدم آخر</Text>
-        <Text style={styles.sub}>Username و Password بساز</Text>
+        <Text style={styles.sub}>نام کاربری و رمز عبور بساز</Text>
 
         <Field
           label="نام کاربری"
@@ -102,6 +104,7 @@ export default function UserPassScreen() {
           {loading ? 'در حال ثبت‌نام...' : 'ادامه'}
         </Button>
       </ScrollView>
+      </KeyboardAvoider>
     </SafeAreaView>
   );
 }

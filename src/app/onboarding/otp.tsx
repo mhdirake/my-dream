@@ -1,5 +1,6 @@
 import { AppBar } from '@/components/ui/AppBar';
 import { Button } from '@/components/ui/Button';
+import { KeyboardStickyBar } from '@/components/ui/KeyboardStickyBar';
 import { Colors, Fonts } from '@/constants/colors';
 import { authApi } from '@/lib/api/auth';
 import { registrationStore } from '@/lib/registrationStore';
@@ -106,7 +107,7 @@ export default function OTPScreen() {
           </Text>
         )}
 
-        <View style={[styles.btnWrap, { bottom: insets.bottom + 32 }]}>
+        <KeyboardStickyBar style={styles.btnWrap} bottomOffset={insets.bottom + 32}>
           <Button
             variant="accent"
             onPress={handleVerify}
@@ -114,7 +115,7 @@ export default function OTPScreen() {
           >
             {loading ? 'در حال تأیید...' : 'تأیید و ادامه'}
           </Button>
-        </View>
+        </KeyboardStickyBar>
       </View>
     </SafeAreaView>
   );

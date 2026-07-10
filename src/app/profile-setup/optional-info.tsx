@@ -1,6 +1,8 @@
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Field } from '@/components/ui/Field';
+import { KeyboardAvoider } from '@/components/ui/KeyboardAvoider';
+import { KeyboardStickyBar } from '@/components/ui/KeyboardStickyBar';
 import { SelectModal, type SelectOption } from '@/components/ui/SelectModal';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -65,6 +67,7 @@ export default function OptionalInfoScreen() {
   return (
     <SafeAreaView style={styles.root}>
       {!isEdit && <OptStepper idx={7} />}
+      <KeyboardAvoider>
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -110,15 +113,16 @@ export default function OptionalInfoScreen() {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+      </KeyboardAvoider>
 
-      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
+      <KeyboardStickyBar style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <View style={styles.btnRow}>
           <Button variant="ghost" onPress={() => router.back()} full={false} style={styles.btnSkip}>فعلاً نه</Button>
           <Button variant="accent" onPress={handleSave} disabled={!hasSomething || saving} full={false} style={styles.btnSave}>
             {saving ? 'در حال ذخیره…' : isEdit ? 'ذخیره' : 'ذخیره و ادامه'}
           </Button>
         </View>
-      </View>
+      </KeyboardStickyBar>
     </SafeAreaView>
   );
 }

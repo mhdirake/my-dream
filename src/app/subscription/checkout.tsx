@@ -1,6 +1,8 @@
 import { AppBar } from '@/components/ui/AppBar';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { KeyboardAvoider } from '@/components/ui/KeyboardAvoider';
+import { KeyboardStickyBar } from '@/components/ui/KeyboardStickyBar';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { api } from '@/lib/api/client';
@@ -85,6 +87,7 @@ export default function CheckoutScreen() {
     <SafeAreaView style={styles.root}>
       <AppBar title="تکمیل خرید" back />
 
+      <KeyboardAvoider>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Plan summary */}
         <Card soft style={styles.summaryCard}>
@@ -201,8 +204,9 @@ export default function CheckoutScreen() {
 
         <View style={{ height: 110 }} />
       </ScrollView>
+      </KeyboardAvoider>
 
-      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
+      <KeyboardStickyBar style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <View style={styles.bottomAmountRow}>
           <Text style={styles.bottomAmountLabel}>مبلغ قابل پرداخت:</Text>
           <Text style={styles.bottomAmount}>{plan ? formatPrice(basePrice, periodObj.mult) : '—'}</Text>
@@ -210,7 +214,7 @@ export default function CheckoutScreen() {
         <Button variant="accent" onPress={handlePay} disabled={!plan || paying}>
           {paying ? 'در حال اتصال به درگاه…' : 'پرداخت و فعال‌سازی'}
         </Button>
-      </View>
+      </KeyboardStickyBar>
     </SafeAreaView>
   );
 }

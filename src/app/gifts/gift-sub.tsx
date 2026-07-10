@@ -1,11 +1,14 @@
 import { AppBar } from '@/components/ui/AppBar';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { KeyboardAvoider } from '@/components/ui/KeyboardAvoider';
+import { KeyboardStickyBar } from '@/components/ui/KeyboardStickyBar';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { api } from '@/lib/api/client';
 import { giftsApi, type CoinGiftRecord, type SubscriptionGiftRecord } from '@/lib/api/gifts';
-import { profileApi } from '@/lib/api/profile';
+import { paymentsApi } from '@/lib/api/payments';
+import { searchApi } from '@/lib/api/search';
 import { toast } from '@/lib/toast';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Coins, Gift, Star } from 'lucide-react-native';
@@ -77,22 +80,32 @@ export default function GiftSubScreen() {
   useEffect(() => {
     if (!session?.accessToken) return;
     Promise.all([
-      api.get<{ data: Plan[] }>('/api/lookups/subscription-plans', session.accessToken),
-      profileApi.getProfile(session.accessToken),
+      api.get<{ data: Plan[] }>('/api/lookups/subscription-plans', session.accessToken).catch(() => null),
+      paymentsApi.getWallet(session.accessToken).catch(() => null),
     ])
-      .then(([res, profile]) => {
-        const paid = res.data.filter((p: Plan) => p.price_amount > 0);
-        setPlans(paid);
-        if (paid.length > 0) setSelectedPlanId(paid[0].id);
-        setCoins(profile.coins ?? 0);
+      .then(([res, wallet]) => {
+        if (res) {
+          const paid = res.data.filter((p: Plan) => p.price_amount > 0);
+          setPlans(paid);
+          if (paid.length > 0) setSelectedPlanId(paid[0].id);
+        } else {
+          toast.error('خطا در بارگذاری پلن‌های اشتراک');
+        }
+        if (wallet) {
+          setCoins(wallet.coin_balance);
+        } else {
+          toast.error('خطا در بارگذاری موجودی سکه');
+        }
       })
-      .catch(e => toast.error(e.message ?? 'خطا'))
       .finally(() => setLoading(false));
   }, [session?.accessToken]);
 
   const handleSend = async () => {
-    if (!session?.accessToken) return;
-    if (!username.trim()) {
+    if (!session?.accessToken) {
+      toast.error('جلسه ورودت منقضی شده — دوباره وارد شو');
+      return;
+    }
+    if (!hasUserId && !username.trim()) {
       toast.error('نام کاربری گیرنده رو وارد کن');
       return;
     }
@@ -109,15 +122,28 @@ export default function GiftSubScreen() {
     );
   };
 
+  const resolveReceiverId = async (): Promise<number | null> => {
+    if (hasUserId) return Number(params.userId);
+    const cleaned = username.trim().replace(/^@/, '');
+    const result = await searchApi.search(session!.accessToken, cleaned, 1);
+    const match = result.data.find(u => u.username.toLowerCase() === cleaned.toLowerCase());
+    return match?.id ?? null;
+  };
+
   const doSend = async () => {
     if (!session?.accessToken) return;
     setSending(true);
     try {
+      const receiverId = await resolveReceiverId();
+      if (!receiverId) {
+        toast.error('کاربری با این نام کاربری پیدا نشد');
+        return;
+      }
       if (tab === 'sub') {
         if (!selectedPlanId) return;
         await giftsApi.sendSubscriptionGift(
           session.accessToken,
-          Number(params.userId ?? 0),
+          receiverId,
           selectedPlanId,
           note.trim() || undefined,
         );
@@ -125,7 +151,7 @@ export default function GiftSubScreen() {
       } else {
         await giftsApi.sendCoinGift(
           session.accessToken,
-          Number(params.userId ?? 0),
+          receiverId,
           coinAmount,
           note.trim() || undefined,
         );
@@ -146,6 +172,7 @@ export default function GiftSubScreen() {
     <SafeAreaView style={styles.root}>
       <AppBar title="هدیه به دوست" back />
 
+      <KeyboardAvoider>
       {loading ? (
         <View style={styles.center}><ActivityIndicator color={Colors.accent} /></View>
       ) : (
@@ -327,9 +354,10 @@ export default function GiftSubScreen() {
           <View style={{ height: 100 }} />
         </ScrollView>
       )}
+      </KeyboardAvoider>
 
       {!loading && (
-        <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
+        <KeyboardStickyBar style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
           <Button
             variant="accent"
             disabled={
@@ -341,7 +369,7 @@ export default function GiftSubScreen() {
           >
             {sending ? 'در حال ارسال…' : 'ارسال هدیه'}
           </Button>
-        </View>
+        </KeyboardStickyBar>
       )}
     </SafeAreaView>
   );

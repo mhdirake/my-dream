@@ -1,5 +1,6 @@
 import { Avatar } from '@/components/ui/Avatar';
 import { useChatToast } from '@/components/ui/ChatToast';
+import { KeyboardAvoider } from '@/components/ui/KeyboardAvoider';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { Conversation, ConversationUser, chatApi } from '@/lib/api/chat';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -86,6 +87,7 @@ export default function ChatScreen() {
         name: other.first_name,
         avatar: photoUrl(other) ?? '',
         status: c.status,
+        isSender: c.first_user_id === myId ? '1' : '0',
       },
     } as never);
   };
@@ -162,6 +164,7 @@ export default function ChatScreen() {
         )}
       </View>
 
+      <KeyboardAvoider>
       {/* Tabs */}
       <View style={styles.tabs}>
         <TouchableOpacity
@@ -250,6 +253,7 @@ export default function ChatScreen() {
               })}
         </ScrollView>
       )}
+      </KeyboardAvoider>
     </SafeAreaView>
   );
 }
@@ -350,14 +354,19 @@ function PendingRow({
 }) {
   const msgBody = c.last_message_preview ?? '';
   const lastTime = timeAgo(c.last_message_at);
+  const goToProfile = () => router.push({ pathname: '/user/[id]', params: { id: String(other.id) } } as never);
 
   return (
     <Pressable style={styles.pendingCard} onPress={onPress}>
       <View style={styles.pendingTop}>
-        <Avatar size={46} name={other.first_name} photoUrl={photoUrl(other)} />
+        <TouchableOpacity onPress={goToProfile} activeOpacity={0.8}>
+          <Avatar size={46} name={other.first_name} photoUrl={photoUrl(other)} />
+        </TouchableOpacity>
         <View style={styles.pendingInfo}>
           <View style={styles.chatTop}>
-            <Text style={styles.chatName}>{other.first_name}</Text>
+            <TouchableOpacity onPress={goToProfile} activeOpacity={0.7}>
+              <Text style={styles.chatName}>{other.first_name}</Text>
+            </TouchableOpacity>
             <Text style={styles.chatTime}>{lastTime}</Text>
           </View>
           {msgBody ? (

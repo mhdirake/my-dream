@@ -1,5 +1,6 @@
 import { AppBar } from '@/components/ui/AppBar';
 import { Button } from '@/components/ui/Button';
+import { KeyboardAvoider } from '@/components/ui/KeyboardAvoider';
 import { Colors, Fonts } from '@/constants/colors';
 import { authApi } from '@/lib/api/auth';
 import { toEnDigits } from '@/lib/toEnDigits';
@@ -29,6 +30,7 @@ export default function PhoneScreen() {
   return (
     <SafeAreaView style={styles.root}>
       <AppBar title="ورود / ثبت‌نام" back />
+      <KeyboardAvoider>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.headline}>شماره موبایلت رو وارد کن</Text>
         <Text style={styles.body}>
@@ -40,9 +42,10 @@ export default function PhoneScreen() {
             style={styles.phoneInput}
             value={phone}
             onChangeText={t => setPhone(toEnDigits(t))}
-            placeholder="912 345 6789"
+            placeholder="⁦912 345 6789⁩"
             placeholderTextColor={Colors.muted}
             keyboardType="phone-pad"
+            maxLength={10}
           />
           <View style={styles.countryCode}>
             <Text style={styles.countryText}>98</Text>
@@ -64,6 +67,7 @@ export default function PhoneScreen() {
           {loading ? 'در حال ارسال...' : 'ارسال کد تأیید'}
         </Button>
       </ScrollView>
+      </KeyboardAvoider>
     </SafeAreaView>
   );
 }

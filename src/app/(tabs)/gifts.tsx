@@ -2,7 +2,7 @@ import { Card } from '@/components/ui/Card';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { giftsApi, SentGift } from '@/lib/api/gifts';
 import { BackendGift } from '@/lib/api/discover';
-import { profileApi } from '@/lib/api/profile';
+import { paymentsApi } from '@/lib/api/payments';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { toast } from '@/lib/toast';
 import { router } from 'expo-router';
@@ -62,11 +62,11 @@ export default function GiftsScreen() {
     setLoading(true);
     Promise.all([
       giftsApi.list(session.accessToken),
-      profileApi.getProfile(session.accessToken),
+      paymentsApi.getWallet(session.accessToken),
     ])
-      .then(([giftList, profile]) => {
+      .then(([giftList, wallet]) => {
         setGifts(giftList);
-        setCoins(profile.coins ?? 0);
+        setCoins(wallet.coin_balance);
       })
       .catch(() => toast.error('خطا در بارگذاری هدایا'))
       .finally(() => setLoading(false));

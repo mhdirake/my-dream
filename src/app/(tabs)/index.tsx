@@ -15,7 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
 import {
   Bell, Gift, Heart, MessageCircle,
-  Search, ShieldCheck, Sparkles, User,
+  Search, ShieldCheck, Sparkles, User, X,
 } from 'lucide-react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -174,12 +174,16 @@ function SwipeCard({
       />
 
       {/* LIKE / NOPE swipe indicators */}
-      <Animated.View style={[styles.swipeHint, styles.likeHint, likeOpacity]}>
-        <Text style={styles.likeHintTxt}>LIKE</Text>
-      </Animated.View>
-      <Animated.View style={[styles.swipeHint, styles.passHint, nopeOpacity]}>
-        <Text style={styles.passHintTxt}>NOPE</Text>
-      </Animated.View>
+      <View style={styles.swipeHintRow} pointerEvents="none">
+        <Animated.View style={[styles.swipeHintBadge, styles.likeHintBadge, likeOpacity]}>
+          <Heart size={20} color="#fff" fill="#fff" strokeWidth={0} />
+          <Text style={styles.likeHintTxt}>LIKE</Text>
+        </Animated.View>
+        <Animated.View style={[styles.swipeHintBadge, styles.passHintBadge, nopeOpacity]}>
+          <X size={20} color="#fff" strokeWidth={3} />
+          <Text style={styles.passHintTxt}>NOPE</Text>
+        </Animated.View>
+      </View>
 
       {/* Compat pill — top left */}
       {profile.compatibility_score != null && (
@@ -260,6 +264,38 @@ function SwipeCard({
       </View>
       </Animated.View>
     </GestureDetector>
+  );
+}
+
+// ── SwipeGuide (fade in/out tutorial shown when the screen opens) ───────────
+function SwipeGuide() {
+  const opacity = useSharedValue(0);
+
+  useEffect(() => {
+    opacity.value = withTiming(1, { duration: 400 });
+    const timer = setTimeout(() => {
+      opacity.value = withTiming(0, { duration: 500 });
+    }, 2200);
+    return () => clearTimeout(timer);
+  }, [opacity]);
+
+  const style = useAnimatedStyle(() => ({ opacity: opacity.value }));
+
+  return (
+    <Animated.View style={[styles.guideOverlay, style]} pointerEvents="none">
+      <View style={styles.guideCard}>
+        <View style={[styles.guideIconWrap, { backgroundColor: Colors.danger }]}>
+          <X size={20} color="#fff" strokeWidth={2.5} />
+        </View>
+        <Text style={styles.guideTxt}>{'بکش چپ\nرد کردن'}</Text>
+      </View>
+      <View style={styles.guideCard}>
+        <View style={[styles.guideIconWrap, { backgroundColor: Colors.ok }]}>
+          <Heart size={20} color="#fff" fill="#fff" strokeWidth={0} />
+        </View>
+        <Text style={styles.guideTxt}>{'بکش راست\nپسندیدن'}</Text>
+      </View>
+    </Animated.View>
   );
 }
 
@@ -365,6 +401,8 @@ function SwipeView({
           onSwipeRight={handleSwipeRight}
           onLike={handleLike}
         />
+
+        <SwipeGuide />
       </View>
 
       {/* Action buttons — below card, per design */}
@@ -985,15 +1023,46 @@ const styles = StyleSheet.create({
   },
 
   // ── Swipe hint overlays ─────────────────────────────────────────────────────
-  swipeHint: {
-    position: 'absolute', top: '35%',
-    paddingHorizontal: 18, paddingVertical: 10,
-    borderRadius: 14, borderWidth: 3,
+  swipeHintRow: {
+    position: 'absolute', top: '38%', left: 0, right: 0,
+    alignItems: 'center',
   },
-  likeHint: { left: 24, borderColor: Colors.ok, transform: [{ rotate: '-15deg' }] },
-  passHint: { right: 24, borderColor: Colors.danger, transform: [{ rotate: '15deg' }] },
-  likeHintTxt: { fontSize: 22, fontFamily: Fonts.extraBold, color: Colors.ok, letterSpacing: 2 },
-  passHintTxt: { fontSize: 22, fontFamily: Fonts.extraBold, color: Colors.danger, letterSpacing: 2 },
+  swipeHintBadge: {
+    position: 'absolute',
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 22, paddingVertical: 12,
+    borderRadius: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3, shadowRadius: 10,
+    elevation: 8,
+  },
+  likeHintBadge: { backgroundColor: Colors.ok, transform: [{ rotate: '-10deg' }] },
+  passHintBadge: { backgroundColor: Colors.danger, transform: [{ rotate: '10deg' }] },
+  likeHintTxt: { fontSize: 19, fontFamily: Fonts.extraBold, color: '#fff', letterSpacing: 1.5 },
+  passHintTxt: { fontSize: 19, fontFamily: Fonts.extraBold, color: '#fff', letterSpacing: 1.5 },
+
+  // ── Swipe tutorial guide (shown once on open) ──────────────────────────────
+  guideOverlay: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 22,
+    zIndex: 10,
+  },
+  guideCard: {
+    alignItems: 'center', gap: 8,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 20,
+    paddingHorizontal: 16, paddingVertical: 14,
+  },
+  guideIconWrap: {
+    width: 40, height: 40, borderRadius: 20,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  guideTxt: {
+    fontSize: 11.5, fontFamily: Fonts.bold, color: '#fff',
+    textAlign: 'center', lineHeight: 16,
+  },
 
   // ── States ──────────────────────────────────────────────────────────────────
   fullCenter: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },

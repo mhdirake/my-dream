@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/Button';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { api } from '@/lib/api/client';
-import { profileApi } from '@/lib/api/profile';
 import { paymentsApi } from '@/lib/api/payments';
 import { payAndWait } from '@/lib/payments/payAndWait';
 import { toast } from '@/lib/toast';
@@ -66,11 +65,11 @@ export default function GoldBadgeScreen() {
   useEffect(() => {
     if (!session?.accessToken) return;
     Promise.all([
-      profileApi.getProfile(session.accessToken),
+      paymentsApi.getWallet(session.accessToken),
       api.get<{ data: Package[] }>('/api/client/packages', session.accessToken),
     ])
-      .then(([profile, res]) => {
-        setCoins(profile.coins ?? 0);
+      .then(([wallet, res]) => {
+        setCoins(wallet.coin_balance);
         const badge = res.data.find((p: Package) => p.slug === 'gold_badge_1_month');
         if (badge) setPkg(badge);
       })

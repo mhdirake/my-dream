@@ -74,4 +74,7 @@ export const paymentsApi = {
 
   getStatus: (token: string, paymentId: number): Promise<PaymentStatusDetail> =>
     api.get<{ data: PaymentStatusDetail }>(`/api/client/payments/${paymentId}`, token).then(r => r.data),
+
+  getWallet: (token: string): Promise<{ coin_balance: number }> =>
+    api.get<{ coin_balance: number }>('/api/client/wallet', token),
 };

@@ -70,7 +70,6 @@ export type ClientProfile = {
   ai_public_insight_visibility?: 'visible' | 'hidden';
   voice_intro_url?: string | null;
   voice_intro_duration_seconds?: number | null;
-  coins?: number;
   prompt_answers?: { id: number; answer: string; prompt: { id: number; text: string; body?: string } }[];
   likes_count?: number;
   profile_quality_score?: number;

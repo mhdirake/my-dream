@@ -2,6 +2,7 @@ import { AppBar } from '@/components/ui/AppBar';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { giftsApi, CoinGiftRecord } from '@/lib/api/gifts';
+import { paymentsApi } from '@/lib/api/payments';
 import { profileApi, ClientProfile } from '@/lib/api/profile';
 import { toast } from '@/lib/toast';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -32,6 +33,7 @@ function formatDate(iso: string): string {
 export default function WalletScreen() {
   const { session } = useAuth();
   const [profile, setProfile] = useState<ClientProfile | null>(null);
+  const [coins, setCoins] = useState(0);
   const [received, setReceived] = useState<CoinGiftRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -39,14 +41,14 @@ export default function WalletScreen() {
     if (!session?.accessToken) return;
     Promise.all([
       profileApi.getProfile(session.accessToken),
+      paymentsApi.getWallet(session.accessToken),
       giftsApi.coinGiftsReceived(session.accessToken),
     ])
-      .then(([p, r]) => { setProfile(p); setReceived(r.slice(0, 10)); })
+      .then(([p, w, r]) => { setProfile(p); setCoins(w.coin_balance); setReceived(r.slice(0, 10)); })
       .catch(e => toast.error(e.message ?? 'خطا در بارگذاری'))
       .finally(() => setLoading(false));
   }, [session?.accessToken]);
 
-  const coins = profile?.coins ?? 0;
   const sub = profile?.active_subscription;
 
   return (

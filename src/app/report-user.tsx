@@ -1,6 +1,8 @@
 import { AppBar } from '@/components/ui/AppBar';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { KeyboardAvoider } from '@/components/ui/KeyboardAvoider';
+import { KeyboardStickyBar } from '@/components/ui/KeyboardStickyBar';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { api } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -99,6 +101,7 @@ export default function ReportUserScreen() {
     <SafeAreaView style={styles.root}>
       <AppBar title={isMessageReport ? 'گزارش پیام' : 'گزارش تخلف'} back />
 
+      <KeyboardAvoider>
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator color={Colors.accent} />
@@ -168,9 +171,10 @@ export default function ReportUserScreen() {
           <View style={{ height: 100 }} />
         </ScrollView>
       )}
+      </KeyboardAvoider>
 
       {!loading && (
-        <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
+        <KeyboardStickyBar style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
           <Button
             variant="accent"
             onPress={handleSubmit}
@@ -178,7 +182,7 @@ export default function ReportUserScreen() {
           >
             {sending ? 'در حال ارسال…' : 'ارسال گزارش'}
           </Button>
-        </View>
+        </KeyboardStickyBar>
       )}
     </SafeAreaView>
   );

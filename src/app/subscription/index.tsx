@@ -39,8 +39,8 @@ type Plan = {
 };
 
 const PERIODS = [
-  { label: 'ماهانه',  key: 'monthly',  multiplier: 1,   discount: null },
   { label: '۳ ماهه', key: 'quarterly', multiplier: 2.7, discount: '۱۰٪ تخفیف' },
+  { label: 'ماهانه',  key: 'monthly',  multiplier: 1,   discount: null },
   { label: 'سالانه', key: 'yearly',    multiplier: 9,   discount: '۲۵٪ تخفیف' },
 ] as const;
 

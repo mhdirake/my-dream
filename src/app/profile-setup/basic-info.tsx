@@ -1,5 +1,7 @@
 import { Button } from '@/components/ui/Button';
 import { Field } from '@/components/ui/Field';
+import { KeyboardAvoider } from '@/components/ui/KeyboardAvoider';
+import { KeyboardStickyBar } from '@/components/ui/KeyboardStickyBar';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { onboardingApi } from '@/lib/api/onboarding';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -22,7 +24,6 @@ type Gender = 'female' | 'male' | 'prefer_not_to_say';
 const GENDERS: { key: Gender; label: string }[] = [
   { key: 'female', label: 'زن' },
   { key: 'male', label: 'مرد' },
-  { key: 'prefer_not_to_say', label: 'ترجیح می‌دم نگم' },
 ];
 
 const toPersian = (n: number | string) =>
@@ -80,6 +81,7 @@ export default function BasicInfoScreen() {
   return (
     <SafeAreaView style={styles.root}>
       <Stepper step={1} />
+      <KeyboardAvoider>
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -99,12 +101,12 @@ export default function BasicInfoScreen() {
         <View style={styles.dateRow}>
           <TextInput
             style={[styles.dateInput, styles.dateField]}
-            value={year}
-            onChangeText={v => setYear(v.replace(/\D/g, '').slice(0, 4))}
-            placeholder="سال"
+            value={day}
+            onChangeText={v => setDay(v.replace(/\D/g, '').slice(0, 2))}
+            placeholder="روز"
             placeholderTextColor={Colors.muted}
             keyboardType="numeric"
-            maxLength={4}
+            maxLength={2}
             textAlign="center"
           />
           <TextInput
@@ -119,16 +121,16 @@ export default function BasicInfoScreen() {
           />
           <TextInput
             style={[styles.dateInput, styles.dateField]}
-            value={day}
-            onChangeText={v => setDay(v.replace(/\D/g, '').slice(0, 2))}
-            placeholder="روز"
+            value={year}
+            onChangeText={v => setYear(v.replace(/\D/g, '').slice(0, 4))}
+            placeholder="سال"
             placeholderTextColor={Colors.muted}
             keyboardType="numeric"
-            maxLength={2}
+            maxLength={4}
             textAlign="center"
           />
         </View>
-        <Text style={styles.hint}>مثلاً ۱۳۷۷ / ۰۶ / ۱۵</Text>
+        <Text style={styles.hint}>مثلاً ۱۵ / ۰۶ / ۱۳۷۷</Text>
 
         <Text style={styles.fieldLabel}>جنسیت</Text>
         <View style={styles.genderRow}>
@@ -150,12 +152,13 @@ export default function BasicInfoScreen() {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+      </KeyboardAvoider>
 
-      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
+      <KeyboardStickyBar style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <Button variant="accent" onPress={handleNext} disabled={!canContinue}>
           ادامه
         </Button>
-      </View>
+      </KeyboardStickyBar>
     </SafeAreaView>
   );
 }

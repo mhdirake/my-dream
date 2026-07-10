@@ -1,10 +1,12 @@
 import { AppBar } from '@/components/ui/AppBar';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { KeyboardAvoider } from '@/components/ui/KeyboardAvoider';
+import { KeyboardStickyBar } from '@/components/ui/KeyboardStickyBar';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { giftsApi } from '@/lib/api/gifts';
-import { profileApi } from '@/lib/api/profile';
+import { paymentsApi } from '@/lib/api/payments';
 import { toast } from '@/lib/toast';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Coins, MessageSquare } from 'lucide-react-native';
@@ -43,8 +45,8 @@ export default function SendGiftScreen() {
 
   useEffect(() => {
     if (!session?.accessToken) return;
-    profileApi.getProfile(session.accessToken)
-      .then(p => setCoins(p.coins ?? 0))
+    paymentsApi.getWallet(session.accessToken)
+      .then(w => setCoins(w.coin_balance))
       .catch(() => {})
       .finally(() => setLoadingCoins(false));
   }, [session?.accessToken]);
@@ -75,6 +77,7 @@ export default function SendGiftScreen() {
     <SafeAreaView style={styles.root}>
       <AppBar title="ارسال هدیه" back />
 
+      <KeyboardAvoider>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Gift preview */}
         <Card soft style={styles.giftCard}>
@@ -154,8 +157,9 @@ export default function SendGiftScreen() {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+      </KeyboardAvoider>
 
-      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
+      <KeyboardStickyBar style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <Button
           variant="accent"
           disabled={!canSend}
@@ -166,7 +170,7 @@ export default function SendGiftScreen() {
         {!hasUserId && (
           <Text style={styles.bottomNote}>گیرنده مشخص نشده</Text>
         )}
-      </View>
+      </KeyboardStickyBar>
     </SafeAreaView>
   );
 }

@@ -207,13 +207,14 @@ function formatLastSeen(iso: string): string {
 
 export default function ConversationScreen() {
   const insets = useSafeAreaInsets();
-  const { id, publicId, name, avatar, status, otherId } = useLocalSearchParams<{
+  const { id, publicId, name, avatar, status, otherId, isSender } = useLocalSearchParams<{
     id: string;
     publicId: string;
     name: string;
     avatar?: string;
     status?: string;
     otherId?: string;
+    isSender?: string;
   }>();
 
   const { session, user } = useAuth();
@@ -264,11 +265,34 @@ export default function ConversationScreen() {
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastMarkedReadIdRef = useRef<string | null>(null);
 
-  const isPending = status === 'pending';
-  const isLocked = status === 'locked';
-  const isExpired = status === 'expired';
-  const isRejected = status === 'rejected';
-  const canChat = status === 'accepted';
+  const [reqStatus, setReqStatus] = useState(status);
+  useEffect(() => { setReqStatus(status); }, [status]);
+  const [responding, setResponding] = useState(false);
+
+  const isPending = reqStatus === 'pending';
+  const isLocked = reqStatus === 'locked';
+  const isExpired = reqStatus === 'expired';
+  const isRejected = reqStatus === 'rejected';
+  const canChat = reqStatus === 'accepted';
+  const canRespond = isPending && isSender !== '1';
+
+  const handleRespond = async (action: 'accepted' | 'rejected') => {
+    if (!token || !conversationId) return;
+    setResponding(true);
+    try {
+      if (action === 'accepted') {
+        await chatApi.acceptConversation(token, conversationId);
+        setReqStatus('accepted');
+      } else {
+        await chatApi.rejectConversation(token, conversationId);
+        setReqStatus('rejected');
+      }
+    } catch {
+      toast.error(action === 'accepted' ? 'خطا در پذیرش درخواست' : 'خطا در رد درخواست');
+    } finally {
+      setResponding(false);
+    }
+  };
 
   // Mark latest inbound message as read — روی هر پیام جدیدی که حین باز بودن صفحه می‌رسه هم اجرا می‌شه
   useEffect(() => {
@@ -874,8 +898,49 @@ export default function ConversationScreen() {
           <View style={styles.pendingBanner}>
             <Clock size={14} color={Colors.trust} strokeWidth={2} />
             <Text style={styles.pendingTxt}>
-              در انتظار تأیید {name} — تا تأیید نشه چت باز نمیشه
+              {canRespond
+                ? `${name} می‌خواد باهات چت کنه`
+                : `در انتظار تأیید ${name} — تا تأیید نشه چت باز نمیشه`}
             </Text>
+          </View>
+        )}
+
+        {canRespond && (
+          <View style={styles.reqActions}>
+            <TouchableOpacity
+              style={styles.reqRejectBtn}
+              onPress={() => handleRespond('rejected')}
+              disabled={responding}
+              activeOpacity={0.8}
+            >
+              {responding ? (
+                <ActivityIndicator size="small" color={Colors.danger} />
+              ) : (
+                <X size={16} color={Colors.danger} strokeWidth={2.5} />
+              )}
+              <Text style={styles.reqRejectTxt}>رد</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.reqAcceptBtn}
+              onPress={() => handleRespond('accepted')}
+              disabled={responding}
+              activeOpacity={0.85}
+            >
+              {responding ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <>
+                  <LinearGradient
+                    colors={Colors.gradColors}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  <Check size={16} color="#fff" strokeWidth={2.5} />
+                  <Text style={styles.reqAcceptTxt}>تأیید</Text>
+                </>
+              )}
+            </TouchableOpacity>
           </View>
         )}
 
@@ -1425,6 +1490,22 @@ const styles = StyleSheet.create({
     fontSize: 12, fontFamily: Fonts.regular, color: '#2C5C8F',
     flex: 1, lineHeight: 18,
   },
+  reqActions: {
+    flexDirection: 'row', gap: 8,
+    marginHorizontal: 12, marginBottom: 8,
+  },
+  reqRejectBtn: {
+    flex: 1, height: 40, borderRadius: Radius.pill,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    borderWidth: 1.5, borderColor: Colors.dangerSoft, backgroundColor: Colors.dangerSoft,
+  },
+  reqRejectTxt: { fontSize: 13, fontFamily: Fonts.bold, color: Colors.danger },
+  reqAcceptBtn: {
+    flex: 2, height: 40, borderRadius: Radius.pill,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    overflow: 'hidden',
+  },
+  reqAcceptTxt: { fontSize: 13, fontFamily: Fonts.bold, color: '#fff' },
   lockedBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     marginHorizontal: 12, marginBottom: 8,

@@ -1,6 +1,7 @@
 import { AppBar } from '@/components/ui/AppBar';
 import { Button } from '@/components/ui/Button';
 import { Field } from '@/components/ui/Field';
+import { KeyboardAvoider } from '@/components/ui/KeyboardAvoider';
 import { Colors, Fonts } from '@/constants/colors';
 import { onboardingApi } from '@/lib/api/onboarding';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -53,6 +54,7 @@ export default function LoginScreen() {
   return (
     <SafeAreaView style={styles.root}>
       <AppBar title="ورود" back />
+      <KeyboardAvoider>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.headline}>خوش برگشتی</Text>
         <Text style={styles.sub}>با شماره موبایل و رمز عبورت وارد شو</Text>
@@ -81,6 +83,7 @@ export default function LoginScreen() {
           {loading ? 'در حال ورود...' : 'ورود'}
         </Button>
       </ScrollView>
+      </KeyboardAvoider>
     </SafeAreaView>
   );
 }

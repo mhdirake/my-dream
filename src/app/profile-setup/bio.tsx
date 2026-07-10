@@ -1,5 +1,7 @@
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { KeyboardAvoider } from '@/components/ui/KeyboardAvoider';
+import { KeyboardStickyBar } from '@/components/ui/KeyboardStickyBar';
 import { BioHelperModal } from '@/components/BioHelperModal';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -51,6 +53,7 @@ export default function BioScreen() {
   return (
     <SafeAreaView style={styles.root}>
       {!isEdit && <OptStepper idx={1} total={TOTAL_OPT} />}
+      <KeyboardAvoider>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>کمی درباره خودت</Text>
         <Text style={styles.sub}>حداکثر {toPersian(MAX)} کاراکتر — کوتاه و گویا</Text>
@@ -90,8 +93,9 @@ export default function BioScreen() {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+      </KeyboardAvoider>
 
-      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
+      <KeyboardStickyBar style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <View style={styles.btnRow}>
           <Button variant="ghost" onPress={() => isEdit ? safeBack() : router.push('/profile-setup/account-ready' as any)} full={false} style={styles.btnSkip}>
             {isEdit ? 'لغو' : 'فعلاً نه'}
@@ -100,7 +104,7 @@ export default function BioScreen() {
             {saving ? 'در حال ذخیره…' : isEdit ? 'ذخیره' : 'ذخیره و ادامه'}
           </Button>
         </View>
-      </View>
+      </KeyboardStickyBar>
     </SafeAreaView>
   );
 }

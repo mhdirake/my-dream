@@ -1,6 +1,8 @@
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Field } from '@/components/ui/Field';
+import { KeyboardAvoider } from '@/components/ui/KeyboardAvoider';
+import { KeyboardStickyBar } from '@/components/ui/KeyboardStickyBar';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { profileApi } from '@/lib/api/profile';
@@ -61,6 +63,7 @@ export default function RedFlagsScreen() {
   return (
     <SafeAreaView style={styles.root}>
       {!isEdit && <OptStepper idx={6} />}
+      <KeyboardAvoider>
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -93,15 +96,16 @@ export default function RedFlagsScreen() {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+      </KeyboardAvoider>
 
-      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
+      <KeyboardStickyBar style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <View style={styles.btnRow}>
           <Button variant="ghost" onPress={() => router.back()} full={false} style={styles.btnSkip}>فعلاً نه</Button>
           <Button variant="accent" onPress={handleSave} disabled={filled.length === 0 || saving} full={false} style={styles.btnSave}>
             {saving ? 'در حال ذخیره…' : isEdit ? 'ذخیره' : 'ذخیره و ادامه'}
           </Button>
         </View>
-      </View>
+      </KeyboardStickyBar>
     </SafeAreaView>
   );
 }

@@ -1,19 +1,27 @@
 import Constants from 'expo-constants';
-import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { api } from '../api/client';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: false,
-    shouldSetBadge: false,
-  }),
-});
+// expo-notifications remote push is unsupported in Expo Go (Android since SDK 53);
+// merely importing the module there throws, so load it lazily and only outside Expo Go.
+const isExpoGo = Constants.appOwnership === 'expo';
+const Notifications = isExpoGo
+  ? null
+  : (require('expo-notifications') as typeof import('expo-notifications'));
+
+if (Notifications) {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: false,
+      shouldSetBadge: false,
+    }),
+  });
+}
 
 async function ensureAndroidChannel() {
-  if (Platform.OS !== 'android') return;
+  if (Platform.OS !== 'android' || !Notifications) return;
   await Notifications.setNotificationChannelAsync('default', {
     name: 'اعلان‌های My Dream',
     importance: Notifications.AndroidImportance.MAX,
@@ -22,6 +30,7 @@ async function ensureAndroidChannel() {
 }
 
 export async function registerForPushNotificationsAsync(): Promise<string | null> {
+  if (!Notifications) return null;
   try {
     await ensureAndroidChannel();
 

@@ -1,4 +1,6 @@
 import { Button } from '@/components/ui/Button';
+import { KeyboardAvoider } from '@/components/ui/KeyboardAvoider';
+import { KeyboardStickyBar } from '@/components/ui/KeyboardStickyBar';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { lookupsApi, type ProfilePrompt } from '@/lib/api/onboarding';
@@ -103,6 +105,7 @@ export default function AboutMeScreen() {
   return (
     <SafeAreaView style={styles.root}>
       {!isEdit && <OptStepper idx={8} />}
+      <KeyboardAvoider>
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -140,8 +143,9 @@ export default function AboutMeScreen() {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+      </KeyboardAvoider>
 
-      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
+      <KeyboardStickyBar style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <View style={styles.btnRow}>
           <Button variant="ghost" onPress={() => isEdit ? safeBack() : router.replace('/(tabs)/' as any)} full={false} style={styles.btnSkip}>
             {isEdit ? 'لغو' : 'بعداً'}
@@ -150,7 +154,7 @@ export default function AboutMeScreen() {
             {saving ? 'در حال ذخیره…' : isEdit ? 'ذخیره' : filledCount > 0 ? 'ذخیره و ورود' : 'ورود به اپ'}
           </Button>
         </View>
-      </View>
+      </KeyboardStickyBar>
     </SafeAreaView>
   );
 }

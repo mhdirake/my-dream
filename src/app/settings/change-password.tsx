@@ -1,6 +1,8 @@
 import { AppBar } from '@/components/ui/AppBar';
 import { Button } from '@/components/ui/Button';
 import { Field } from '@/components/ui/Field';
+import { KeyboardAvoider } from '@/components/ui/KeyboardAvoider';
+import { KeyboardStickyBar } from '@/components/ui/KeyboardStickyBar';
 import { Colors, Spacing } from '@/constants/colors';
 import { profileApi } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -54,6 +56,7 @@ export default function ChangePasswordScreen() {
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <AppBar title="تغییر رمز عبور" back />
+      <KeyboardAvoider>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Field
           label="رمز عبور فعلی"
@@ -85,7 +88,8 @@ export default function ChangePasswordScreen() {
           error={confirmError}
         />
       </ScrollView>
-      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.xxl }]}>
+      </KeyboardAvoider>
+      <KeyboardStickyBar style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.xxl }]}>
         {saving ? (
           <ActivityIndicator color={Colors.accent} />
         ) : (
@@ -93,7 +97,7 @@ export default function ChangePasswordScreen() {
             ثبت رمز جدید
           </Button>
         )}
-      </View>
+      </KeyboardStickyBar>
     </SafeAreaView>
   );
 }

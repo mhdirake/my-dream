@@ -1,5 +1,6 @@
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
+import { KeyboardAvoider } from '@/components/ui/KeyboardAvoider';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { searchApi, type SearchUser } from '@/lib/api/search';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -140,6 +141,7 @@ export default function SearchScreen() {
         </View>
       </View>
 
+      <KeyboardAvoider>
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator color={Colors.accent} />
@@ -169,6 +171,7 @@ export default function SearchScreen() {
           }
         />
       )}
+      </KeyboardAvoider>
     </SafeAreaView>
   );
 }
@@ -196,7 +199,7 @@ const styles = StyleSheet.create({
   searchIcon: { flexShrink: 0 },
   input: {
     flex: 1, fontSize: 14, fontFamily: Fonts.regular,
-    color: Colors.ink, textAlign: 'right',
+    color: Colors.ink, textAlign: 'auto',
   },
 
   list: { padding: Spacing.lg, gap: 2 },
