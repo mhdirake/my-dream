@@ -28,7 +28,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
@@ -340,12 +340,14 @@ function SwipeView({
   token,
   swipeMeta,
   onInteract,
+  onExhausted,
 }: {
   profiles: DiscoverProfile[];
   loading: boolean;
   token: string;
   swipeMeta: SwipePoolMeta | null;
   onInteract: (userId: number, type: 'like' | 'pass' | 'swipe_like' | 'swipe_pass') => Promise<boolean>;
+  onExhausted: () => void;
 }) {
   const { bottom } = useSafeAreaInsets();
   // tab bar: height 68 + bottom: insets.bottom + 8 (from _layout.tsx)
@@ -354,13 +356,24 @@ function SwipeView({
   const [liked, setLiked] = useState(false);
   const [giftTarget, setGiftTarget] = useState<DiscoverProfile | null>(null);
   const [chatTarget, setChatTarget] = useState<DiscoverProfile | null>(null);
+  const refilledRef = useRef(false);
 
   useEffect(() => {
     setIndex(0);
     setLiked(false);
+    refilledRef.current = false;
   }, [profiles]);
 
   const current = profiles[index];
+
+  // Local batch is only a page of the pool — once it's swiped through, pull the next
+  // page instead of showing "nothing left" while the daily quota still has room.
+  useEffect(() => {
+    if (!current && profiles.length > 0 && !refilledRef.current && !loading) {
+      refilledRef.current = true;
+      onExhausted();
+    }
+  }, [current, profiles, loading, onExhausted]);
 
   useEffect(() => {
     setLiked(current?.liked_by_me ?? false);
@@ -811,6 +824,10 @@ export default function DiscoverScreen() {
     fetchProfiles(safeMode);
   }, [fetchProfiles, safeMode]));
 
+  const handleExhausted = useCallback(() => {
+    fetchProfiles(safeMode);
+  }, [fetchProfiles, safeMode]);
+
   useEffect(() => {
     if (!session?.accessToken) return;
     profileApi.getProfile(session.accessToken)
@@ -878,6 +895,7 @@ export default function DiscoverScreen() {
             token={session?.accessToken ?? ''}
             swipeMeta={swipeMeta}
             onInteract={handleInteract}
+            onExhausted={handleExhausted}
           />
         )}
         {mode === 'daily' && <DailyView profiles={daily} loading={dailyLoading} meta={dailyMeta} />}

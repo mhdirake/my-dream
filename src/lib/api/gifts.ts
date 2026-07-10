@@ -13,6 +13,9 @@ export type SentGift = {
   sent_at: string;
   is_pinned: boolean;
   pinned_at: string | null;
+  conversation_id: number | null;
+  message_id: string | null;
+  chat_delivery_status: 'sent' | 'failed' | null;
   status?: string;
   hidden_at?: string | null;
 };

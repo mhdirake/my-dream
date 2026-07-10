@@ -33,6 +33,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import Animated, { ZoomIn } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 function formatTime(iso: string) {
@@ -223,7 +224,7 @@ export default function ConversationScreen() {
   const token = session?.accessToken ?? '';
 
   const {
-    messages, loading, sending, send, sendTyped, typingUserId,
+    messages, loading, sending, send, sendTyped, pushMessage, typingUserId,
     loadMore, hasMore, deleteMsg, editMsg,
     setReaction, removeReaction,
     loadContext, highlightId, clearHighlight,
@@ -248,7 +249,7 @@ export default function ConversationScreen() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [limitReached, setLimitReached] = useState(false);
-  const [msgMenu, setMsgMenu] = useState<{ id: string; sender: number; body: string; myReaction?: string | null } | null>(null);
+  const [msgMenu, setMsgMenu] = useState<{ id: string; sender: number; body: string; type?: string; myReaction?: string | null } | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // پیش‌بارگذاری کاتالوگ هدیه‌ها تا پیام‌های نوع gift (حتی قبل از باز کردن picker) بتونن به عکس/عنوان واقعی وصل بشن
@@ -570,9 +571,36 @@ export default function ConversationScreen() {
     if (sendingGiftId != null || !otherId) return;
     setSendingGiftId(gift.id);
     try {
-      await giftsApi.send(token, gift.id, Number(otherId), note?.trim() || undefined, true);
+      const res = await giftsApi.send(token, gift.id, Number(otherId), note?.trim() || undefined, true);
       closeGiftPicker();
-      toast.success('هدیه ارسال شد');
+      // پیام گیفت با message_id واقعی از پاسخ ارسال push می‌شه تا فرستنده فوراً
+      // ببینه — echo بعدی Centrifugo با همین message_id توسط pushMessage dedupe می‌شه.
+      const sent = res.data;
+      if (sent?.message_id) {
+        pushMessage({
+          message_id: sent.message_id,
+          client_message_id: `sent-gift-${sent.sent_gift_id}`,
+          conversation_id: publicId ?? '',
+          conversation_type: 'direct',
+          sender_user_id: myId,
+          message_type: 'gift',
+          body_text: note?.trim() || gift.title,
+          caption: '',
+          media_url: '',
+          sticker_id: '',
+          gif_id: '',
+          gift_id: gift.id,
+          sent_gift_id: sent.sent_gift_id,
+          reply_to_message_id: null,
+          status: 'sent',
+          is_edited: false,
+          is_deleted: false,
+          created_at: new Date().toISOString(),
+          reactions: [],
+          my_reaction: null,
+        });
+      }
+      toast.success('هدیه ارسال شد 🎁');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '';
       toast.error(msg.includes('coin') || msg.includes('سکه') ? 'سکه کافی نداری' : 'ارسال هدیه ناموفق بود');
@@ -624,8 +652,8 @@ export default function ConversationScreen() {
 
   const handleMore = () => setMenuOpen(true);
 
-  const handleMessageLongPress = useCallback((messageId: string, senderId: number, bodyText: string, myReaction?: string | null) => {
-    setMsgMenu({ id: messageId, sender: senderId, body: bodyText, myReaction });
+  const handleMessageLongPress = useCallback((messageId: string, senderId: number, bodyText: string, myReaction?: string | null, messageType?: string) => {
+    setMsgMenu({ id: messageId, sender: senderId, body: bodyText, type: messageType, myReaction });
   }, []);
 
   return (
@@ -760,8 +788,13 @@ export default function ConversationScreen() {
               }
               const reactionEntries: [string, number][] = Object.entries(reactionGroups);
 
-              const BubbleContainer = isMine ? View : LinearGradient;
-              const gradProps = isMine ? {} : {
+              const isGift = item.message_type === 'gift';
+              const BubbleContainer = isGift || !isMine ? LinearGradient : View;
+              const gradProps = isGift ? {
+                colors: ['#FEF3DD', '#FCE8ED'] as [string, string],
+                start: { x: 0, y: 0 },
+                end: { x: 1, y: 1 },
+              } : isMine ? {} : {
                 colors: Colors.gradSoftColors,
                 start: { x: 0, y: 0 },
                 end: { x: 1, y: 1 },
@@ -819,22 +852,33 @@ export default function ConversationScreen() {
                     const giftTitle = giftMeta?.title ?? 'هدیه';
                     const noteText = item.body_text || item.caption;
                     const hasCustomNote = !!noteText && noteText !== giftTitle;
+                    // انیمیشن ورود فقط برای گیفت تازه‌رسیده — نه موقع اسکرول تاریخچه
+                    const isFresh = Date.now() - new Date(item.created_at).getTime() < 8000;
                     return (
-                      <View style={styles.giftMsgCard}>
-                        {giftMeta?.asset_url ? (
-                          <Image source={{ uri: giftMeta.asset_url }} style={styles.giftMsgImage} contentFit="contain" />
-                        ) : (
-                          <Text style={styles.giftMsgEmoji}>{GIFT_SLUG_EMOJI[giftMeta?.slug ?? ''] ?? '🎁'}</Text>
-                        )}
-                        <Text style={[styles.giftMsgTitle, isMine ? styles.bubbleTxtMine : styles.bubbleTxtTheirs]}>
-                          {giftTitle}
-                        </Text>
-                        {hasCustomNote && (
-                          <Text style={[styles.giftMsgNote, isMine ? styles.bubbleTxtMine : styles.bubbleTxtTheirs]}>
-                            {noteText}
+                      <Animated.View
+                        entering={isFresh ? ZoomIn.springify().damping(14) : undefined}
+                        style={styles.giftMsgCard}
+                      >
+                        <View style={styles.giftMsgRibbon}>
+                          <GiftIcon size={12} color={Colors.goldDeep} strokeWidth={2.2} />
+                          <Text style={styles.giftMsgRibbonTxt}>
+                            {isMine ? 'هدیه فرستادی' : 'برات هدیه اومده'}
                           </Text>
+                        </View>
+                        <View style={styles.giftMsgAssetWrap}>
+                          {giftMeta?.asset_url ? (
+                            <Image source={{ uri: giftMeta.asset_url }} style={styles.giftMsgImage} contentFit="contain" />
+                          ) : (
+                            <Text style={styles.giftMsgEmoji}>{GIFT_SLUG_EMOJI[giftMeta?.slug ?? ''] ?? '🎁'}</Text>
+                          )}
+                        </View>
+                        <Text style={styles.giftMsgTitle}>{giftTitle}</Text>
+                        {hasCustomNote && (
+                          <View style={styles.giftMsgNotePill}>
+                            <Text style={styles.giftMsgNote}>«{noteText}»</Text>
+                          </View>
                         )}
-                      </View>
+                      </Animated.View>
                     );
                   })() : item.message_type !== 'text' && item.message_type !== 'template_first_message' ? (
                     <Text style={[styles.msgTypeBadge, isMine && { color: 'rgba(255,255,255,0.7)' }]}>
@@ -873,10 +917,16 @@ export default function ConversationScreen() {
                     </View>
                   )}
                   <View style={styles.bubbleMeta}>
-                    <Text style={[styles.bubbleTime, isMine ? styles.bubbleTimeMine : styles.bubbleTimeTheirs]}>
+                    <Text style={[styles.bubbleTime, isMine ? styles.bubbleTimeMine : styles.bubbleTimeTheirs, isGift && styles.bubbleTimeGift]}>
                       {formatTime(item.created_at)}
                     </Text>
-                    {isMine && <TickIcon size={10} color={tickColor} strokeWidth={2.5} />}
+                    {isMine && (
+                      <TickIcon
+                        size={10}
+                        color={isGift ? (item.read_at ? Colors.goldDeep : 'rgba(217,152,46,0.55)') : tickColor}
+                        strokeWidth={2.5}
+                      />
+                    )}
                   </View>
                 </>
               );
@@ -892,12 +942,12 @@ export default function ConversationScreen() {
                   )}
                   <Pressable
                     style={isMine ? styles.bubblePressMine : styles.bubblePressTheirs}
-                    onLongPress={() => handleMessageLongPress(item.message_id, item.sender_user_id, item.body_text || item.caption, item.my_reaction)}
+                    onLongPress={() => handleMessageLongPress(item.message_id, item.sender_user_id, item.body_text || item.caption, item.my_reaction, item.message_type)}
                     delayLongPress={400}
                   >
                     <BubbleContainer
                       {...(gradProps as any)}
-                      style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}
+                      style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleTheirs, isGift && styles.bubbleGift]}
                     >
                       {bubbleContent}
                     </BubbleContainer>
@@ -1160,10 +1210,12 @@ export default function ConversationScreen() {
 
                 {msgMenu?.sender === myId ? (
                   <>
-                    <TouchableOpacity style={styles.menuRow} activeOpacity={0.7}
-                      onPress={() => { setEditingId(msgMenu!.id); setText(msgMenu!.body); setMsgMenu(null); }}>
-                      <Text style={styles.menuRowTxt}>ویرایش پیام</Text>
-                    </TouchableOpacity>
+                    {msgMenu?.type !== 'gift' && (
+                      <TouchableOpacity style={styles.menuRow} activeOpacity={0.7}
+                        onPress={() => { setEditingId(msgMenu!.id); setText(msgMenu!.body); setMsgMenu(null); }}>
+                        <Text style={styles.menuRowTxt}>ویرایش پیام</Text>
+                      </TouchableOpacity>
+                    )}
                     {!!msgMenu?.body && (
                       <TouchableOpacity style={styles.menuRow} activeOpacity={0.7}
                         onPress={() => { Share.share({ message: msgMenu!.body }).catch(() => {}); setMsgMenu(null); }}>
@@ -1265,9 +1317,10 @@ export default function ConversationScreen() {
                     <Text style={styles.giftRowPriceTxt}>{toPersianNum(selectedGift.coin_price)} سکه</Text>
                   </View>
                 </View>
+                <Text style={styles.giftNoteQuestion}>می‌خوای یه پیام همراهش بفرستی؟</Text>
                 <TextInput
                   style={styles.giftNoteInput}
-                  placeholder="یه پیام همراه هدیه بنویس… (اختیاری)"
+                  placeholder="یه پیام کوتاه بنویس… (اختیاری)"
                   placeholderTextColor={Colors.muted}
                   value={giftNote}
                   onChangeText={setGiftNote}
@@ -1405,17 +1458,39 @@ const styles = StyleSheet.create({
   },
   msgImageRetryRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   msgImageErrorTxt: { fontSize: 11, fontFamily: Fonts.regular, color: Colors.muted },
-  giftMsgCard: {
-    alignItems: 'center', gap: 4,
-    paddingVertical: 14, paddingHorizontal: 18,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.35)',
-    minWidth: 140,
+  bubbleGift: {
+    borderWidth: 1,
+    borderColor: '#F3DFB9',
+    maxWidth: '78%',
+    paddingVertical: 14,
+    paddingHorizontal: 18,
   },
-  giftMsgImage: { width: 56, height: 56 },
-  giftMsgEmoji: { fontSize: 44 },
-  giftMsgTitle: { fontFamily: Fonts.bold, fontSize: 13.5, marginTop: 2 },
-  giftMsgNote: { fontFamily: Fonts.regular, fontSize: 12, marginTop: 2, textAlign: 'center' },
+  giftMsgRibbon: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: 'rgba(217,152,46,0.12)',
+    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999,
+  },
+  giftMsgRibbonTxt: { fontFamily: Fonts.bold, fontSize: 10.5, color: Colors.goldDeep },
+  giftMsgAssetWrap: {
+    width: 92, height: 92, borderRadius: 46, marginTop: 4,
+    backgroundColor: 'rgba(255,255,255,0.75)',
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: Colors.goldDeep, shadowOpacity: 0.25, shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 }, elevation: 3,
+  },
+  giftMsgNotePill: {
+    backgroundColor: 'rgba(255,255,255,0.8)', borderRadius: Radius.md,
+    paddingHorizontal: 12, paddingVertical: 7, marginTop: 2, maxWidth: 220,
+  },
+  bubbleTimeGift: { color: Colors.goldDeep, opacity: 0.75 },
+  giftMsgCard: { alignItems: 'center', gap: 6, paddingHorizontal: 6, minWidth: 150 },
+  giftMsgImage: { width: 68, height: 68 },
+  giftMsgEmoji: { fontSize: 48 },
+  giftMsgTitle: { fontFamily: Fonts.extraBold, fontSize: 15, color: Colors.ink, marginTop: 2 },
+  giftMsgNote: {
+    fontFamily: Fonts.regular, fontSize: 12.5, color: Colors.inkSoft,
+    textAlign: 'center', lineHeight: 19,
+  },
   attachBtn: {
     width: 36, height: 36, borderRadius: 18,
     alignItems: 'center', justifyContent: 'center',
@@ -1507,6 +1582,10 @@ const styles = StyleSheet.create({
   giftPreviewImage: { width: 72, height: 72 },
   giftPreviewEmoji: { fontSize: 56 },
   giftPreviewTitle: { fontFamily: Fonts.bold, fontSize: 16, color: Colors.ink, marginTop: 4 },
+  giftNoteQuestion: {
+    fontFamily: Fonts.semiBold, fontSize: 12.5, color: Colors.inkSoft,
+    marginTop: 14, marginBottom: 6, textAlign: 'right',
+  },
   giftNoteInput: {
     marginTop: 16, minHeight: 60, maxHeight: 100,
     borderWidth: 1.5, borderColor: Colors.hair, borderRadius: Radius.lg,
