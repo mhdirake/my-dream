@@ -220,11 +220,11 @@ function SwipeCard({
       <View style={styles.swipeHintRow} pointerEvents="none">
         <Animated.View style={[styles.swipeHintBadge, styles.likeHintBadge, likeOpacity]}>
           <Heart size={20} color="#fff" fill="#fff" strokeWidth={0} />
-          <Text style={styles.likeHintTxt}>LIKE</Text>
+          <Text style={styles.likeHintTxt}>پسند</Text>
         </Animated.View>
         <Animated.View style={[styles.swipeHintBadge, styles.passHintBadge, nopeOpacity]}>
           <X size={20} color="#fff" strokeWidth={3} />
-          <Text style={styles.passHintTxt}>NOPE</Text>
+          <Text style={styles.passHintTxt}>رد</Text>
         </Animated.View>
       </View>
 
@@ -232,7 +232,7 @@ function SwipeCard({
       {profile.compatibility_score != null && (
         <View style={styles.compatPill}>
           <Sparkles size={12} color={Colors.purple} strokeWidth={2} />
-          <Text style={styles.compatTxt}>{profile.compatibility_score}٪</Text>
+          <Text style={styles.compatTxt}>{toPersianDigits(profile.compatibility_score)}٪</Text>
         </View>
       )}
 
@@ -258,7 +258,7 @@ function SwipeCard({
             style={styles.cardNamePressable}
           >
             <Text style={styles.cardName}>
-              {profile.first_name}، {age}
+              {profile.first_name}، {toPersianDigits(age)}
             </Text>
             <ShieldCheck size={15} color={Colors.trust} strokeWidth={2} />
           </TouchableOpacity>
@@ -276,7 +276,7 @@ function SwipeCard({
             />
             {profile.likes_count > 0 && (
               <Text style={[styles.likeCountTxt, liked && styles.likeCountTxtActive]}>
-                {profile.likes_count}
+                {toPersianDigits(profile.likes_count)}
               </Text>
             )}
           </TouchableOpacity>
@@ -564,7 +564,7 @@ function DailyView({ profiles, loading, meta }: { profiles: DiscoverProfile[]; l
                 {p.compatibility_score != null && (
                   <View style={styles.dailyCompat}>
                     <Sparkles size={9} color={Colors.purple} strokeWidth={2} />
-                    <Text style={styles.dailyCompatTxt}>{p.compatibility_score}٪</Text>
+                    <Text style={styles.dailyCompatTxt}>{toPersianDigits(p.compatibility_score)}٪</Text>
                   </View>
                 )}
               </View>
@@ -576,7 +576,7 @@ function DailyView({ profiles, loading, meta }: { profiles: DiscoverProfile[]; l
                   {p.likes_count > 0 && (
                     <View style={styles.dailyLikePill}>
                       <Heart size={11} color={Colors.accent} fill={Colors.accent} strokeWidth={0} />
-                      <Text style={styles.dailyLikeTxt}>{p.likes_count}</Text>
+                      <Text style={styles.dailyLikeTxt}>{toPersianDigits(p.likes_count)}</Text>
                     </View>
                   )}
                 </View>

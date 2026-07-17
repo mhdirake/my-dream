@@ -8,6 +8,7 @@ import { chatApi, type Conversation } from '@/lib/api/chat';
 import { discoverApi, type MutualUser } from '@/lib/api/discover';
 import { giftsApi, type SentGift } from '@/lib/api/gifts';
 import { toast } from '@/lib/toast';
+import { toFaDigits } from '@/lib/localization';
 import { profileApi, type ClientProfile, type UserProfile } from '@/lib/api/profile';
 import { profileCache } from '@/lib/cache/profileCache';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -76,7 +77,7 @@ function badgeKind(slug: string): 'ai' | 'community' | 'gold' | 'complete' | 'pe
 function formatVoiceDuration(totalSeconds: number) {
   const m = Math.floor(totalSeconds / 60);
   const s = totalSeconds % 60;
-  return `${m}:${String(s).padStart(2, '0')}`;
+  return toFaDigits(`${m}:${String(s).padStart(2, '0')}`);
 }
 
 function VoiceIntroPlayer({ uri, durationSeconds }: { uri: string; durationSeconds: number }) {
@@ -313,7 +314,7 @@ function GoldLockedCard() {
         Personality · Trust score · پاسخ آشنایی · Red Flag check
       </Text>
       <TouchableOpacity onPress={() => router.push('/subscription' as never)} activeOpacity={0.8}>
-        <Text style={styles.goldLockCta}>Gold ←</Text>
+        <Text style={styles.goldLockCta}>طلایی ←</Text>
       </TouchableOpacity>
     </View>
   );
@@ -697,12 +698,12 @@ export default function ProfileViewScreen() {
   };
 
   const stats: { label: string; value: string; accent?: boolean; onPress?: () => void }[] = [
-    { label: 'سن', value: String(age) },
+    { label: 'سن', value: toFaDigits(age) },
   ];
   if (profile.height_cm != null) stats.push({ label: 'قد', value: `${profile.height_cm}` });
   if (profile.compatibility_score != null) {
     stats.push({
-      label: 'تطابق', value: `${profile.compatibility_score}٪`, accent: true,
+      label: 'تطابق', value: `${toFaDigits(profile.compatibility_score)}٪`, accent: true,
       onPress: () => router.push(`/user/compatibility?id=${profile.id}` as never),
     });
   }
@@ -734,7 +735,7 @@ export default function ProfileViewScreen() {
             </View>
           )}
           <View style={styles.heroNameRow}>
-            <Text style={styles.heroName}>{profile.first_name}، {age}</Text>
+            <Text style={styles.heroName}>{profile.first_name}، {toFaDigits(age)}</Text>
             {profile.username && <Text style={styles.usernameTxt}>@{profile.username}</Text>}
           </View>
           <View style={styles.metaRow}>
@@ -868,7 +869,7 @@ export default function ProfileViewScreen() {
                   <Text style={styles.ringNum}>{lifestyleMatchPct}</Text>
                 </ProgressRing>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.matchTitle}>Lifestyle Match</Text>
+                  <Text style={styles.matchTitle}>تطابق سبک زندگی</Text>
                   <Text style={styles.matchSub}>
                     {profile.lifestyle_tags.filter(t => myTagIds.has(t.id)).length} تگ مشترک با شما
                   </Text>
@@ -908,7 +909,7 @@ export default function ProfileViewScreen() {
                 activeOpacity={0.85}
               >
                 <ProgressRing value={profile.compatibility_score} size={80} stroke={9} color={Colors.purple}>
-                  <Text style={styles.ringNumLg}>{profile.compatibility_score}</Text>
+                  <Text style={styles.ringNumLg}>{toFaDigits(profile.compatibility_score)}</Text>
                   <Text style={styles.ringLabel}>سازگاری</Text>
                 </ProgressRing>
                 <View style={{ flex: 1 }}>
@@ -917,7 +918,7 @@ export default function ProfileViewScreen() {
                       {profile.compatibility_score >= 80 ? 'تطابق عالی' :
                         profile.compatibility_score >= 60 ? 'تطابق خوب' : 'تطابق متوسط'}
                     </Text>
-                    <Badge kind="gold" label="GOLD" />
+                    <Badge kind="gold" label="طلایی" />
                   </View>
                   <Text style={styles.compatSubTxt}>
                     هدف، سبک زندگی و سبک ارتباطی{redFlags.length === 0 ? ' · بدون Red Flag' : ''}

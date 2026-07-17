@@ -1,5 +1,6 @@
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { useModerationCtx } from '@/lib/moderation/ModerationContext';
+import { toFaDigits } from '@/lib/localization';
 import { router } from 'expo-router';
 import { AlertTriangle } from 'lucide-react-native';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -63,7 +64,7 @@ export default function RestrictionWarningScreen() {
                   ]}
                 >
                   <Text style={[styles.ladderTxt, isCurrent && styles.ladderTxtCurrent]}>
-                    {days}d
+                    {toFaDigits(days)} روز
                   </Text>
                 </View>
               );

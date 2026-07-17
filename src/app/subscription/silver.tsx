@@ -24,7 +24,7 @@ const LIMITS = [
 
 const FEATURES = [
   { icon: Zap,           color: Colors.trust,  text: 'کشف روزانه ۴ برابر بیشتر از پایه' },
-  { icon: Eye,           color: Colors.purple,  text: 'تطابق سبک زندگی — Lifestyle Match ۷۲٪' },
+  { icon: Eye,           color: Colors.purple,  text: 'تطابق سبک زندگی — ۷۲٪' },
   { icon: MessageCircle, color: Colors.ok,      text: 'ارسال پیام نامحدود در گفتگوهای فعال' },
   { icon: Shield,        color: Colors.trust,   text: 'علاقه ناشناس — بدون افشای هویت' },
   { icon: ThumbsUp,      color: Colors.accent,  text: 'لایک بیشتر — ۱۰ نفر در روز' },

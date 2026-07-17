@@ -5,6 +5,7 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { Conversation, ConversationUser, chatApi } from '@/lib/api/chat';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useConversations } from '@/lib/chat/useConversations';
+import { toFaDigits } from '@/lib/localization';
 import { toast } from '@/lib/toast';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -320,7 +321,7 @@ function ActiveRow({
                 end={{ x: 1, y: 0 }}
                 style={styles.unreadBadge}
               >
-                <Text style={styles.unreadTxt}>{unread > 99 ? '۹۹+' : String(unread)}</Text>
+                <Text style={styles.unreadTxt}>{unread > 99 ? '۹۹+' : toFaDigits(unread)}</Text>
               </LinearGradient>
             )}
           </View>

@@ -2,6 +2,7 @@ import { Colors, Fonts, Radius } from '@/constants/colors';
 import { profileCache } from '@/lib/cache/profileCache';
 import { ClientProfile, profileApi } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { toFaDigits } from '@/lib/localization';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Check, Heart, Sparkles, X } from 'lucide-react-native';
@@ -26,7 +27,7 @@ function ScoreRing({ score }: { score: number }) {
         style={styles.scoreRing}
       />
       <View style={styles.scoreInner}>
-        <Text style={styles.scoreNum}>{score}</Text>
+        <Text style={styles.scoreNum}>{toFaDigits(score)}</Text>
         <Text style={styles.scorePct}>٪</Text>
       </View>
     </View>

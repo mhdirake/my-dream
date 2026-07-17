@@ -21,8 +21,8 @@ const LIMITS = [
 
 const FEATURES = [
   { icon: Star,          color: Colors.gold,   text: 'کشف و پیام کاملاً نامحدود' },
-  { icon: Brain,         color: Colors.purple,  text: 'امتیاز تطابق کامل — Compatibility Score ۸۶٪' },
-  { icon: Sparkles,      color: Colors.gold,    text: 'تست شخصیت + هوش مصنوعی Match' },
+  { icon: Brain,         color: Colors.purple,  text: 'امتیاز تطابق کامل — ۸۶٪' },
+  { icon: Sparkles,      color: Colors.gold,    text: 'تست شخصیت + تطابق هوشمند' },
   { icon: Eye,           color: Colors.trust,   text: 'دیدن همه کسایی که پروفایلت رو دیدن' },
   { icon: MessageCircle, color: Colors.ok,      text: 'پیام صوتی و استیکر در گفتگو' },
   { icon: Shield,        color: Colors.accent,  text: 'برچسب طلایی «پریمیوم» روی پروفایل' },

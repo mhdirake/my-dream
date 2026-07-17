@@ -204,7 +204,7 @@ export default function PlansScreen() {
                 <LimitRow label="چت جدید" val={limitLabel(gold.limits.new_chats)} gold />
                 <LimitRow label="پیام روزانه" val="نامحدود ✨" gold />
                 <LimitRow label="امتیاز تطابق کامل" val="✓" gold />
-                <LimitRow label="تست شخصیت + AI Match" val="✓" gold />
+                <LimitRow label="تست شخصیت + تطابق هوشمند" val="✓" gold />
                 <LimitRow label="علاقه ناشناس" val={limitLabel(gold.limits.anonymous_interests)} gold />
               </View>
               {currentSlug === 'gold' ? (

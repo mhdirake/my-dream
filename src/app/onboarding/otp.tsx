@@ -5,6 +5,7 @@ import { Colors, Fonts } from '@/constants/colors';
 import { authApi } from '@/lib/api/auth';
 import { registrationStore } from '@/lib/registrationStore';
 import { toEnDigits } from '@/lib/toEnDigits';
+import { toFaDigits } from '@/lib/localization';
 import { toast } from '@/lib/toast';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -98,7 +99,7 @@ export default function OTPScreen() {
           <Text style={styles.resend}>
             ارسال مجدد در{' '}
             <Text style={styles.timer}>
-              {`${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`}
+              {toFaDigits(`${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`)}
             </Text>
           </Text>
         ) : (

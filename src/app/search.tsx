@@ -4,6 +4,7 @@ import { KeyboardAvoider } from '@/components/ui/KeyboardAvoider';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { searchApi, type SearchUser } from '@/lib/api/search';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { toFaDigits } from '@/lib/localization';
 import { router } from 'expo-router';
 import { ArrowLeft, Search, X } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
@@ -94,7 +95,7 @@ export default function SearchScreen() {
         <View style={styles.cardTop}>
           <Text style={styles.cardName}>
             {item.first_name}{item.last_name ? ` ${item.last_name}` : ''}
-            {item.age ? `، ${item.age}` : ''}
+            {item.age ? `، ${toFaDigits(item.age)}` : ''}
           </Text>
           <View style={styles.badges}>
             {item.badges.slice(0, 2).map(b => (
