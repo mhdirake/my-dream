@@ -29,7 +29,6 @@ export default function AboutMeScreen() {
   const { mode } = useLocalSearchParams<{ mode?: string }>();
   const isEdit = mode === 'edit';
   const safeBack = useSafeBack('/profile-edit');
-  const [allPrompts, setAllPrompts] = useState<ProfilePrompt[]>([]);
   const [shown, setShown] = useState<ProfilePrompt[]>([]);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(false);
@@ -43,31 +42,34 @@ export default function AboutMeScreen() {
       isEdit ? profileApi.getProfile(session.accessToken) : Promise.resolve(null),
     ])
       .then(([prompts, profile]) => {
-        setAllPrompts(prompts);
         if (isEdit && profile?.prompt_answers?.length) {
           const existing = profile.prompt_answers.map(a => a.prompt as ProfilePrompt);
           const existingIds = new Set(existing.map(p => p.id));
           const extra = prompts.filter(p => !existingIds.has(p.id));
-          setShown([...existing, ...pickRandom(extra, Math.max(0, 5 - existing.length))]);
+          setShown([...existing, ...extra.slice(0, Math.max(0, 5 - existing.length))]);
           const prefilled: Record<number, string> = {};
           profile.prompt_answers.forEach(a => { prefilled[a.prompt.id] = a.answer; });
           setAnswers(prefilled);
         } else {
-          setShown(pickRandom(prompts, 5));
+          setShown(prompts.slice(0, 5));
         }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [session]);
 
-  const pickRandom = (arr: ProfilePrompt[], n: number) => {
-    const shuffled = [...arr].sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, n);
-  };
-
-  const refreshPrompts = () => {
-    setShown(pickRandom(allPrompts, 5));
-    setAnswers({});
+  const refreshPrompts = async () => {
+    if (!session?.accessToken || loading) return;
+    setLoading(true);
+    try {
+      const prompts = await lookupsApi.getProfilePrompts(session.accessToken, shown.map(p => p.id));
+      setShown(prompts);
+      setAnswers({});
+    } catch (error: any) {
+      toast.error(error.message ?? 'خطا در دریافت سؤال‌های جدید');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const filledCount = Object.values(answers).filter(a => a.trim()).length;
@@ -83,17 +85,7 @@ export default function AboutMeScreen() {
     }
     setSaving(true);
     try {
-      await fetch(
-        `${process.env.EXPO_PUBLIC_API_URL}/api/client/profile/prompts`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session.accessToken}`,
-          },
-          body: JSON.stringify({ answers: answered }),
-        },
-      );
+      await profileApi.answerPrompts(session.accessToken, answered);
       isEdit ? safeBack() : router.replace('/(tabs)/' as any);
     } catch (e: any) {
       toast.error(e.message ?? 'خطا در ذخیره');

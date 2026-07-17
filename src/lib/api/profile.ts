@@ -34,6 +34,7 @@ export type UserProfile = {
   dealbreakers: { id: number; body: string; moderation_status: string }[];
   badges: { id: number; title: string; slug: string; is_active?: boolean }[];
   prompt_answers?: { id: number; answer: string; moderation_status: string; prompt: { id: number; body: string } }[];
+  prompt_answers_locked?: boolean;
   latest_personality_test?: {
     result_key: string;
     result_title: string;
@@ -115,6 +116,11 @@ export const profileApi = {
     }
   ) =>
     api.patch<ClientProfile>('/api/client/profile', data, token),
+
+  answerPrompts: (
+    token: string,
+    answers: { profile_prompt_id: number; answer: string }[],
+  ) => api.post<{ data: ClientProfile }>('/api/client/profile/prompts', { answers }, token),
 
   uploadVoiceIntro: async (token: string, uri: string, durationSeconds: number, mimeType = 'audio/mp4') => {
     const url = `${process.env.EXPO_PUBLIC_API_URL}/api/client/profile/voice-intro`;

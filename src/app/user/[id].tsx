@@ -976,6 +976,12 @@ export default function ProfileViewScreen() {
             )}
 
             {/* Prompt answers */}
+            {profile.prompt_answers_locked && (
+              <Pressable style={styles.promptCard} onPress={() => router.push('/subscription' as never)}>
+                <Text style={styles.infoBlockLabel}>آشنایی با من</Text>
+                <Text style={styles.promptA}>مشاهده پاسخ‌های آشنایی با من برای مشترکین نقره‌ای و طلایی فعال است.</Text>
+              </Pressable>
+            )}
             {promptAnswers.length > 0 && (
               <View style={styles.section}>
                 <Text style={styles.infoBlockLabel}>آشنایی با من</Text>

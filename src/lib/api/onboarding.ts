@@ -185,6 +185,8 @@ export const lookupsApi = {
   getLanguages: async (token: string) =>
     unwrap(await api.get<LanguageOption[] | { data: LanguageOption[] }>('/api/lookups/languages', token)),
 
-  getProfilePrompts: async (token: string) =>
-    unwrap(await api.get<ProfilePrompt[] | { data: ProfilePrompt[] }>('/api/lookups/profile-prompts', token)),
+  getProfilePrompts: async (token: string, excludeIds: number[] = []) => {
+    const query = excludeIds.length > 0 ? `?exclude_ids=${excludeIds.join(',')}` : '';
+    return unwrap(await api.get<ProfilePrompt[] | { data: ProfilePrompt[] }>(`/api/lookups/profile-prompts${query}`, token));
+  },
 };
