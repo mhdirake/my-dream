@@ -6,6 +6,7 @@ import {
   AnonSummary, ReceivedAnonInterest, ReceivedResponse,
   RevealPackage, SentAnonInterest, likesApi, mediaUrl,
 } from '@/lib/api/likes';
+import { ApiError } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { toast } from '@/lib/toast';
 import { router } from 'expo-router';
@@ -89,7 +90,19 @@ export default function LikesScreen() {
       toast.success('دسترسی فعال شد!');
       load();
     } catch (e: any) {
-      toast.error(e.message ?? 'خطا در خرید');
+      const rawMessage = e instanceof ApiError ? e.rawMessage : String(e?.message ?? '');
+      if (/insufficient.*coin|not enough.*coin|موجودی سکه کافی نیست/i.test(rawMessage)) {
+        Alert.alert(
+          'موجودی سکه کافی نیست',
+          'برای فعال‌کردن این دسترسی ابتدا سکه تهیه کن. بعد از خرید به همین صفحه برمی‌گردی.',
+          [
+            { text: 'بعداً', style: 'cancel' },
+            { text: 'خرید سکه', onPress: () => router.push('/gifts/buy-coins' as any) },
+          ],
+        );
+      } else {
+        toast.error(e.message ?? 'خطا در خرید');
+      }
     } finally {
       setPurchasing(false);
     }

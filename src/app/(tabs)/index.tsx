@@ -119,19 +119,28 @@ function SwipeCard({
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const [checking, setChecking] = useState(false);
+  const checkingRef = useRef(false);
   const age = calcAge(profile.birth_date);
   const photoUrl = profile.profile_photo?.urls.large;
 
+  const finishSwipe = () => {
+    onSwiped();
+    checkingRef.current = false;
+    setChecking(false);
+  };
+
   const attemptSwipe = async (dir: 1 | -1) => {
-    if (checking) return;
+    if (checkingRef.current) return;
+    checkingRef.current = true;
     setChecking(true);
     const ok = await onInteract(dir > 0 ? 'swipe_like' : 'swipe_pass');
-    setChecking(false);
     if (ok) {
-      translateX.value = withTiming(dir * SW * 1.5, { duration: 220 }, () => runOnJS(onSwiped)());
+      translateX.value = withTiming(dir * SW * 1.5, { duration: 220 }, () => runOnJS(finishSwipe)());
     } else {
       translateX.value = withSpring(0, { damping: 15, stiffness: 150 });
       translateY.value = withSpring(0, { damping: 15, stiffness: 150 });
+      checkingRef.current = false;
+      setChecking(false);
     }
   };
 
@@ -793,6 +802,7 @@ export default function DiscoverScreen() {
   const [dailyMeta, setDailyMeta] = useState<DailySuggestionsMeta | null>(null);
   const [dailyLoading, setDailyLoading] = useState(false);
   const [dailyLoaded, setDailyLoaded] = useState(false);
+  const swipedProfileIdsRef = useRef<Set<number>>(new Set());
 
   const fetchUnread = useCallback(() => {
     if (!session?.accessToken) return;
@@ -810,8 +820,10 @@ export default function DiscoverScreen() {
       discoverApi
         .getProfiles(session.accessToken, 15, safe)
         .then(({ data, meta }) => {
-          profileCache.setMany(data);
-          setProfiles(data);
+          const unique = Array.from(new Map(data.map(profile => [profile.id, profile])).values())
+            .filter(profile => !swipedProfileIdsRef.current.has(profile.id));
+          profileCache.setMany(unique);
+          setProfiles(unique);
           setSwipeMeta(meta);
         })
         .catch(() => {})
@@ -864,6 +876,9 @@ export default function DiscoverScreen() {
       const res = await discoverApi.interact(session.accessToken, userId, type);
       if (res.data?.mutual && res.data.mutual_user) {
         setMatchInfo({ user: res.data.mutual_user, message: res.data.mutual_message });
+      }
+      if (type === 'swipe_like' || type === 'swipe_pass') {
+        swipedProfileIdsRef.current.add(userId);
       }
       return true;
     } catch (e: any) {

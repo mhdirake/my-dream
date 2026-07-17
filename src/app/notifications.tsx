@@ -1,6 +1,7 @@
 import { AppBar } from '@/components/ui/AppBar';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { type AppNotification, notificationsApi } from '@/lib/api/notifications';
+import { chatApi } from '@/lib/api/chat';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { toast } from '@/lib/toast';
 import { router } from 'expo-router';
@@ -25,6 +26,8 @@ const TYPE_META: Record<string, NotifMeta> = {
   gift_received:             { icon: Gift,           color: Colors.goldDeep, bg: Colors.goldSoft },
   new_message:               { icon: MessageCircle,  color: Colors.trust, bg: Colors.trustSoft },
   message_received:          { icon: MessageCircle,  color: Colors.trust, bg: Colors.trustSoft },
+  chat_message_created:      { icon: MessageCircle,  color: Colors.trust, bg: Colors.trustSoft },
+  conversation_request_created: { icon: MessageCircle, color: Colors.trust, bg: Colors.trustSoft },
   profile_viewed:            { icon: Eye,            color: Colors.purple, bg: Colors.purpleSoft },
   badge_earned:              { icon: Star,           color: Colors.goldDeep, bg: Colors.goldSoft },
   restriction_applied:       { icon: AlertTriangle,  color: Colors.danger, bg: '#FFF1F0' },
@@ -79,13 +82,56 @@ function buildGrouped(items: AppNotification[]): GroupedItem[] {
   return result;
 }
 
-function handleNavigation(n: AppNotification) {
+async function openConversation(token: string, myId: number, conversationId: number) {
+  try {
+    const [accepted, incoming, outgoing] = await Promise.all([
+      chatApi.listConversations(token),
+      chatApi.listPendingIncoming(token),
+      chatApi.listPendingOutgoing(token),
+    ]);
+    const conversation = [...accepted, ...incoming, ...outgoing]
+      .find(item => item.id === conversationId);
+
+    if (!conversation) {
+      router.push('/(tabs)/chat' as any);
+      return;
+    }
+
+    const other = conversation.first_user_id === myId
+      ? conversation.second_user
+      : conversation.first_user;
+    router.push({
+      pathname: '/chat/[id]' as any,
+      params: {
+        id: String(conversation.id),
+        publicId: conversation.public_id,
+        otherId: String(other.id),
+        name: other.first_name,
+        avatar: other.profile_photo?.urls?.thumbnail ?? '',
+        status: conversation.status,
+        isSender: conversation.first_user_id === myId ? '1' : '0',
+      },
+    });
+  } catch {
+    router.push('/(tabs)/chat' as any);
+  }
+}
+
+async function handleNavigation(n: AppNotification, token: string, myId: number) {
   const m = n.metadata ?? {};
   switch (n.type) {
     case 'new_message':
     case 'message_received':
-      if (m.conversation_id) router.push({ pathname: '/chat/[id]' as any, params: { id: String(m.conversation_id) } });
+    case 'chat_message_created':
+    case 'conversation_request_created': {
+      const conversationId = Number(m.conversation_id);
+      if (Number.isFinite(conversationId) && conversationId > 0) {
+        await openConversation(token, myId, conversationId);
+      } else {
+        router.push('/(tabs)/chat' as any);
+      }
       break;
+    }
     case 'gift_received':
       router.push('/gifts/wallet' as any);
       break;
@@ -108,7 +154,7 @@ function handleNavigation(n: AppNotification) {
 }
 
 export default function NotificationsScreen() {
-  const { session } = useAuth();
+  const { session, user } = useAuth();
   const [items, setItems] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -159,9 +205,10 @@ export default function NotificationsScreen() {
     } catch { /* silent */ }
   };
 
-  const handlePress = (n: AppNotification) => {
-    markRead(n);
-    handleNavigation(n);
+  const handlePress = async (n: AppNotification) => {
+    if (!session?.accessToken) return;
+    await markRead(n);
+    await handleNavigation(n, session.accessToken, user?.id ?? -1);
   };
 
   const grouped = buildGrouped(items);
