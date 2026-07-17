@@ -2,8 +2,13 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { api } from '../api/client';
 
-// expo-notifications remote push is unsupported in Expo Go (Android since SDK 53);
-// merely importing the module there throws, so load it lazily and only outside Expo Go.
+export type PushPreferences = {
+  enabled: boolean;
+  active_devices: number;
+};
+
+// Remote push is unavailable in Expo Go on Android. Loading the native module
+// lazily keeps web and Expo Go development usable.
 const isExpoGo = Constants.appOwnership === 'expo';
 const Notifications = isExpoGo
   ? null
@@ -30,20 +35,20 @@ async function ensureAndroidChannel() {
 }
 
 export async function registerForPushNotificationsAsync(): Promise<string | null> {
-  if (!Notifications) return null;
+  if (!Notifications || Platform.OS === 'web') return null;
   try {
     await ensureAndroidChannel();
 
-    const { status: existing } = await Notifications.getPermissionsAsync();
-    let status = existing;
-    if (status !== 'granted') {
-      const req = await Notifications.requestPermissionsAsync();
-      status = req.status;
+    const existing = await Notifications.getPermissionsAsync();
+    let granted = existing.granted;
+    if (!granted) {
+      const requested = await Notifications.requestPermissionsAsync();
+      granted = requested.granted;
     }
-    if (status !== 'granted') return null;
+    if (!granted) return null;
 
     const projectId =
-      Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
+      Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
     if (!projectId) return null;
 
     const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });
@@ -53,12 +58,53 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
   }
 }
 
+export async function getPushPreferences(authToken: string): Promise<PushPreferences> {
+  const response = await api.get<{ data: PushPreferences }>('/api/client/push-notifications/preferences', authToken);
+  return response.data;
+}
+
+export async function setPushPreferences(authToken: string, enabled: boolean): Promise<PushPreferences> {
+  const response = await api.patch<{ data: PushPreferences }>(
+    '/api/client/push-notifications/preferences',
+    { enabled },
+    authToken,
+  );
+  return response.data;
+}
+
 export async function registerAndSyncPushToken(authToken: string): Promise<void> {
+  const preferences = await getPushPreferences(authToken).catch(() => null);
+  if (preferences && !preferences.enabled) return;
+
   const token = await registerForPushNotificationsAsync();
   if (!token) return;
-  try {
-    await api.post('/api/client/push-tokens', { token, platform: Platform.OS }, authToken);
-  } catch {
-    // backend endpoint may not exist yet — silent, non-blocking
-  }
+  await api.post('/api/client/push-tokens', { token, platform: Platform.OS }, authToken);
+}
+
+function notificationIdFromResponse(response: import('expo-notifications').NotificationResponse): number | null {
+  const value = response.notification.request.content.data?.notification_id;
+  const id = Number(value);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
+export function subscribeToPushResponses(onOpen: (notificationId: number) => void): () => void {
+  if (!Notifications) return () => undefined;
+
+  const subscription = Notifications.addNotificationResponseReceivedListener(response => {
+    const notificationId = notificationIdFromResponse(response);
+    if (notificationId) onOpen(notificationId);
+  });
+
+  return () => subscription.remove();
+}
+
+export async function consumeLastPushResponse(onOpen: (notificationId: number) => void): Promise<void> {
+  if (!Notifications) return;
+
+  const response = await Notifications.getLastNotificationResponseAsync();
+  if (!response) return;
+
+  const notificationId = notificationIdFromResponse(response);
+  if (notificationId) onOpen(notificationId);
+  await Notifications.clearLastNotificationResponseAsync();
 }

@@ -5,7 +5,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { toast } from '@/lib/toast';
 import { router } from 'expo-router';
 import {
-  AlertTriangle, ChevronLeft, Lock, LogOut,
+  AlertTriangle, Bell, ChevronLeft, Lock, LogOut,
   MessageCircle, Shield, Trash2, UserX, type LucideIcon,
 } from 'lucide-react-native';
 import { useState } from 'react';
@@ -32,6 +32,12 @@ export default function SettingsScreen() {
     {
       title: 'حریم خصوصی',
       items: [
+        {
+          icon: Bell, iconColor: Colors.accent,
+          label: 'اعلان‌ها',
+          sub: 'مدیریت اعلان‌های دستگاه',
+          route: '/settings/notifications',
+        },
         {
           icon: Shield, iconColor: Colors.ok,
           label: 'حریم خصوصی و حالت امن',

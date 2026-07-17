@@ -5,9 +5,13 @@ import { ChatToastProvider } from '@/components/ui/ChatToast';
 import { RestrictionBanner } from '@/components/moderation/RestrictionBanner';
 import { UnreadProvider, useUnreadCtx } from '@/lib/chat/UnreadContext';
 import { useModerationCtx } from '@/lib/moderation/ModerationContext';
-import { registerAndSyncPushToken } from '@/lib/notifications/push';
+import {
+  consumeLastPushResponse,
+  registerAndSyncPushToken,
+  subscribeToPushResponses,
+} from '@/lib/notifications/push';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Redirect, Tabs } from 'expo-router';
+import { Redirect, router, Tabs } from 'expo-router';
 import { Compass, Gift, Heart, MessageCircle, User } from 'lucide-react-native';
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
@@ -57,7 +61,16 @@ function TabsNav() {
   const { session } = useAuth();
 
   useEffect(() => {
-    if (session?.accessToken) registerAndSyncPushToken(session.accessToken);
+    if (!session?.accessToken) return;
+
+    registerAndSyncPushToken(session.accessToken).catch(() => undefined);
+    const openNotification = (notificationId: number) => {
+      router.push({ pathname: '/notifications' as any, params: { open: String(notificationId) } });
+    };
+    const unsubscribe = subscribeToPushResponses(openNotification);
+    consumeLastPushResponse(openNotification).catch(() => undefined);
+
+    return unsubscribe;
   }, [session?.accessToken]);
 
   return (

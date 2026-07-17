@@ -4,12 +4,12 @@ import { type AppNotification, notificationsApi } from '@/lib/api/notifications'
 import { chatApi } from '@/lib/api/chat';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { toast } from '@/lib/toast';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import {
   AlertTriangle, Bell, Clock, Eye, Gift, Heart,
   MessageCircle, Sparkles, Star,
 } from 'lucide-react-native';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator, FlatList, StyleSheet, Text,
   TouchableOpacity, View,
@@ -155,6 +155,8 @@ async function handleNavigation(n: AppNotification, token: string, myId: number)
 
 export default function NotificationsScreen() {
   const { session, user } = useAuth();
+  const { open } = useLocalSearchParams<{ open?: string }>();
+  const openedNotification = useRef<number | null>(null);
   const [items, setItems] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -210,6 +212,18 @@ export default function NotificationsScreen() {
     await markRead(n);
     await handleNavigation(n, session.accessToken, user?.id ?? -1);
   };
+
+  useEffect(() => {
+    const notificationId = Number(open);
+    if (loading || !Number.isInteger(notificationId) || notificationId <= 0) return;
+    if (openedNotification.current === notificationId) return;
+
+    const notification = items.find(item => item.id === notificationId);
+    if (!notification) return;
+
+    openedNotification.current = notificationId;
+    handlePress(notification).catch(() => undefined);
+  }, [open, loading, items]);
 
   const grouped = buildGrouped(items);
 
