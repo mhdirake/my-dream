@@ -25,6 +25,11 @@ export default function LocationScreen() {
   const [loadingCities, setLoadingCities] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [sessionExpired, setSessionExpired] = useState(false);
+  const [savedRequiredProfile, setSavedRequiredProfile] = useState<{
+    first_name: string;
+    birth_date: string;
+    gender: string;
+  } | null>(null);
 
   const handleTokenExpired = async () => {
     await logout();
@@ -41,6 +46,11 @@ export default function LocationScreen() {
       .then(([provData, status]) => {
         const provOpts = provData.map(p => ({ id: p.id, name: p.name }));
         setProvinces(provOpts);
+
+        const { first_name, birth_date, gender } = status.user;
+        if (first_name && birth_date && gender) {
+          setSavedRequiredProfile({ first_name, birth_date, gender });
+        }
 
         const savedProvId = status.user.province_id;
         const savedCityId = status.user.city_id;
@@ -92,10 +102,22 @@ export default function LocationScreen() {
     setSubmitting(true);
     try {
       const stored = profileSetupStore.get();
+      const requiredProfile = {
+        first_name: stored.first_name ?? savedRequiredProfile?.first_name,
+        birth_date: stored.birth_date ?? savedRequiredProfile?.birth_date,
+        gender: stored.gender ?? savedRequiredProfile?.gender,
+      };
+
+      if (!requiredProfile.first_name || !requiredProfile.birth_date || !requiredProfile.gender) {
+        toast.error('اطلاعات پایه کامل نیست؛ لطفاً مرحله قبل را دوباره بررسی کن.');
+        router.replace('/profile-setup/basic-info' as any);
+        return;
+      }
+
       await onboardingApi.saveRequiredProfile(session.accessToken, {
-        first_name: stored.first_name!,
-        birth_date: stored.birth_date!,
-        gender: stored.gender!,
+        first_name: requiredProfile.first_name,
+        birth_date: requiredProfile.birth_date,
+        gender: requiredProfile.gender,
         province_id: province!.id,
         city_id: city!.id,
       });

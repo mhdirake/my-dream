@@ -112,7 +112,7 @@ export const profileApi = {
   ) =>
     api.patch<ClientProfile>('/api/client/profile', data, token),
 
-  uploadVoiceIntro: async (token: string, uri: string, durationSeconds: number, mimeType = 'audio/m4a') => {
+  uploadVoiceIntro: async (token: string, uri: string, durationSeconds: number, mimeType = 'audio/mp4') => {
     const url = `${process.env.EXPO_PUBLIC_API_URL}/api/client/profile/voice-intro`;
     const parameters = { duration_seconds: String(durationSeconds) };
 
