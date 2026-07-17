@@ -7,6 +7,7 @@ import { Colors, Fonts } from '@/constants/colors';
 import { DailySuggestionProfile, DailySuggestionsMeta, DiscoverProfile, MutualUser, SwipePoolMeta, discoverApi } from '@/lib/api/discover';
 import { MatchCelebrationModal } from '@/components/MatchCelebrationModal';
 import { notificationsApi } from '@/lib/api/notifications';
+import { aiCoachApi } from '@/lib/api/ai-coach';
 import { profileApi } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { profileCache } from '@/lib/cache/profileCache';
@@ -15,7 +16,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
 import {
-  Bell, Clock, Gift, Heart, MessageCircle,
+  Bell, Bot, Clock, Gift, Heart, MessageCircle,
   Search, ShieldCheck, Sparkles, User, X,
 } from 'lucide-react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -609,7 +610,27 @@ function DailyView({ profiles, loading, meta }: { profiles: DiscoverProfile[]; l
 }
 
 // ── AiView ───────────────────────────────────────────────────────────────────
-function AiView({ plan, profiles, loading }: { plan: string; profiles: DailySuggestionProfile[]; loading: boolean }) {
+function AiView({ plan, profiles, loading, token }: { plan: string; profiles: DailySuggestionProfile[]; loading: boolean; token: string }) {
+  const [creating, setCreating] = useState(false);
+
+  const openAssistant = async () => {
+    if (creating || !token) return;
+    setCreating(true);
+    try {
+      const session = await aiCoachApi.createSession(
+        token,
+        'دستیار مچ هوشمند',
+        'match_assistant',
+        { long_distance: true },
+      );
+      router.push({ pathname: '/ai-coach/[id]', params: { id: String(session.id) } } as never);
+    } catch (error: any) {
+      toast.error(error?.message ?? 'ایجاد گفت‌وگو با دستیار ممکن نشد');
+    } finally {
+      setCreating(false);
+    }
+  };
+
   if (plan !== 'gold') {
     return (
       <View style={styles.listCenter}>
@@ -646,6 +667,10 @@ function AiView({ plan, profiles, loading }: { plan: string; profiles: DailySugg
 
   return (
     <ScrollView contentContainerStyle={styles.dailyContent} showsVerticalScrollIndicator={false}>
+      <TouchableOpacity style={styles.aiChatBtn} onPress={openAssistant} disabled={creating} activeOpacity={0.85}>
+        {creating ? <ActivityIndicator color="#fff" size="small" /> : <Bot size={17} color="#fff" strokeWidth={2} />}
+        <Text style={styles.aiChatBtnTxt}>گفتگو با دستیار مچ</Text>
+      </TouchableOpacity>
       <View style={styles.aiHeaderRow}>
         <Sparkles size={16} color={Colors.purple} strokeWidth={2} />
         <Text style={styles.aiHeaderTxt}>مچ‌های هوشمند امروز بر اساس امتیاز سازگاری</Text>
@@ -914,7 +939,7 @@ export default function DiscoverScreen() {
           />
         )}
         {mode === 'daily' && <DailyView profiles={daily} loading={dailyLoading} meta={dailyMeta} />}
-        {mode === 'ai' && <AiView plan={planSlug} profiles={daily} loading={dailyLoading} />}
+        {mode === 'ai' && <AiView plan={planSlug} profiles={daily} loading={dailyLoading} token={session?.accessToken ?? ''} />}
       </View>
 
       <MatchCelebrationModal
@@ -1221,6 +1246,11 @@ const styles = StyleSheet.create({
     gap: 6, marginBottom: 12,
   },
   aiHeaderTxt: { fontSize: 12.5, fontFamily: Fonts.semiBold, color: Colors.purple },
+  aiChatBtn: {
+    alignSelf: 'stretch', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
+    backgroundColor: Colors.purple, borderRadius: 999, paddingVertical: 12, marginBottom: 12,
+  },
+  aiChatBtnTxt: { fontSize: 13.5, fontFamily: Fonts.bold, color: '#fff' },
   aiScorePill: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
     backgroundColor: Colors.purple + '12',

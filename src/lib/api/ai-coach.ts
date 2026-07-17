@@ -2,6 +2,7 @@ import { api } from './client';
 
 export type CoachSession = {
   id: number;
+  kind: 'coach' | 'match_assistant';
   title: string | null;
   created_at: string;
   updated_at: string;
@@ -9,9 +10,12 @@ export type CoachSession = {
 
 export type CoachMessage = {
   id: number;
-  session_id: number;
+  ai_coach_session_id: number;
   role: 'user' | 'assistant';
-  content: string;
+  body: string;
+  metadata?: {
+    suggestions?: { user_id: number; reason: string }[];
+  } | null;
   created_at: string;
 };
 
@@ -20,17 +24,27 @@ export type CoachSessionDetail = CoachSession & {
 };
 
 export const aiCoachApi = {
-  listSessions: (token: string): Promise<CoachSession[]> =>
-    api.get<{ data: CoachSession[] }>('/api/client/ai-coach/sessions', token).then(r => r.data),
+  listSessions: (token: string, kind: CoachSession['kind'] = 'coach'): Promise<CoachSession[]> =>
+    api.get<{ data: CoachSession[] }>(`/api/client/ai-coach/sessions?kind=${kind}`, token).then(r => r.data),
 
-  createSession: (token: string, title?: string): Promise<CoachSession> =>
-    api.post<{ data: CoachSession }>('/api/client/ai-coach/sessions', title ? { title } : {}, token).then(r => r.data),
+  createSession: (
+    token: string,
+    title?: string,
+    kind: CoachSession['kind'] = 'coach',
+    context?: Record<string, unknown>,
+  ): Promise<CoachSession> =>
+    api.post<{ data: CoachSession }>(
+      '/api/client/ai-coach/sessions',
+      { kind, ...(title ? { title } : {}), ...(context ? { context } : {}) },
+      token,
+    ).then(r => r.data),
 
   getSession: (token: string, id: number): Promise<CoachSessionDetail> =>
     api.get<{ data: CoachSessionDetail }>(`/api/client/ai-coach/sessions/${id}`, token).then(r => r.data),
 
   sendMessage: (token: string, id: number, message: string): Promise<CoachMessage> =>
-    api.post<{ data: CoachMessage }>(`/api/client/ai-coach/sessions/${id}/messages`, { message }, token).then(r => r.data),
+    api.post<{ data: { assistant_message: CoachMessage } }>(`/api/client/ai-coach/sessions/${id}/messages`, { message }, token)
+      .then(r => r.data.assistant_message),
 
   updateSession: (token: string, id: number, title: string): Promise<CoachSession> =>
     api.patch<{ data: CoachSession }>(`/api/client/ai-coach/sessions/${id}`, { title }, token).then(r => r.data),

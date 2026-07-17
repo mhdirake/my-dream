@@ -46,12 +46,14 @@ export default function AiCoachChat() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [text, setText] = useState('');
+  const [kind, setKind] = useState<'coach' | 'match_assistant'>('coach');
   const listRef = useRef<FlatList>(null);
 
   const fetchSession = useCallback(async () => {
     try {
       const detail = await aiCoachApi.getSession(token, Number(id));
       setMessages(detail.messages ?? []);
+      setKind(detail.kind ?? 'coach');
     } catch {
       Alert.alert('خطا', 'بارگذاری گفتگو ممکن نشد.', [
         { text: 'بازگشت', onPress: () => router.back() },
@@ -75,9 +77,9 @@ export default function AiCoachChat() {
 
     const optimistic: CoachMessage = {
       id: -Date.now(),
-      session_id: Number(id),
+      ai_coach_session_id: Number(id),
       role: 'user',
-      content: msg,
+      body: msg,
       created_at: new Date().toISOString(),
     };
     setMessages(prev => [...prev, optimistic]);
@@ -106,8 +108,19 @@ export default function AiCoachChat() {
         )}
         <View style={[styles.bubble, isUser ? styles.bubbleUser : styles.bubbleAi]}>
           <Text style={[styles.bubbleTxt, isUser ? styles.bubbleTxtUser : styles.bubbleTxtAi]}>
-            {item.content}
+            {item.body}
           </Text>
+          {item.role === 'assistant' && item.metadata?.suggestions?.map(suggestion => (
+            <TouchableOpacity
+              key={suggestion.user_id}
+              style={styles.suggestion}
+              onPress={() => router.push(`/user/${suggestion.user_id}` as never)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.suggestionTitle}>مشاهده پروفایل پیشنهادی</Text>
+              <Text style={styles.suggestionReason}>{suggestion.reason}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
       </View>
     );
@@ -124,7 +137,7 @@ export default function AiCoachChat() {
           <View style={styles.aiAvatarLg}>
             <Bot size={16} color={Colors.purple} strokeWidth={2} />
           </View>
-          <Text style={styles.headerTxt}>مربی AI</Text>
+          <Text style={styles.headerTxt}>{kind === 'match_assistant' ? 'دستیار مچ هوشمند' : 'مربی AI'}</Text>
         </View>
         <View style={{ width: 36 }} />
       </View>
@@ -151,10 +164,15 @@ export default function AiCoachChat() {
                   <View style={styles.aiAvatarXl}>
                     <Bot size={28} color={Colors.purple} strokeWidth={1.5} />
                   </View>
-                  <Text style={styles.welcomeTxt}>سلام! من مربی AI توام</Text>
-                  <Text style={styles.welcomeSub}>یه سوال بپرس یا از موضوعات زیر انتخاب کن</Text>
+                  <Text style={styles.welcomeTxt}>{kind === 'match_assistant' ? 'برای پیدا کردن پیشنهاد مناسب آماده‌ام' : 'سلام! من مربی AI توام'}</Text>
+                  <Text style={styles.welcomeSub}>{kind === 'match_assistant' ? 'ترجیحاتت را بگو یا پیشنهادهای فعلی را بخواه' : 'یه سوال بپرس یا از موضوعات زیر انتخاب کن'}</Text>
                   <View style={styles.chips}>
-                    {QUICK_CHIPS.map(c => (
+                    {(kind === 'match_assistant'
+                      ? [
+                          { label: 'پیشنهادهای مناسب', prompt: 'بر اساس پروفایل و ترجیحاتم چند پیشنهاد امن و سازگار معرفی کن.' },
+                          { label: 'رابطه جدی', prompt: 'برای آشنایی جدی چه پیشنهادهایی داری؟' },
+                        ]
+                      : QUICK_CHIPS).map(c => (
                       <TouchableOpacity
                         key={c.label}
                         style={styles.chip}
@@ -271,6 +289,12 @@ const styles = StyleSheet.create({
   bubbleTxt: { fontSize: 14, lineHeight: 21 },
   bubbleTxtUser: { fontFamily: Fonts.regular, color: Colors.ink, textAlign: 'right' },
   bubbleTxtAi: { fontFamily: Fonts.regular, color: '#fff' },
+  suggestion: {
+    backgroundColor: 'rgba(255,255,255,0.16)', borderRadius: Radius.md,
+    paddingHorizontal: 10, paddingVertical: 8, marginTop: 8,
+  },
+  suggestionTitle: { fontSize: 12, fontFamily: Fonts.bold, color: '#fff', textAlign: 'right' },
+  suggestionReason: { fontSize: 11, fontFamily: Fonts.regular, color: 'rgba(255,255,255,0.86)', textAlign: 'right', marginTop: 2 },
 
   thinkingBubble: {
     flexDirection: 'row', justifyContent: 'flex-end',
