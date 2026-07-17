@@ -26,8 +26,6 @@ $env_blk = $eas.build.$BuildProfile.env
 if (-not $env_blk) { Write-Error "No env block for profile '$BuildProfile' in eas.json"; exit 1 }
 
 $apiUrl   = $env_blk.EXPO_PUBLIC_API_URL
-$kcUrl    = $env_blk.EXPO_PUBLIC_KC_URL
-$kcSecret = $env_blk.EXPO_PUBLIC_KC_SECRET
 
 # ---- decide online vs offline ----
 $hasCache  = (Test-Path "$CacheDir\index.json")
@@ -65,8 +63,6 @@ $buildArgs = @(
     "--output", "type=local,dest=$ArtifactsDir",
     "--cache-to", "type=local,dest=$CacheNew,mode=max",
     "--build-arg", "EXPO_PUBLIC_API_URL=$apiUrl",
-    "--build-arg", "EXPO_PUBLIC_KC_URL=$kcUrl",
-    "--build-arg", "EXPO_PUBLIC_KC_SECRET=$kcSecret",
     "--build-arg", "GOOGLE_MAVEN_REPOSITORY=https://maven.aliyun.com/repository/google",
     "--build-arg", "MAVEN_CENTRAL_REPOSITORY=https://maven.aliyun.com/repository/public",
     "--build-arg", "GRADLE_PLUGIN_REPOSITORY=https://maven.aliyun.com/repository/gradle-plugin"

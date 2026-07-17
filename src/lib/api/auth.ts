@@ -1,5 +1,4 @@
-import { Platform } from 'react-native';
-import { api, ApiError } from './client';
+import { api } from './client';
 
 export type OtpSendResponse = {
   message: string;
@@ -74,76 +73,11 @@ export const authApi = {
     ),
 
   login: async (data: { username: string; password: string }): Promise<LoginResponse> => {
-    if (Platform.OS === 'web') {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new ApiError(res.status, json?.error_description ?? `HTTP ${res.status}`);
-      return json as LoginResponse;
-    }
-
-    const kcUrl = process.env.KC_URL ?? process.env.EXPO_PUBLIC_KC_URL;
-    const kcSecret = process.env.KC_SECRET ?? process.env.EXPO_PUBLIC_KC_SECRET;
-    
-    const body = [
-      ['grant_type', 'password'],
-      ['client_id', 'backend-client'],
-      ['client_secret', kcSecret ?? ''],
-      ['username', data.username],
-      ['password', data.password],
-    ]
-      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
-      .join('&');
-    const kcTokenUrl = `${kcUrl}/realms/My%20Dream/protocol/openid-connect/token`;
-
-    console.log({ body, kcTokenUrl });
-
-    const res = await fetch(kcTokenUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body,
-    });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) throw new ApiError(res.status, json?.error_description ?? `HTTP ${res.status}`);
-    return json as LoginResponse;
+    return api.post<LoginResponse>('/api/auth/login', data);
   },
 
   refresh: async (refreshToken: string): Promise<LoginResponse> => {
-    if (Platform.OS === 'web') {
-      const res = await fetch('/api/auth/refresh', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh_token: refreshToken }),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new ApiError(res.status, json?.error_description ?? `HTTP ${res.status}`);
-      return json as LoginResponse;
-    }
-
-    const kcUrl = process.env.KC_URL ?? process.env.EXPO_PUBLIC_KC_URL;
-    const kcSecret = process.env.KC_SECRET ?? process.env.EXPO_PUBLIC_KC_SECRET;
-
-    const body = [
-      ['grant_type', 'refresh_token'],
-      ['client_id', 'backend-client'],
-      ['client_secret', kcSecret ?? ''],
-      ['refresh_token', refreshToken],
-    ]
-      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
-      .join('&');
-
-    const kcTokenUrl = `${kcUrl}/realms/My%20Dream/protocol/openid-connect/token`;
-    const res = await fetch(kcTokenUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body,
-    });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) throw new ApiError(res.status, json?.error_description ?? `HTTP ${res.status}`);
-    return json as LoginResponse;
+    return api.post<LoginResponse>('/api/auth/refresh', { refresh_token: refreshToken });
   },
 
   me: (token: string) =>

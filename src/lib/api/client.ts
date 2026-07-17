@@ -24,7 +24,10 @@ async function request<T>(
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    throw new ApiError(res.status, data?.message ?? data?.detail ?? `HTTP ${res.status}`);
+    throw new ApiError(
+      res.status,
+      data?.error_description ?? data?.message ?? data?.detail ?? data?.error ?? `HTTP ${res.status}`,
+    );
   }
 
   return data as T;

@@ -2,8 +2,8 @@ export async function POST(request: Request): Promise<Response> {
   try {
     const { refresh_token } = await request.json();
 
-    const kcUrl = process.env.KC_URL ?? process.env.EXPO_PUBLIC_KC_URL;
-    const kcSecret = process.env.KC_SECRET ?? process.env.EXPO_PUBLIC_KC_SECRET;
+    const kcUrl = process.env.KC_URL;
+    const kcSecret = process.env.KC_SECRET;
 
     if (!kcUrl || !kcSecret) {
       return new Response(

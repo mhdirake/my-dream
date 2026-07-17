@@ -80,12 +80,8 @@ COPY . .
 ARG ANDROID_GRADLE_VARIANT=Release
 ARG ANDROID_ARCHITECTURES=arm64-v8a
 ARG EXPO_PUBLIC_API_URL
-ARG EXPO_PUBLIC_KC_URL
-ARG EXPO_PUBLIC_KC_SECRET
 
-ENV EXPO_PUBLIC_API_URL=${EXPO_PUBLIC_API_URL} \
-  EXPO_PUBLIC_KC_URL=${EXPO_PUBLIC_KC_URL} \
-  EXPO_PUBLIC_KC_SECRET=${EXPO_PUBLIC_KC_SECRET}
+ENV EXPO_PUBLIC_API_URL=${EXPO_PUBLIC_API_URL}
 
 RUN --mount=type=cache,id=mydream-expo,target=/root/.expo,sharing=locked \
   --mount=type=cache,id=mydream-gradle,target=/root/.gradle,sharing=locked \

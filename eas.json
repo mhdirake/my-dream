@@ -14,9 +14,7 @@
       },
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://mydream-api.mikdev.ir",
-        "EXPO_PUBLIC_KC_URL": "https://auth.mikdev.ir",
-        "EXPO_PUBLIC_KC_SECRET": "Fk3IFQCpsvMCDujHqUG9JbneJeSvXypH"
+        "EXPO_PUBLIC_API_URL": "https://mydream-api.mikdev.ir"
       }
     },
     "production": {
@@ -24,9 +22,7 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://mydream-api.mikdev.ir",
-        "EXPO_PUBLIC_KC_URL": "https://auth.mikdev.ir",
-        "EXPO_PUBLIC_KC_SECRET": "Fk3IFQCpsvMCDujHqUG9JbneJeSvXypH"
+        "EXPO_PUBLIC_API_URL": "https://mydream-api.mikdev.ir"
       }
     }
   },
