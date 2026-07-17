@@ -11,6 +11,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { I18nManager } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { toastConfig } from '@/components/ui/ToastConfig';
+import { PrivacyGuard } from '@/components/privacy/PrivacyGuard';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -34,26 +35,28 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <StatusBar style="dark" />
-        <AuthProvider>
-          <ModerationProvider>
-            <CentrifugoProvider>
-              <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="(tabs)" />
-                <Stack.Screen name="onboarding" options={{ animation: 'fade' }} />
-                <Stack.Screen name="profile-setup" options={{ animation: 'slide_from_right' }} />
-                <Stack.Screen name="moderation/banned" options={{ gestureEnabled: false }} />
-                <Stack.Screen name="moderation/restriction-warning" options={{ presentation: 'modal' }} />
-                <Stack.Screen name="moderation/admin-review" options={{ gestureEnabled: false }} />
-                <Stack.Screen name="ai-coach" />
-                <Stack.Screen name="search" options={{ animation: 'fade_from_bottom' }} />
-              </Stack>
-            </CentrifugoProvider>
-          </ModerationProvider>
-        </AuthProvider>
-        <Toast config={toastConfig} visibilityTime={3000} topOffset={56} />
-      </SafeAreaProvider>
+      <PrivacyGuard>
+        <SafeAreaProvider>
+          <StatusBar style="dark" />
+          <AuthProvider>
+            <ModerationProvider>
+              <CentrifugoProvider>
+                <Stack screenOptions={{ headerShown: false }}>
+                  <Stack.Screen name="(tabs)" />
+                  <Stack.Screen name="onboarding" options={{ animation: 'fade' }} />
+                  <Stack.Screen name="profile-setup" options={{ animation: 'slide_from_right' }} />
+                  <Stack.Screen name="moderation/banned" options={{ gestureEnabled: false }} />
+                  <Stack.Screen name="moderation/restriction-warning" options={{ presentation: 'modal' }} />
+                  <Stack.Screen name="moderation/admin-review" options={{ gestureEnabled: false }} />
+                  <Stack.Screen name="ai-coach" />
+                  <Stack.Screen name="search" options={{ animation: 'fade_from_bottom' }} />
+                </Stack>
+              </CentrifugoProvider>
+            </ModerationProvider>
+          </AuthProvider>
+          <Toast config={toastConfig} visibilityTime={3000} topOffset={56} />
+        </SafeAreaProvider>
+      </PrivacyGuard>
     </GestureHandlerRootView>
   );
 }
