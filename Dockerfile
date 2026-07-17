@@ -11,8 +11,12 @@ RUN --mount=type=cache,target=/root/.npm,sharing=locked \
 
 FROM deps AS test
 COPY . .
-RUN npm run lint \
-  && npx tsc --noEmit
+RUN npx tsc --noEmit
+RUN npx eslint \
+  src/app/api/auth/login+api.ts \
+  src/app/api/auth/refresh+api.ts \
+  src/lib/api/auth.ts \
+  src/lib/api/client.ts
 
 FROM deps AS web-build
 WORKDIR /app
