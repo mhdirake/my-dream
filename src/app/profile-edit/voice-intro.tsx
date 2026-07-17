@@ -5,6 +5,7 @@ import { profileApi } from '@/lib/api/profile';
 import { useVoiceRecorder } from '@/lib/chat/useVoiceRecorder';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { toast } from '@/lib/toast';
+import { toFaDigits } from '@/lib/localization';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { router } from 'expo-router';
 import { Mic, Pause, Play, Square, Trash2 } from 'lucide-react-native';
@@ -15,7 +16,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 function formatDuration(totalSeconds: number) {
   const m = Math.floor(totalSeconds / 60);
   const s = totalSeconds % 60;
-  return `${m}:${String(s).padStart(2, '0')}`;
+  return toFaDigits(`${m}:${String(s).padStart(2, '0')}`);
 }
 
 function PreviewPlayer({ uri, durationSeconds }: { uri: string; durationSeconds: number }) {

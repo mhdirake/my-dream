@@ -1,4 +1,5 @@
 import { Colors, Fonts } from '@/constants/colors';
+import { toFaDigits } from '@/lib/localization';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { ChatToastProvider } from '@/components/ui/ChatToast';
 import { RestrictionBanner } from '@/components/moderation/RestrictionBanner';
@@ -120,8 +121,14 @@ function TabsNav() {
           options={{
             title: 'پیام',
             tabBarLabel: 'پیام',
-            tabBarBadge: totalUnread > 0 ? (totalUnread > 99 ? '99+' : totalUnread) : undefined,
-            tabBarBadgeStyle: { backgroundColor: Colors.accent, fontSize: 10, minWidth: 18, height: 18 },
+            tabBarBadge: totalUnread > 0 ? toFaDigits(totalUnread > 99 ? '99+' : totalUnread) : undefined,
+            tabBarBadgeStyle: {
+              backgroundColor: Colors.accent,
+              fontSize: 10,
+              fontFamily: Fonts.bold,
+              minWidth: 18,
+              height: 18,
+            },
             tabBarIcon: ({ focused }) => (
               <TabIcon icon={MessageCircle} focused={focused} />
             ),

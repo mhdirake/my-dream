@@ -7,6 +7,7 @@ import { profileApi } from '@/lib/api/profile';
 import { useChatMessages } from '@/lib/chat/useChatMessages';
 import { useVoiceRecorder } from '@/lib/chat/useVoiceRecorder';
 import { useKeyboardHeight } from '@/lib/useKeyboardHeight';
+import { toFaDigits } from '@/lib/localization';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { toast } from '@/lib/toast';
@@ -47,7 +48,7 @@ function toPersianNum(n: number) {
 function formatDuration(totalSeconds: number) {
   const m = Math.floor(totalSeconds / 60);
   const s = totalSeconds % 60;
-  return `${m}:${String(s).padStart(2, '0')}`;
+  return toFaDigits(`${m}:${String(s).padStart(2, '0')}`);
 }
 
 function VoiceBubblePlayer({

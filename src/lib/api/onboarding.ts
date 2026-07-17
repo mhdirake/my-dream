@@ -86,7 +86,7 @@ export type OnboardingUser = {
 
 export type OnboardingStatus = {
   completion_percent: number;
-  completion_status: 'incomplete' | 'complete';
+  completion_status: 'incomplete' | 'medium' | 'complete' | 'priority';
   can_enter_app: boolean;
   next_required_step: string | null;
   profile_photo_status: string | null;

@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { onboardingApi, type OnboardingStatus } from '@/lib/api/onboarding';
 import { profileApi, type ClientProfile } from '@/lib/api/profile';
 import { toast } from '@/lib/toast';
+import { profileCompletionLabel } from '@/lib/localization';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { AlertCircle, ChevronLeft, Edit3, User } from 'lucide-react-native';
@@ -176,7 +177,9 @@ export default function ProfilePreviewScreen() {
             {missing.map((item, i) => (
               <View key={i} style={styles.missingItem}>
                 <ChevronLeft size={13} color={Colors.muted} strokeWidth={2} />
-                <Text style={styles.missingItemText}>{item.label}</Text>
+                <Text style={styles.missingItemText}>
+                  {profileCompletionLabel(item.key, item.label)}
+                </Text>
                 <Text style={styles.missingWeight}>+{toPersian(item.weight)}٪</Text>
               </View>
             ))}

@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
     paddingVertical: 3, borderRadius: Radius.pill,
   },
   aiBadgeText: { fontSize: 10, color: Colors.accent, fontFamily: Fonts.semiBold },
-  aiBody: { fontSize: 11, color: Colors.muted, lineHeight: 17 },
+  aiBody: { fontSize: 11, color: Colors.muted, lineHeight: 17, fontFamily: Fonts.regular },
   bottomBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     padding: Spacing.lg, borderTopWidth: 1, borderTopColor: Colors.lineSoft,

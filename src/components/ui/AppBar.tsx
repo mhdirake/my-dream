@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
   titleWrap: {
     flex: 1,
   },
-  title: { fontSize: 17, letterSpacing: -0.3 },
+  title: { fontSize: 17, letterSpacing: -0.3, fontFamily: Fonts.extraBold },
   sub: { fontSize: 11.5, marginTop: 1, fontFamily: Fonts.regular },
   right: { flexShrink: 0 },
 });

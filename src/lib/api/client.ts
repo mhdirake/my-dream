@@ -1,8 +1,15 @@
+import { localizeErrorMessage } from '@/lib/localization';
+
 const BASE = process.env.EXPO_PUBLIC_API_URL!;
 
 export class ApiError extends Error {
-  constructor(public status: number, message: string) {
-    super(message);
+  constructor(
+    public status: number,
+    public rawMessage: string,
+    public data?: unknown,
+  ) {
+    super(localizeErrorMessage(rawMessage, status));
+    this.name = 'ApiError';
   }
 }
 
@@ -24,9 +31,13 @@ async function request<T>(
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
+    const validationMessage = data?.errors
+      ? Object.values(data.errors).flat().find(value => typeof value === 'string')
+      : undefined;
     throw new ApiError(
       res.status,
-      data?.error_description ?? data?.message ?? data?.detail ?? data?.error ?? `HTTP ${res.status}`,
+      String(validationMessage ?? data?.error_description ?? data?.message ?? data?.detail ?? data?.error ?? `HTTP ${res.status}`),
+      data,
     );
   }
 
