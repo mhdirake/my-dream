@@ -1,56 +1,64 @@
-# Welcome to your Expo app 👋
+<img src="assets/images/icon.png" alt="My Dream" width="160">
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+# My Dream Native
 
-## Get started
+کلاینت Android/iOS/Web پروژه My Dream با Expo Router و TypeScript. Laravel
+تنها API عمومی برنامه است؛ Native مستقیماً به MySQL، ScyllaDB، Centrifugo API
+یا Keycloak Admin API متصل نمی‌شود.
 
-1. Install dependencies
+## قابلیت‌های اصلی
 
-   ```bash
-   npm install
-   ```
+- ثبت‌نام، ورود و onboarding پروفایل
+- Swipe، پیشنهاد روزانه، Anonymous Interest و AI Match برای Gold
+- چت مستقیم realtime و Group Chat اشتراکی
+- کیف پول، خرید، هدیه و callback idempotent
+- اعلان درون‌اپی و Expo Push با deep-link و mark-read
+- حفاظت سراسری screenshot/capture در build دستگاه
+- تجربه‌ی RTL، فونت و اعداد فارسی
 
-2. Start the app
+## راه‌اندازی توسعه
 
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+نیازمندی‌ها: Node.js 20، npm و یک Backend توسعه.
 
 ```bash
-npm run reset-project
+cp .env.example .env.local
+npm ci
+npx expo start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Push و screenshot protection باید روی development/release build و دستگاه
+واقعی بررسی شوند؛ Expo Go معیار پذیرش این قابلیت‌ها نیست.
 
-### Other setup steps
+## متغیرهای عمومی
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+```env
+EXPO_PUBLIC_API_URL=https://api.example.com
+EXPO_PUBLIC_MEDIA_URL=https://media.example.com
+```
 
-## Learn more
+هر متغیر `EXPO_PUBLIC_*` داخل bundle قابل مشاهده است؛ بنابراین secret، password،
+Keycloak client secret، کلید Centrifugo یا credential registry هرگز با این prefix
+تعریف نمی‌شود. login/refresh فقط از endpointهای Laravel انجام می‌شود.
 
-To learn more about developing your project with Expo, look at the following resources:
+## Route و callback
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+- scheme برنامه `mobile://` و شناسه Android/iOS برابر `mydream.app` است.
+- payment callback پس از بازگشت وضعیت تراکنش را poll و wallet را refetch می‌کند.
+- tap اعلان سیستم‌عامل از route resolver مشترک اعلان داخلی استفاده می‌کند.
+- Group Chat فقط برای Silver/Gold و AI Match فقط برای Gold قابل دسترسی است.
 
-## Join the community
+## کنترل کیفیت و CI
 
-Join our community of developers creating universal apps.
+Pipeline شاخه `main` این مراحل را اجرا می‌کند:
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+1. typecheck و lint تعیین‌شده در target تست Docker؛
+2. build وب و استقرار روی runner01 (`127.0.0.1:8081`)؛
+3. build APK روی runner Android؛
+4. انتشار artifact و کپی اتمی APK روی runner01.
+
+هیچ registry credential در build argument ذخیره نمی‌شود؛ build وب آن‌ها را فقط
+به‌صورت BuildKit secret دریافت می‌کند.
+
+قرارداد ownership، endpointها، realtime JWT، ترتیب startup و متغیرهای چهار
+محصول در `docs/INTEGRATION.md` مخزن Backend مرجع است. تغییر payload مشترک باید
+هم‌زمان در typeهای `src/lib/api` و تست Backend ثبت شود.
