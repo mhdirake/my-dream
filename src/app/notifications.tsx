@@ -1,7 +1,7 @@
 import { AppBar } from '@/components/ui/AppBar';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { type AppNotification, notificationsApi } from '@/lib/api/notifications';
-import { chatApi } from '@/lib/api/chat';
+import { chatApi, conversationPeer } from '@/lib/api/chat';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { toast } from '@/lib/toast';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -97,19 +97,20 @@ async function openConversation(token: string, myId: number, conversationId: num
       return;
     }
 
-    const other = conversation.first_user_id === myId
-      ? conversation.second_user
-      : conversation.first_user;
+    const other = conversationPeer(conversation, myId);
     router.push({
       pathname: '/chat/[id]' as any,
       params: {
         id: String(conversation.id),
         publicId: conversation.public_id,
-        otherId: String(other.id),
+        otherId: conversation.type === 'group' ? '' : String(other.id),
         name: other.first_name,
         avatar: other.profile_photo?.urls?.thumbnail ?? '',
         status: conversation.status,
         isSender: conversation.first_user_id === myId ? '1' : '0',
+        conversationType: conversation.type,
+        groupKey: conversation.group_key ?? '',
+        memberCount: String(conversation.participant_count ?? 0),
       },
     });
   } catch {

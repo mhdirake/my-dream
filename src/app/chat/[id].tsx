@@ -18,7 +18,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import {
   ArrowLeft, Check, CheckCheck, Clock, Gift as GiftIcon,
   ImageOff, ImagePlus, Lock, Mic, MoreVertical, Pause, Pencil, Play,
-  RefreshCw, Search, Send, Trash2, User, X,
+  RefreshCw, Search, Send, Trash2, User, Users, X,
 } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -209,7 +209,7 @@ function formatLastSeen(iso: string): string {
 export default function ConversationScreen() {
   const insets = useSafeAreaInsets();
   const keyboardHeight = useKeyboardHeight();
-  const { id, publicId, name, avatar, status, otherId, isSender } = useLocalSearchParams<{
+  const { id, publicId, name, avatar, status, otherId, isSender, conversationType, groupKey, memberCount } = useLocalSearchParams<{
     id: string;
     publicId: string;
     name: string;
@@ -217,12 +217,16 @@ export default function ConversationScreen() {
     status?: string;
     otherId?: string;
     isSender?: string;
+    conversationType?: 'direct' | 'group';
+    groupKey?: 'silver' | 'gold';
+    memberCount?: string;
   }>();
 
   const { session, user } = useAuth();
   const conversationId = Number(id);
   const myId = user?.id ?? -1;
   const token = session?.accessToken ?? '';
+  const isGroup = conversationType === 'group';
 
   const {
     messages, loading, sending, send, sendTyped, pushMessage, typingUserId,
@@ -231,7 +235,7 @@ export default function ConversationScreen() {
     loadContext, highlightId, clearHighlight,
   } = useChatMessages(conversationId, publicId ?? '', token);
 
-  const otherTyping = typingUserId != null && String(typingUserId) === otherId;
+  const otherTyping = typingUserId != null && (isGroup ? typingUserId !== myId : String(typingUserId) === otherId);
 
   const [text, setText] = useState('');
   const [pendingImage, setPendingImage] = useState<{ uri: string; mimeType: string } | null>(null);
@@ -429,6 +433,10 @@ export default function ConversationScreen() {
   }, [token]));
 
   const handlePickImage = async () => {
+    if (isGroup) {
+      toast.error('در گفتگوی گروهی فقط متن، صدا و استیکر مجاز است');
+      return;
+    }
     if (myPlan !== 'gold') {
       toast.error('ارسال تصویر مخصوص اشتراک طلایی است');
       router.push('/subscription' as never);
@@ -670,22 +678,25 @@ export default function ConversationScreen() {
 
         <Pressable
           style={styles.headerUser}
-          onPress={() => otherId && router.push({ pathname: '/user/[id]', params: { id: otherId } } as never)}
+          onPress={() => !isGroup && otherId && router.push({ pathname: '/user/[id]', params: { id: otherId } } as never)}
         >
           <View style={styles.avatarWrap}>
-            {avatar ? (
+            {avatar && !isGroup ? (
               <Image source={{ uri: avatar }} style={StyleSheet.absoluteFill} contentFit="cover" />
             ) : (
               <View style={styles.avatarFallback}>
-                <User size={16} color={Colors.muted} strokeWidth={1.5} />
+                {isGroup
+                  ? <Users size={17} color={Colors.purple} strokeWidth={1.8} />
+                  : <User size={16} color={Colors.muted} strokeWidth={1.5} />}
               </View>
             )}
-            {isOnline && <View style={styles.onlineDot} />}
+            {!isGroup && isOnline && <View style={styles.onlineDot} />}
           </View>
           <View>
             <Text style={styles.headerName}>{name ?? '...'}</Text>
             <Text style={styles.headerSub}>
-              {isPending ? 'در انتظار تأیید' :
+              {isGroup ? `${groupKey === 'gold' ? 'گروه طلایی' : 'گروه نقره‌ای'} · ${toFaDigits(memberCount ?? '0')} عضو` :
+               isPending ? 'در انتظار تأیید' :
                otherTyping ? 'در حال تایپ...' :
                isOnline ? 'آنلاین' :
                lastSeen ? `آخرین بازدید: ${formatLastSeen(lastSeen)}` : ''}
@@ -816,6 +827,9 @@ export default function ConversationScreen() {
 
               const bubbleContent = (
                 <>
+                  {isGroup && !isMine ? (
+                    <Text style={[styles.groupSender, { color: isMine ? '#fff' : Colors.purple }]}>کاربر {toFaDigits(item.sender_user_id)}</Text>
+                  ) : null}
                   {imageUri && imageFailed ? (
                     <Pressable
                       style={styles.msgImageError}
@@ -1142,18 +1156,22 @@ export default function ConversationScreen() {
                 placeholder={editingId ? 'ویرایش' : pendingImage ? 'زیرنویس (اختیاری)' : 'پیام'}
                 placeholderTextColor={Colors.muted}
                 multiline
-                maxLength={pendingImage ? 500 : 2000}
+                maxLength={pendingImage ? 500 : isGroup ? 1000 : 2000}
                 textAlign="right"
                 textAlignVertical="top"
               />
               {!editingId && !pendingImage && (
                 <>
-                  <TouchableOpacity style={styles.attachBtn} onPress={handlePickImage} hitSlop={6} activeOpacity={0.7}>
-                    <ImagePlus size={20} color={Colors.muted} strokeWidth={1.8} />
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.giftAttachBtn} onPress={handleOpenGiftPicker} hitSlop={6} activeOpacity={0.7}>
-                    <GiftIcon size={18} color={Colors.goldDeep} strokeWidth={1.8} />
-                  </TouchableOpacity>
+                  {!isGroup && (
+                    <>
+                      <TouchableOpacity style={styles.attachBtn} onPress={handlePickImage} hitSlop={6} activeOpacity={0.7}>
+                        <ImagePlus size={20} color={Colors.muted} strokeWidth={1.8} />
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.giftAttachBtn} onPress={handleOpenGiftPicker} hitSlop={6} activeOpacity={0.7}>
+                        <GiftIcon size={18} color={Colors.goldDeep} strokeWidth={1.8} />
+                      </TouchableOpacity>
+                    </>
+                  )}
                   {!text.trim() && (
                     <TouchableOpacity style={styles.micAttachBtn} onPress={handleMicPress} hitSlop={6} activeOpacity={0.7}>
                       <Mic size={18} color={Colors.trust} strokeWidth={1.8} />
@@ -1237,7 +1255,7 @@ export default function ConversationScreen() {
                       </TouchableOpacity>
                     )}
                     <TouchableOpacity style={[styles.menuRow, styles.menuRowDanger]} activeOpacity={0.7}
-                      onPress={() => { setMsgMenu(null); setTimeout(() => router.push({ pathname: '/report-user', params: { userId: otherId ?? String(msgMenu?.sender), userName: name ?? '', conversationPublicId: publicId ?? '', messageId: msgMenu?.id, context: 'message' } } as never), 100); }}>
+                      onPress={() => { setMsgMenu(null); setTimeout(() => router.push({ pathname: '/report-user', params: { userId: isGroup ? String(msgMenu?.sender) : (otherId ?? String(msgMenu?.sender)), userName: isGroup ? `کاربر ${toFaDigits(msgMenu?.sender ?? '')}` : (name ?? ''), conversationPublicId: publicId ?? '', messageId: msgMenu?.id, context: 'message' } } as never), 100); }}>
                       <Text style={[styles.menuRowTxt, styles.menuRowTxtDanger]}>گزارش پیام</Text>
                     </TouchableOpacity>
                   </>
@@ -1267,13 +1285,13 @@ export default function ConversationScreen() {
                 <Text style={styles.menuRowTxt}>مشاهده پروفایل</Text>
               </TouchableOpacity>
             )}
-            <TouchableOpacity
+            {!isGroup && <TouchableOpacity
               style={[styles.menuRow, styles.menuRowDanger]}
               activeOpacity={0.7}
               onPress={() => { setMenuOpen(false); setTimeout(() => router.push({ pathname: '/report-user', params: { userId: otherId ?? '', userName: name ?? '' } } as never), 100); }}
             >
               <Text style={[styles.menuRowTxt, styles.menuRowTxtDanger]}>گزارش تخلف</Text>
-            </TouchableOpacity>
+            </TouchableOpacity>}
             <TouchableOpacity style={[styles.menuRow, styles.menuCancel]} activeOpacity={0.7} onPress={() => setMenuOpen(false)}>
               <Text style={styles.menuCancelTxt}>انصراف</Text>
             </TouchableOpacity>
@@ -1442,6 +1460,7 @@ const styles = StyleSheet.create({
 
   // Message rows
   msgWrap: { marginVertical: 3 },
+  groupSender: { fontSize: 10.5, fontFamily: Fonts.semiBold, marginBottom: 3 },
   msgImage: {
     width: 220,
     height: 220,

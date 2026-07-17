@@ -74,10 +74,13 @@ export function ChatToastProvider({ children }: { children: React.ReactNode }) {
       params: {
         id: String(conv.id),
         publicId: conv.public_id,
-        otherId: String(other.id),
+        otherId: conv.type === 'group' ? '' : String(other.id),
         name: other.first_name,
         avatar: other.profile_photo?.urls?.thumbnail ?? '',
         status: conv.status,
+        conversationType: conv.type,
+        groupKey: conv.group_key ?? '',
+        memberCount: String(conv.participant_count ?? 0),
       },
     } as never);
   }, [data, hide]);

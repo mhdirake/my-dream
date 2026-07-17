@@ -2,7 +2,7 @@ import { Avatar } from '@/components/ui/Avatar';
 import { useChatToast } from '@/components/ui/ChatToast';
 import { KeyboardAvoider } from '@/components/ui/KeyboardAvoider';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
-import { Conversation, ConversationUser, chatApi } from '@/lib/api/chat';
+import { Conversation, ConversationUser, chatApi, conversationPeer } from '@/lib/api/chat';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useConversations } from '@/lib/chat/useConversations';
 import { toFaDigits } from '@/lib/localization';
@@ -25,7 +25,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-function photoUrl(user: ConversationUser | undefined) {
+function photoUrl(user: ConversationUser | null | undefined) {
   return user?.profile_photo?.urls?.thumbnail ?? null;
 }
 
@@ -48,7 +48,7 @@ export default function ChatScreen() {
   const { showChatToast } = useChatToast();
 
   const handleNewMessage = useCallback(async (conv: Conversation) => {
-    const other = conv.first_user_id === myId ? conv.second_user : conv.first_user;
+    const other = conversationPeer(conv, myId);
     showChatToast(conv, other);
     if (Platform.OS === 'web') return;
   }, [myId, showChatToast]);
@@ -71,7 +71,7 @@ export default function ChatScreen() {
   }, [searchOpen]);
 
   function otherUser(c: Conversation): ConversationUser {
-    return c.first_user_id === myId ? c.second_user : c.first_user;
+    return conversationPeer(c, myId);
   }
 
   const openConversation = (c: Conversation) => {
@@ -84,11 +84,14 @@ export default function ChatScreen() {
       params: {
         id: String(c.id),
         publicId: c.public_id,
-        otherId: String(other.id),
+        otherId: c.type === 'group' ? '' : String(other.id),
         name: other.first_name,
         avatar: photoUrl(other) ?? '',
         status: c.status,
         isSender: c.first_user_id === myId ? '1' : '0',
+        conversationType: c.type,
+        groupKey: c.group_key ?? '',
+        memberCount: String(c.participant_count ?? 0),
       },
     } as never);
   };
@@ -243,7 +246,7 @@ export default function ChatScreen() {
                   <PendingRow
                     key={c.id}
                     conversation={c}
-                    other={isSender ? c.second_user : c.first_user}
+                    other={conversationPeer(c, myId)}
                     isSender={isSender}
                     isResponding={responding === c.id}
                     onAccept={() => handleRespond(c, 'accepted')}
