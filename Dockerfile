@@ -13,10 +13,11 @@ FROM deps AS test
 COPY . .
 RUN npx tsc --noEmit
 RUN npx eslint \
-  src/app/api/auth/login+api.ts \
-  src/app/api/auth/refresh+api.ts \
   src/lib/api/auth.ts \
-  src/lib/api/client.ts
+  src/lib/api/client.ts \
+  src/lib/notifications/push.ts \
+  src/app/notifications.tsx
+RUN ! grep -R -E "EXPO_PUBLIC_KC_SECRET|process\.env\.KC_SECRET|grant_type.*password" src eas.json app.json
 
 FROM deps AS web-build
 WORKDIR /app
