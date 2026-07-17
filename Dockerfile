@@ -9,6 +9,11 @@ COPY package*.json ./
 RUN --mount=type=cache,target=/root/.npm,sharing=locked \
   npm ci
 
+FROM deps AS test
+COPY . .
+RUN npm run lint \
+  && npx tsc --noEmit
+
 FROM deps AS web-build
 WORKDIR /app
 

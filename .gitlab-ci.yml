@@ -1,4 +1,5 @@
 stages:
+  - test
   - build
   - deploy
 
@@ -11,6 +12,13 @@ variables:
   ANDROID_REPOSITORY_URL: "https://dl.google.com/android/repository"
   ANDROID_NPM_REGISTRY: "https://registry.npmjs.org/"
   ANDROID_GRADLE_VARIANT: "Release"
+
+test:
+  stage: test
+  tags:
+    - runner01
+  script:
+    - docker build --file Dockerfile --target test --tag native-app-test .
 
 build-web:
   stage: build
@@ -53,8 +61,6 @@ build-android:
         --build-arg ANDROID_GRADLE_VARIANT="$ANDROID_GRADLE_VARIANT" \
         --build-arg ANDROID_ARCHITECTURES="arm64-v8a" \
         --build-arg EXPO_PUBLIC_API_URL="$EXPO_PUBLIC_API_URL" \
-        --build-arg EXPO_PUBLIC_KC_URL="$EXPO_PUBLIC_KC_URL" \
-        --build-arg EXPO_PUBLIC_KC_SECRET="$EXPO_PUBLIC_KC_SECRET" \
         .
     - ls -lah "$ANDROID_ARTIFACTS_DIR"
   artifacts:
