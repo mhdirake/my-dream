@@ -1,4 +1,5 @@
 import Constants from 'expo-constants';
+import * as ExpoNotifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { api } from '../api/client';
 
@@ -7,12 +8,10 @@ export type PushPreferences = {
   active_devices: number;
 };
 
-// Remote push is unavailable in Expo Go on Android. Loading the native module
-// lazily keeps web and Expo Go development usable.
+// Remote push is unavailable in Expo Go on Android, so keep the module idle
+// there while retaining one typed implementation for native builds.
 const isExpoGo = Constants.appOwnership === 'expo';
-const Notifications = isExpoGo
-  ? null
-  : (require('expo-notifications') as typeof import('expo-notifications'));
+const Notifications = isExpoGo ? null : ExpoNotifications;
 
 if (Notifications) {
   Notifications.setNotificationHandler({

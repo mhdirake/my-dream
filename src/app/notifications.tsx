@@ -1,5 +1,5 @@
 import { AppBar } from '@/components/ui/AppBar';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
+import { Colors, Fonts, Spacing } from '@/constants/colors';
 import { type AppNotification, notificationsApi } from '@/lib/api/notifications';
 import { chatApi, conversationPeer } from '@/lib/api/chat';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -174,6 +174,8 @@ async function handleNavigation(n: AppNotification, token: string, myId: number)
 
 export default function NotificationsScreen() {
   const { session, user } = useAuth();
+  const accessToken = session?.accessToken;
+  const userId = user?.id ?? -1;
   const { open } = useLocalSearchParams<{ open?: string }>();
   const openedNotification = useRef<number | null>(null);
   const [items, setItems] = useState<AppNotification[]>([]);
@@ -185,10 +187,14 @@ export default function NotificationsScreen() {
   const [markingAll, setMarkingAll] = useState(false);
 
   const load = useCallback(async (p: number, replace: boolean) => {
-    if (!session?.accessToken) return;
-    p === 1 ? setLoading(true) : setLoadingMore(true);
+    if (!accessToken) return;
+    if (p === 1) {
+      setLoading(true);
+    } else {
+      setLoadingMore(true);
+    }
     try {
-      const res = await notificationsApi.list(session.accessToken, p);
+      const res = await notificationsApi.list(accessToken, p);
       setItems(prev => replace ? res.data : [...prev, ...res.data]);
       setUnreadCount(res.unread_count);
       setLastPage(res.meta.last_page);
@@ -199,9 +205,12 @@ export default function NotificationsScreen() {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [session?.accessToken]);
+  }, [accessToken]);
 
-  useEffect(() => { load(1, true); }, [load]);
+  useEffect(() => {
+    const timer = setTimeout(() => { void load(1, true); }, 0);
+    return () => clearTimeout(timer);
+  }, [load]);
 
   const markAllRead = async () => {
     if (!session?.accessToken || markingAll || unreadCount === 0) return;
@@ -217,20 +226,20 @@ export default function NotificationsScreen() {
     }
   };
 
-  const markRead = async (n: AppNotification) => {
-    if (!session?.accessToken || n.read_at) return;
+  const markRead = useCallback(async (n: AppNotification) => {
+    if (!accessToken || n.read_at) return;
     try {
-      await notificationsApi.markRead(session.accessToken, n.id);
+      await notificationsApi.markRead(accessToken, n.id);
       setItems(prev => prev.map(item => item.id === n.id ? { ...item, read_at: new Date().toISOString() } : item));
       setUnreadCount(c => Math.max(0, c - 1));
     } catch { /* silent */ }
-  };
+  }, [accessToken]);
 
-  const handlePress = async (n: AppNotification) => {
-    if (!session?.accessToken) return;
+  const handlePress = useCallback(async (n: AppNotification) => {
+    if (!accessToken) return;
     await markRead(n);
-    await handleNavigation(n, session.accessToken, user?.id ?? -1);
-  };
+    await handleNavigation(n, accessToken, userId);
+  }, [accessToken, markRead, userId]);
 
   useEffect(() => {
     const notificationId = Number(open);
@@ -241,8 +250,11 @@ export default function NotificationsScreen() {
     if (!notification) return;
 
     openedNotification.current = notificationId;
-    handlePress(notification).catch(() => undefined);
-  }, [open, loading, items]);
+    const timer = setTimeout(() => {
+      handlePress(notification).catch(() => undefined);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [open, loading, items, handlePress]);
 
   const grouped = buildGrouped(items);
 
