@@ -28,6 +28,10 @@ const TYPE_META: Record<string, NotifMeta> = {
   message_received:          { icon: MessageCircle,  color: Colors.trust, bg: Colors.trustSoft },
   chat_message_created:      { icon: MessageCircle,  color: Colors.trust, bg: Colors.trustSoft },
   conversation_request_created: { icon: MessageCircle, color: Colors.trust, bg: Colors.trustSoft },
+  conversation_request_accepted: { icon: MessageCircle, color: Colors.trust, bg: Colors.trustSoft },
+  match_created:             { icon: Heart,          color: Colors.accent, bg: Colors.accentSoft },
+  payment_succeeded:         { icon: Star,           color: Colors.goldDeep, bg: Colors.goldSoft },
+  security_alert:            { icon: AlertTriangle,  color: Colors.danger, bg: '#FFF1F0' },
   profile_viewed:            { icon: Eye,            color: Colors.purple, bg: Colors.purpleSoft },
   badge_earned:              { icon: Star,           color: Colors.goldDeep, bg: Colors.goldSoft },
   restriction_applied:       { icon: AlertTriangle,  color: Colors.danger, bg: '#FFF1F0' },
@@ -124,7 +128,8 @@ async function handleNavigation(n: AppNotification, token: string, myId: number)
     case 'new_message':
     case 'message_received':
     case 'chat_message_created':
-    case 'conversation_request_created': {
+    case 'conversation_request_created':
+    case 'conversation_request_accepted': {
       const conversationId = Number(m.conversation_id);
       if (Number.isFinite(conversationId) && conversationId > 0) {
         await openConversation(token, myId, conversationId);
@@ -136,6 +141,18 @@ async function handleNavigation(n: AppNotification, token: string, myId: number)
     case 'gift_received':
       router.push('/gifts/wallet' as any);
       break;
+    case 'payment_succeeded':
+      if (m.purchase_type === 'subscription') {
+        router.push('/subscription' as any);
+      } else if (m.purchase_type === 'gold_badge') {
+        router.push('/subscription/gold-badge' as any);
+      } else {
+        router.push('/gifts/wallet' as any);
+      }
+      break;
+    case 'security_alert':
+      router.push('/settings/restrictions' as any);
+      break;
     case 'profile_viewed':
       router.push('/viewed-me' as any);
       break;
@@ -146,6 +163,7 @@ async function handleNavigation(n: AppNotification, token: string, myId: number)
       router.push('/settings/restrictions' as any);
       break;
     case 'anonymous_interest_mutual':
+    case 'match_created':
     case 'like_received':
       if (n.related_user?.id) router.push({ pathname: '/user/[id]' as any, params: { id: String(n.related_user.id) } });
       break;
