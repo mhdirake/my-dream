@@ -6,9 +6,10 @@ import { paymentsApi } from '@/lib/api/payments';
 import { profileApi, ClientProfile } from '@/lib/api/profile';
 import { toast } from '@/lib/toast';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
+import { toJalaali } from 'jalaali-js';
 import { Coins, Gift, ShoppingBag } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -22,12 +23,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 const toPersian = (n: number) => String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
 
 function formatDate(iso: string): string {
-  try {
-    const d = new Date(iso);
-    return `${toPersian(d.getFullYear())}/${toPersian(d.getMonth() + 1).padStart(2, '۰')}/${toPersian(d.getDate()).padStart(2, '۰')}`;
-  } catch {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) {
     return iso;
   }
+
+  const { jy, jm, jd } = toJalaali(d.getFullYear(), d.getMonth() + 1, d.getDate());
+  return `${toPersian(jy)}/${toPersian(jm).padStart(2, '۰')}/${toPersian(jd).padStart(2, '۰')}`;
 }
 
 export default function WalletScreen() {
@@ -37,17 +39,32 @@ export default function WalletScreen() {
   const [received, setReceived] = useState<CoinGiftRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!session?.accessToken) return;
+  useFocusEffect(useCallback(() => {
+    const token = session?.accessToken;
+    if (!token) return undefined;
+
+    let active = true;
+    setLoading(true);
     Promise.all([
-      profileApi.getProfile(session.accessToken),
-      paymentsApi.getWallet(session.accessToken),
-      giftsApi.coinGiftsReceived(session.accessToken),
+      profileApi.getProfile(token),
+      paymentsApi.getWallet(token),
+      giftsApi.coinGiftsReceived(token),
     ])
-      .then(([p, w, r]) => { setProfile(p); setCoins(w.coin_balance); setReceived(r.slice(0, 10)); })
-      .catch(e => toast.error(e.message ?? 'خطا در بارگذاری'))
-      .finally(() => setLoading(false));
-  }, [session?.accessToken]);
+      .then(([p, w, r]) => {
+        if (!active) return;
+        setProfile(p);
+        setCoins(w.coin_balance);
+        setReceived(r.slice(0, 10));
+      })
+      .catch(e => {
+        if (active) toast.error(e.message ?? 'خطا در بارگذاری');
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => { active = false; };
+  }, [session?.accessToken]));
 
   const sub = profile?.active_subscription;
 
@@ -84,7 +101,7 @@ export default function WalletScreen() {
                 <Text style={styles.subVal}>
                   {sub.plan.slug === 'gold' ? 'طلایی' : sub.plan.slug === 'silver' ? 'نقره‌ای' : 'پایه'}
                 </Text>
-                <Text style={styles.subExpiry}> · تا {formatDate(sub.expires_at)}</Text>
+                {sub.ends_at && <Text style={styles.subExpiry}> · تا {formatDate(sub.ends_at)}</Text>}
               </View>
             )}
           </View>

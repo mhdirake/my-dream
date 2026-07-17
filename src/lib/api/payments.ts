@@ -12,7 +12,7 @@ export type PaymentTransactionStatus =
 
 export type PaymentTransaction = {
   id: number;
-  purchase_type: 'subscription' | 'gold_badge' | 'coin_bundle';
+  purchase_type: 'subscription' | 'gold_badge' | 'coin_bundle' | 'subscription_gift';
   status: PaymentTransactionStatus;
   amount: number;
   currency: string;
@@ -21,7 +21,7 @@ export type PaymentTransaction = {
 
 export type PaymentStatusDetail = {
   id: number;
-  purchase_type: 'subscription' | 'gold_badge' | 'coin_bundle';
+  purchase_type: 'subscription' | 'gold_badge' | 'coin_bundle' | 'subscription_gift';
   status: PaymentTransactionStatus;
   amount: number;
   currency: string;

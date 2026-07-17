@@ -8,11 +8,12 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { api } from '@/lib/api/client';
 import { giftsApi, type CoinGiftRecord, type SubscriptionGiftRecord } from '@/lib/api/gifts';
 import { paymentsApi } from '@/lib/api/payments';
-import { searchApi } from '@/lib/api/search';
+import { searchApi, type SearchUser } from '@/lib/api/search';
+import { payAndWait } from '@/lib/payments/payAndWait';
 import { toast } from '@/lib/toast';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Coins, Gift, Star } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -40,6 +41,7 @@ export default function GiftSubScreen() {
   const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const params = useLocalSearchParams<{ tab?: string; userId?: string; userName?: string }>();
+  const hasUserId = !!params.userId;
 
   const [tab, setTab] = useState<'sub' | 'coin'>((params.tab as any) ?? 'sub');
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -54,6 +56,56 @@ export default function GiftSubScreen() {
   const [subHistory, setSubHistory] = useState<{ sent: SubscriptionGiftRecord[]; received: SubscriptionGiftRecord[] } | null>(null);
   const [coinHistory, setCoinHistory] = useState<{ sent: CoinGiftRecord[]; received: CoinGiftRecord[] } | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState<SearchUser[]>([]);
+  const [selectedReceiverId, setSelectedReceiverId] = useState<number | null>(
+    params.userId ? Number(params.userId) : null,
+  );
+  const [searching, setSearching] = useState(false);
+
+  useFocusEffect(useCallback(() => {
+    const token = session?.accessToken;
+    if (!token) return undefined;
+
+    let active = true;
+    paymentsApi.getWallet(token)
+      .then(wallet => {
+        if (active) setCoins(wallet.coin_balance);
+      })
+      .catch(() => undefined);
+
+    return () => { active = false; };
+  }, [session?.accessToken]));
+
+  useEffect(() => {
+    const token = session?.accessToken;
+    const cleaned = username.trim().replace(/^@/, '');
+
+    if (!token || hasUserId || selectedReceiverId || cleaned.length < 2) {
+      setSuggestions([]);
+      setSearching(false);
+      return;
+    }
+
+    let active = true;
+    const timeout = setTimeout(() => {
+      setSearching(true);
+      searchApi.search(token, cleaned, 8)
+        .then(result => {
+          if (active) setSuggestions(result.data);
+        })
+        .catch(() => {
+          if (active) setSuggestions([]);
+        })
+        .finally(() => {
+          if (active) setSearching(false);
+        });
+    }, 300);
+
+    return () => {
+      active = false;
+      clearTimeout(timeout);
+    };
+  }, [hasUserId, selectedReceiverId, session?.accessToken, username]);
 
   useEffect(() => {
     if (!session?.accessToken) return;
@@ -109,6 +161,10 @@ export default function GiftSubScreen() {
       toast.error('نام کاربری گیرنده رو وارد کن');
       return;
     }
+    if (tab === 'coin' && (coins ?? 0) < coinAmount) {
+      router.push('/gifts/buy-coins' as any);
+      return;
+    }
 
     Alert.alert(
       'تأیید ارسال هدیه',
@@ -125,7 +181,8 @@ export default function GiftSubScreen() {
   const resolveReceiverId = async (): Promise<number | null> => {
     if (hasUserId) return Number(params.userId);
     const cleaned = username.trim().replace(/^@/, '');
-    const result = await searchApi.search(session!.accessToken, cleaned, 1);
+    if (selectedReceiverId) return selectedReceiverId;
+    const result = await searchApi.search(session!.accessToken, cleaned, 20);
     const match = result.data.find(u => u.username.toLowerCase() === cleaned.toLowerCase());
     return match?.id ?? null;
   };
@@ -141,20 +198,34 @@ export default function GiftSubScreen() {
       }
       if (tab === 'sub') {
         if (!selectedPlanId) return;
-        await giftsApi.sendSubscriptionGift(
+        const response = await giftsApi.sendSubscriptionGift(
           session.accessToken,
           receiverId,
           selectedPlanId,
           note.trim() || undefined,
         );
+        const paymentResult = await payAndWait(
+          session.accessToken,
+          response.payment.id,
+          response.payment_url,
+        );
+        if (paymentResult.status === 'failed') {
+          toast.error(paymentResult.detail?.failure_message ?? 'پرداخت هدیه ناموفق بود');
+          return;
+        }
+        if (paymentResult.status === 'cancelled') {
+          toast.info('پرداخت هدیه تکمیل نشد');
+          return;
+        }
         toast.success('هدیه اشتراک ارسال شد!');
       } else {
-        await giftsApi.sendCoinGift(
+        const response = await giftsApi.sendCoinGift(
           session.accessToken,
           receiverId,
           coinAmount,
           note.trim() || undefined,
         );
+        setCoins(response.sender_coin_balance);
         toast.success('هدیه سکه ارسال شد!');
       }
       router.back();
@@ -164,9 +235,6 @@ export default function GiftSubScreen() {
       setSending(false);
     }
   };
-
-  const selectedPlan = plans.find(p => p.id === selectedPlanId);
-  const hasUserId = !!params.userId;
 
   return (
     <SafeAreaView style={styles.root}>
@@ -199,10 +267,37 @@ export default function GiftSubScreen() {
                 placeholder="@username"
                 placeholderTextColor={Colors.muted}
                 value={username}
-                onChangeText={setUsername}
+                onChangeText={value => {
+                  setUsername(value);
+                  setSelectedReceiverId(null);
+                }}
                 autoCapitalize="none"
                 autoCorrect={false}
               />
+              {searching && <ActivityIndicator size="small" color={Colors.accent} style={styles.searchLoader} />}
+              {suggestions.length > 0 && (
+                <View style={styles.suggestionList}>
+                  {suggestions.map(user => (
+                    <TouchableOpacity
+                      key={user.id}
+                      style={styles.suggestionRow}
+                      onPress={() => {
+                        setUsername(user.username);
+                        setSelectedReceiverId(user.id);
+                        setSuggestions([]);
+                      }}
+                    >
+                      <View style={styles.suggestionText}>
+                        <Text style={styles.suggestionName}>
+                          {[user.first_name, user.last_name].filter(Boolean).join(' ')}
+                        </Text>
+                        <Text style={styles.suggestionUsername}>@{user.username}</Text>
+                      </View>
+                      {user.city && <Text style={styles.suggestionCity}>{user.city}</Text>}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
             </Card>
           ) : (
             <Card soft>
@@ -362,12 +457,15 @@ export default function GiftSubScreen() {
             variant="accent"
             disabled={
               sending ||
-              (tab === 'coin' && (coins ?? 0) < coinAmount) ||
               (tab === 'sub' && !selectedPlanId)
             }
             onPress={handleSend}
           >
-            {sending ? 'در حال ارسال…' : 'ارسال هدیه'}
+            {sending
+              ? 'در حال ارسال…'
+              : tab === 'coin' && (coins ?? 0) < coinAmount
+                ? 'خرید سکه'
+                : 'ارسال هدیه'}
           </Button>
         </KeyboardStickyBar>
       )}
@@ -420,6 +518,18 @@ const styles = StyleSheet.create({
     fontSize: 14, fontFamily: Fonts.regular, color: Colors.ink,
     borderBottomWidth: 1, borderBottomColor: Colors.hair, paddingBottom: 6,
   },
+  searchLoader: { marginTop: 10 },
+  suggestionList: {
+    marginTop: 8, borderTopWidth: 1, borderTopColor: Colors.hair,
+  },
+  suggestionRow: {
+    minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    borderBottomWidth: 1, borderBottomColor: Colors.hair, paddingVertical: 8,
+  },
+  suggestionText: { flex: 1 },
+  suggestionName: { fontSize: 12.5, fontFamily: Fonts.semiBold, color: Colors.ink },
+  suggestionUsername: { fontSize: 11, fontFamily: Fonts.regular, color: Colors.accent, marginTop: 2 },
+  suggestionCity: { fontSize: 11, fontFamily: Fonts.regular, color: Colors.muted },
   recipientName: { fontSize: 15, fontFamily: Fonts.bold, color: Colors.ink },
 
   sectionTitle: { fontSize: 12, fontFamily: Fonts.extraBold, color: Colors.ink },

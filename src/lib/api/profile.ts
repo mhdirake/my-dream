@@ -73,7 +73,11 @@ export type ClientProfile = {
   languages: { id: number; title: string; slug: string; pivot?: { is_primary: number | boolean } }[];
   dealbreakers: { id: number; body: string; moderation_status: string }[];
   badges: { id: number; title?: string; label?: string; slug?: string; icon?: string }[];
-  active_subscription: { plan: { id: number; name: string; slug: string }; expires_at: string } | null;
+  active_subscription: {
+    plan: { id: number; name: string; slug: string };
+    starts_at: string;
+    ends_at: string | null;
+  } | null;
   ai_public_insight_visibility?: 'visible' | 'hidden';
   voice_intro_url?: string | null;
   voice_intro_duration_seconds?: number | null;

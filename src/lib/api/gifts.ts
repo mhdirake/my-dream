@@ -1,5 +1,7 @@
 import { api } from './client';
 import { BackendGift } from './discover';
+import type { PaymentTransaction } from './payments';
+import { Platform } from 'react-native';
 
 export type SentGift = {
   sent_gift_id: number;
@@ -75,9 +77,20 @@ export const giftsApi = {
     ),
 
   sendSubscriptionGift: (token: string, receiverUserId: number, subscriptionPlanId: number, note?: string) =>
-    api.post<{ message: string }>(
+    api.post<{
+      message: string;
+      data: SubscriptionGiftRecord;
+      payment: PaymentTransaction;
+      payment_url: string;
+    }>(
       '/api/client/subscription-gifts',
-      { receiver_user_id: receiverUserId, subscription_plan_id: subscriptionPlanId, note: note ?? null, show_in_chat: false },
+      {
+        receiver_user_id: receiverUserId,
+        subscription_plan_id: subscriptionPlanId,
+        note: note ?? null,
+        show_in_chat: false,
+        redirect_to: Platform.OS === 'web' ? 'web_app' : 'mobile_app',
+      },
       token,
     ),
 
