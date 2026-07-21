@@ -28,6 +28,20 @@ build-web:
     - main
   script:
     - |
+      set -eu
+      rollback_image="native-app-expo-web:rollback-${CI_PIPELINE_ID}"
+      rollback_available=false
+      if docker image inspect native-app-expo-web >/dev/null 2>&1; then
+        docker tag native-app-expo-web "$rollback_image"
+        rollback_available=true
+      fi
+      rollback() {
+        if [ "$rollback_available" = "true" ]; then
+          docker tag "$rollback_image" native-app-expo-web
+          docker compose up -d --no-build --no-deps expo-web
+        fi
+      }
+      trap rollback ERR
       docker buildx build \
         --file Dockerfile \
         --target web-runtime \
@@ -37,8 +51,17 @@ build-web:
         --secret id=npm_pass,env=NPM_PASS \
         --build-arg EXPO_PUBLIC_API_URL="$EXPO_PUBLIC_API_URL" \
         .
-    - docker compose up -d --no-build --no-deps expo-web
-    - echo "Deployment complete!"
+      docker compose up -d --no-build --no-deps expo-web
+      for i in $(seq 1 30); do
+        if [ "$(docker inspect -f '{{.State.Health.Status}}' mydream-app 2>/dev/null)" = "healthy" ]; then
+          echo "Deployment complete!"
+          trap - ERR
+          exit 0
+        fi
+        sleep 2
+      done
+      docker logs --tail 100 mydream-app
+      exit 1
 
 build-android:
   stage: build

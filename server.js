@@ -15,6 +15,8 @@ const app = express();
 app.disable('x-powered-by');
 app.use(compression());
 
+app.get('/health', (_request, response) => response.json({ status: 'ok' }));
+
 app.use(
   express.static(CLIENT_BUILD_DIR, {
     extensions: ['html'],
