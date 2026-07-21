@@ -1,10 +1,11 @@
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { ApiError } from '@/lib/api/client';
-import { chatApi } from '@/lib/api/chat';
+import { Message, chatApi } from '@/lib/api/chat';
 import { BackendGift } from '@/lib/api/discover';
 import { giftsApi } from '@/lib/api/gifts';
 import { profileApi } from '@/lib/api/profile';
 import { useChatMessages } from '@/lib/chat/useChatMessages';
+import { useCentrifugoCtx } from '@/lib/chat/CentrifugoContext';
 import { useVoiceRecorder } from '@/lib/chat/useVoiceRecorder';
 import { useKeyboardHeight } from '@/lib/useKeyboardHeight';
 import { toFaDigits } from '@/lib/localization';
@@ -23,6 +24,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  AppState,
   FlatList,
   Modal,
   Pressable,
@@ -32,6 +34,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  ViewToken,
   View,
 } from 'react-native';
 import Animated, { ZoomIn } from 'react-native-reanimated';
@@ -197,6 +200,7 @@ const msgLimitStyles = StyleSheet.create({
 });
 
 const TYPING_DEBOUNCE = 3000;
+const CHAT_VIEWABILITY_CONFIG = { itemVisiblePercentThreshold: 60, minimumViewTime: 250 };
 
 function formatLastSeen(iso: string): string {
   const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
@@ -229,11 +233,12 @@ export default function ConversationScreen() {
   const isGroup = conversationType === 'group';
 
   const {
-    messages, loading, sending, send, sendTyped, pushMessage, typingUserId,
+    messages, loading, sending, send, sendTyped, retryMessage, pushMessage, typingUserId,
     loadMore, hasMore, deleteMsg, editMsg,
     setReaction, removeReaction,
     loadContext, highlightId, clearHighlight,
-  } = useChatMessages(conversationId, publicId ?? '', token);
+  } = useChatMessages(conversationId, publicId ?? '', token, myId, isGroup ? 'group' : 'direct');
+  const { connectionState } = useCentrifugoCtx();
 
   const otherTyping = typingUserId != null && (isGroup ? typingUserId !== myId : String(typingUserId) === otherId);
 
@@ -261,12 +266,11 @@ export default function ConversationScreen() {
   useEffect(() => {
     if (!token || gifts.length > 0) return;
     giftsApi.list(token).then(setGifts).catch(() => {});
-  }, [token]);
+  }, [token, gifts.length]);
 
   // Presence
   const [isOnline, setIsOnline] = useState(false);
   const [lastSeen, setLastSeen] = useState<string | null>(null);
-  const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Message search
   const [searchOpen, setSearchOpen] = useState(false);
@@ -278,9 +282,10 @@ export default function ConversationScreen() {
   const listRef = useRef<FlatList>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastMarkedReadIdRef = useRef<string | null>(null);
+  const lastMarkedDeliveredIdRef = useRef<string | null>(null);
+  const isScreenFocusedRef = useRef(false);
 
   const [reqStatus, setReqStatus] = useState(status);
-  useEffect(() => { setReqStatus(status); }, [status]);
   const [responding, setResponding] = useState(false);
 
   const isPending = reqStatus === 'pending';
@@ -309,25 +314,53 @@ export default function ConversationScreen() {
   };
 
   // Mark latest inbound message as read — روی هر پیام جدیدی که حین باز بودن صفحه می‌رسه هم اجرا می‌شه
+  useFocusEffect(useCallback(() => {
+    isScreenFocusedRef.current = true;
+    return () => { isScreenFocusedRef.current = false; };
+  }, []));
+
   useEffect(() => {
-    if (!token || !conversationId) return;
+    if (!token || !conversationId || AppState.currentState !== 'active') return;
     const others = messages.filter(m => m.sender_user_id !== myId && !m.is_deleted);
     const latest = others[others.length - 1];
     if (
       latest?.message_id &&
       !latest.message_id.startsWith('optimistic') &&
-      lastMarkedReadIdRef.current !== latest.message_id
+      lastMarkedDeliveredIdRef.current !== latest.message_id
     ) {
-      lastMarkedReadIdRef.current = latest.message_id;
-      chatApi.markRead(token, conversationId, latest.message_id).catch(() => {});
+      lastMarkedDeliveredIdRef.current = latest.message_id;
+      chatApi.markDelivered(token, conversationId, latest.message_id).catch(() => {});
     }
   }, [messages, token, conversationId, myId]);
+
+  const onViewableItemsChanged = useCallback(({ viewableItems }: { viewableItems: ViewToken<Message>[] }) => {
+    if (!isScreenFocusedRef.current || AppState.currentState !== 'active') return;
+    const latestVisibleInbound = viewableItems
+      .filter(item => item.isViewable && item.item.sender_user_id !== myId && !item.item.is_deleted)
+      .map(item => item.item)
+      .at(-1);
+    if (
+      !latestVisibleInbound?.message_id ||
+      latestVisibleInbound.message_id.startsWith('optimistic') ||
+      lastMarkedReadIdRef.current === latestVisibleInbound.message_id
+    ) return;
+    lastMarkedReadIdRef.current = latestVisibleInbound.message_id;
+    chatApi.markRead(token, conversationId, latestVisibleInbound.message_id).catch(() => {});
+  }, [token, conversationId, myId]);
 
   // Auto-scroll to bottom when a new message arrives (not when old ones are prepended)
   const lastMsgIdRef = useRef<string | null>(null);
   const initialScrollDoneRef = useRef(false);
   const loadingMoreRef = useRef(false);
+  const isNearTailRef = useRef(true);
   const [listReady, setListReady] = useState(false);
+  const [unseenMessageCount, setUnseenMessageCount] = useState(0);
+
+  useEffect(() => {
+    initialScrollDoneRef.current = false;
+    lastMsgIdRef.current = null;
+    isNearTailRef.current = true;
+  }, [publicId]);
 
   // onContentSizeChange fires after FlatList has measured content — reliable for initial scroll
   const handleContentSizeChange = useCallback(() => {
@@ -337,11 +370,12 @@ export default function ConversationScreen() {
       setListReady(true);
       return;
     }
-    listRef.current?.scrollToEnd({ animated: false });
-    initialScrollDoneRef.current = true;
-    lastMsgIdRef.current = messages[messages.length - 1]?.message_id ?? null;
-    setListReady(true);
-  }, [messages.length]);
+    requestAnimationFrame(() => {
+      listRef.current?.scrollToEnd({ animated: false });
+      lastMsgIdRef.current = messages[messages.length - 1]?.message_id ?? null;
+      setListReady(true);
+    });
+  }, [messages]);
 
   // For subsequent new messages (after initial load)
   useEffect(() => {
@@ -349,8 +383,13 @@ export default function ConversationScreen() {
     const last = messages[messages.length - 1];
     if (!last || last.message_id === lastMsgIdRef.current) return;
     lastMsgIdRef.current = last.message_id;
-    listRef.current?.scrollToEnd({ animated: true });
-  }, [messages]);
+    if (isNearTailRef.current || last.sender_user_id === myId) {
+      requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
+      setUnseenMessageCount(0);
+    } else {
+      setUnseenMessageCount(count => count + 1);
+    }
+  }, [messages, myId]);
 
   // Debounced typing signal
   const sendTypingSignal = useCallback(() => {
@@ -373,20 +412,19 @@ export default function ConversationScreen() {
     chatApi.getPresence(token, uid)
       .then(p => { if (p) { setIsOnline(p.is_online); setLastSeen(p.last_seen_at ?? null); } })
       .catch(() => {});
-    chatApi.heartbeat(token).catch(() => {});
-    heartbeatRef.current = setInterval(() => {
-      chatApi.heartbeat(token).catch(() => {});
-    }, 30_000);
-    return () => {
-      if (heartbeatRef.current) clearInterval(heartbeatRef.current);
-    };
   }, [token, otherId]);
 
   // Search debounce
   useEffect(() => {
-    if (!searchOpen) { setSearchResults([]); return; }
+    if (!searchOpen) {
+      queueMicrotask(() => setSearchResults([]));
+      return;
+    }
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-    if (searchQuery.trim().length < 3) { setSearchResults([]); return; }
+    if (searchQuery.trim().length < 3) {
+      queueMicrotask(() => setSearchResults([]));
+      return;
+    }
     searchDebounceRef.current = setTimeout(async () => {
       setSearchLoading(true);
       try {
@@ -618,9 +656,21 @@ export default function ConversationScreen() {
     }
   };
 
-  const handleScroll = useCallback(({ nativeEvent }: { nativeEvent: { contentOffset: { y: number } } }) => {
-    if (!hasMore || loadingMoreRef.current) return;
-    if (nativeEvent.contentOffset.y < 100) {
+  const handleScroll = useCallback(({ nativeEvent }: { nativeEvent: {
+    contentOffset: { y: number };
+    contentSize: { height: number };
+    layoutMeasurement: { height: number };
+  } }) => {
+    const distanceFromTail = nativeEvent.contentSize.height
+      - nativeEvent.layoutMeasurement.height
+      - nativeEvent.contentOffset.y;
+    const nearTail = distanceFromTail <= 96;
+    isNearTailRef.current = nearTail;
+    if (nearTail) {
+      initialScrollDoneRef.current = true;
+      setUnseenMessageCount(0);
+    }
+    if (hasMore && !loadingMoreRef.current && nativeEvent.contentOffset.y < 100) {
       loadingMoreRef.current = true;
       loadMore().finally(() => { loadingMoreRef.current = false; });
     }
@@ -653,7 +703,6 @@ export default function ConversationScreen() {
       if (msg.includes('limit exceeded') || msg.includes('Daily messages')) {
         setLimitReached(true);
       } else {
-        setText(body);
         toast.error('ارسال پیام ناموفق بود');
       }
     }
@@ -770,25 +819,29 @@ export default function ConversationScreen() {
             </ScrollView>
           )
         ) : (
+          <>
           <FlatList
             ref={listRef}
             data={messages}
             keyExtractor={m => m.message_id}
             onScroll={handleScroll}
-            scrollEventThrottle={200}
+            scrollEventThrottle={16}
             maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
             onContentSizeChange={handleContentSizeChange}
+            onViewableItemsChanged={onViewableItemsChanged}
+            viewabilityConfig={CHAT_VIEWABILITY_CONFIG}
             style={!listReady && { opacity: 0 }}
             renderItem={({ item, index }) => {
               if (item.is_deleted) return null;
               const showDaySep = index === 0 || !isSameDay(item.created_at, messages[index - 1].created_at);
               const isMine = item.sender_user_id === myId;
               const isSending = item.status === 'sending';
+              const isFailed = item.status === 'failed';
               const isHighlighted = item.message_id === highlightId;
 
               // Tick icon: clock=sending, single check=sent, double grey=delivered, double accent=read
-              const TickIcon = isSending ? Clock : item.read_at ? CheckCheck : item.delivered_at ? CheckCheck : item.status === 'sent' ? Check : CheckCheck;
-              const tickColor = isSending ? 'rgba(255,255,255,0.4)'
+              const TickIcon = isFailed ? X : isSending ? Clock : item.read_at ? CheckCheck : item.delivered_at ? CheckCheck : item.status === 'sent' ? Check : CheckCheck;
+              const tickColor = isFailed ? Colors.danger : isSending ? 'rgba(255,255,255,0.4)'
                 : item.read_at ? '#fff'
                 : item.delivered_at ? 'rgba(255,255,255,0.55)'
                 : 'rgba(255,255,255,0.55)';
@@ -906,6 +959,17 @@ export default function ConversationScreen() {
                       {imageUri ? item.caption : (item.body_text || item.caption)}
                     </Text>
                   )}
+                  {isFailed && (
+                    <TouchableOpacity
+                      style={styles.retryMessage}
+                      onPress={() => retryMessage(item.client_message_id).catch(() => {
+                        toast.error('ارسال مجدد پیام ناموفق بود');
+                      })}
+                    >
+                      <RefreshCw size={12} color={Colors.danger} strokeWidth={2} />
+                      <Text style={styles.retryMessageText}>ارسال دوباره</Text>
+                    </TouchableOpacity>
+                  )}
                   {reactionEntries.length > 0 && (
                     <View style={styles.reactionsRow}>
                       {reactionEntries.map(([emoji, count]) => (
@@ -972,7 +1036,10 @@ export default function ConversationScreen() {
             }}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
-            onScrollToIndexFailed={() => {}}
+            onScrollToIndexFailed={({ index, averageItemLength }) => {
+              listRef.current?.scrollToOffset({ offset: Math.max(0, averageItemLength * index), animated: false });
+              setTimeout(() => listRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 }), 100);
+            }}
             ListEmptyComponent={
               canChat ? (
                 <View style={styles.emptyWrap}>
@@ -984,6 +1051,28 @@ export default function ConversationScreen() {
             }
             ListFooterComponent={limitReached ? <MsgLimitCard /> : null}
           />
+          {unseenMessageCount > 0 && (
+            <TouchableOpacity
+              style={styles.newMessagesChip}
+              onPress={() => {
+                listRef.current?.scrollToEnd({ animated: true });
+                setUnseenMessageCount(0);
+              }}
+            >
+              <Text style={styles.newMessagesChipText}>{toFaDigits(unseenMessageCount)} پیام جدید</Text>
+            </TouchableOpacity>
+          )}
+          </>
+        )}
+
+        {connectionState !== 'connected' && connectionState !== 'disabled' && (
+          <View style={styles.connectionBanner}>
+            <Text style={styles.connectionBannerText}>
+              {connectionState === 'recovering' || connectionState === 'connecting'
+                ? 'در حال اتصال و بازیابی پیام‌ها...'
+                : 'اتصال زنده قطع است؛ پیام‌ها پس از اتصال ارسال می‌شوند.'}
+            </Text>
+          </View>
         )}
 
         {isPending && (
@@ -1449,6 +1538,30 @@ const styles = StyleSheet.create({
     paddingBottom: 80,
     flexGrow: 1,
   },
+  newMessagesChip: {
+    position: 'absolute',
+    bottom: 90,
+    alignSelf: 'center',
+    backgroundColor: Colors.purple,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    elevation: 4,
+  },
+  newMessagesChipText: { color: '#fff', fontFamily: Fonts.bold, fontSize: 12 },
+  connectionBanner: {
+    backgroundColor: Colors.goldSoft,
+    borderTopWidth: 1,
+    borderTopColor: Colors.gold,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+  },
+  connectionBannerText: {
+    color: Colors.inkSoft,
+    fontFamily: Fonts.regular,
+    fontSize: 11,
+    textAlign: 'center',
+  },
 
   emptyWrap: {
     flex: 1, alignItems: 'center', justifyContent: 'center',
@@ -1478,6 +1591,8 @@ const styles = StyleSheet.create({
   },
   msgImageRetryRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   msgImageErrorTxt: { fontSize: 11, fontFamily: Fonts.regular, color: Colors.muted },
+  retryMessage: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6 },
+  retryMessageText: { color: Colors.danger, fontFamily: Fonts.bold, fontSize: 10.5 },
   bubbleGift: {
     borderWidth: 1,
     borderColor: '#F3DFB9',

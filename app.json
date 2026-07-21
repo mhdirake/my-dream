@@ -59,6 +59,12 @@
         {
           "microphonePermission": "برای ارسال پیام صوتی به میکروفون دسترسی لازم است."
         }
+      ],
+      [
+        "expo-sqlite",
+        {
+          "useSQLCipher": true
+        }
       ]
     ],
     "experiments": {

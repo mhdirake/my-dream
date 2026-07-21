@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Message, Reaction, TypedMessagePayload, chatApi } from '@/lib/api/chat';
 import { useCentrifugoCtx } from './CentrifugoContext';
+import { chatRepository } from './chatRepository';
+import { ChatOutboxItem } from './chatRepository.types';
+import { mergeMessages, messageFromOutbox } from './timeline';
 
 // Go service publishes PascalCase until JSON tags are fixed on the backend.
 // This normalizer accepts both PascalCase and snake_case so the fix is backward-compatible.
@@ -55,6 +58,7 @@ export interface ChatMessagesHook {
   typingUserId: number | null;
   send: (body: string, myId: number) => Promise<void>;
   sendTyped: (payload: TypedMessagePayload, myId: number, localUri?: string) => Promise<void>;
+  retryMessage: (clientMessageId: string) => Promise<void>;
   pushMessage: (msg: Message) => void;
   loadMore: () => Promise<void>;
   hasMore: boolean;
@@ -71,6 +75,8 @@ export function useChatMessages(
   conversationId: number,
   conversationPublicId: string,
   token: string,
+  accountId: number,
+  conversationType: 'direct' | 'group',
 ): ChatMessagesHook {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,13 +86,14 @@ export function useChatMessages(
   const [typingUserId, setTypingUserId] = useState<number | null>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { isConnectedRef, subscribeConversation, onConnect } = useCentrifugoCtx();
+  const { subscribeConversation, onConnect } = useCentrifugoCtx();
 
-  const fetchMessages = useCallback(async () => {
+  const fetchMessages = useCallback(async (replace = false) => {
     if (!token || !conversationId) return;
     try {
       const data = await chatApi.getMessages(token, conversationId);
-      setMessages([...data].reverse());
+      const chronological = [...data].reverse();
+      setMessages(previous => replace ? chronological : mergeMessages(previous, chronological));
       setHasMore(data.length >= 100);
     } catch {
       // silent
@@ -94,11 +101,33 @@ export function useChatMessages(
   }, [token, conversationId]);
 
   useEffect(() => {
-    fetchMessages().finally(() => setLoading(false));
-  }, [fetchMessages]);
+    let cancelled = false;
+    const hydrate = async () => {
+      if (accountId > 0) {
+        const cached = await chatRepository.loadMessages(accountId, conversationId);
+        if (!cancelled && cached.length > 0) {
+          setMessages(cached.map(message =>
+            message.status === 'sending' ? { ...message, status: 'failed' } : message,
+          ));
+        }
+      }
+      await fetchMessages(true);
+      if (!cancelled) setLoading(false);
+    };
+    hydrate().catch(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [fetchMessages, accountId, conversationId]);
 
   useEffect(() => {
-    return onConnect(() => fetchMessages());
+    if (loading || accountId <= 0) return;
+    const timer = setTimeout(() => {
+      chatRepository.saveMessages(accountId, conversationId, messages).catch(() => {});
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [messages, loading, accountId, conversationId]);
+
+  useEffect(() => {
+    return onConnect(() => fetchMessages(false));
   }, [onConnect, fetchMessages]);
 
   const loadMore = useCallback(async () => {
@@ -108,7 +137,7 @@ export function useChatMessages(
     try {
       const older = await chatApi.getMessages(token, conversationId, oldest);
       if (older.length === 0) { setHasMore(false); return; }
-      setMessages(prev => [...[...older].reverse(), ...prev]);
+      setMessages(prev => mergeMessages(prev, [...older].reverse()));
       setHasMore(older.length >= 100);
     } catch {
       // silent
@@ -118,8 +147,7 @@ export function useChatMessages(
   const pushMessage = useCallback((msg: Message) => {
     setMessages(prev => {
       if (prev.some(m => m.message_id === msg.message_id)) return prev;
-      const withoutOptimistic = prev.filter(m => m.client_message_id !== msg.client_message_id);
-      return [...withoutOptimistic, msg];
+      return mergeMessages(prev, [msg]);
     });
   }, []);
 
@@ -181,8 +209,8 @@ export function useChatMessages(
         if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
         typingTimeoutRef.current = setTimeout(() => setTypingUserId(null), TYPING_CLEAR_MS);
       }
-    });
-  }, [conversationPublicId, subscribeConversation, pushMessage]);
+    }, () => fetchMessages(false));
+  }, [conversationPublicId, subscribeConversation, pushMessage, fetchMessages]);
 
   useEffect(() => () => {
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
@@ -197,7 +225,7 @@ export function useChatMessages(
       message_id: `optimistic-${clientMessageId}`,
       client_message_id: clientMessageId,
       conversation_id: conversationPublicId,
-      conversation_type: 'direct',
+      conversation_type: conversationType,
       sender_user_id: myId,
       message_type: 'text',
       body_text: body,
@@ -216,21 +244,38 @@ export function useChatMessages(
       my_reaction: null,
     };
 
+    try {
+      await chatRepository.enqueue({
+        accountId,
+        conversationId,
+        conversationPublicId,
+        conversationType,
+        clientMessageId,
+        payload: { type: 'text', body },
+        senderUserId: myId,
+        createdAt: optimistic.created_at,
+      });
+    } catch (error) {
+      setSending(false);
+      throw error;
+    }
     setMessages(prev => [...prev, optimistic]);
 
     try {
-      await chatApi.sendMessage(token, conversationId, body, clientMessageId);
-      if (!isConnectedRef.current) {
-        const fresh = await chatApi.getMessages(token, conversationId);
-        setMessages([...fresh].reverse());
-      }
+      const acknowledged = await chatApi.sendMessage(token, conversationId, body, clientMessageId);
+      pushMessage(normalizeMessage(acknowledged as unknown as Record<string, unknown>));
+      await chatRepository.removeFromOutbox(accountId, clientMessageId);
     } catch (err) {
-      setMessages(prev => prev.filter(m => m.client_message_id !== clientMessageId));
+      setMessages(prev => prev.map(message =>
+        message.client_message_id === clientMessageId
+          ? { ...message, status: 'failed' }
+          : message,
+      ));
       throw err;
     } finally {
       setSending(false);
     }
-  }, [token, conversationId, conversationPublicId]);
+  }, [token, conversationId, conversationPublicId, conversationType, accountId, pushMessage]);
 
   const sendTyped = useCallback(async (payload: TypedMessagePayload, myId: number, localUri?: string) => {
     if (!token) return;
@@ -241,7 +286,7 @@ export function useChatMessages(
       message_id: `optimistic-${clientMessageId}`,
       client_message_id: clientMessageId,
       conversation_id: conversationPublicId,
-      conversation_type: 'direct',
+      conversation_type: conversationType,
       sender_user_id: myId,
       message_type: payload.type,
       body_text: payload.body ?? '',
@@ -261,21 +306,106 @@ export function useChatMessages(
       my_reaction: null,
     };
 
+    const outboxItem: ChatOutboxItem = {
+      accountId,
+      conversationId,
+      conversationPublicId,
+      conversationType,
+      clientMessageId,
+      payload,
+      localUri,
+      senderUserId: myId,
+      createdAt: optimistic.created_at,
+    };
+    try {
+      await chatRepository.enqueue(outboxItem);
+    } catch (error) {
+      setSending(false);
+      throw error;
+    }
     setMessages(prev => [...prev, optimistic]);
 
     try {
-      await chatApi.sendTypedMessage(token, conversationId, clientMessageId, payload);
-      if (!isConnectedRef.current) {
-        const fresh = await chatApi.getMessages(token, conversationId);
-        setMessages([...fresh].reverse());
-      }
+      const acknowledged = await chatApi.sendTypedMessage(token, conversationId, clientMessageId, payload);
+      pushMessage(normalizeMessage(acknowledged as unknown as Record<string, unknown>));
+      await chatRepository.removeFromOutbox(accountId, clientMessageId);
     } catch (err) {
-      setMessages(prev => prev.filter(m => m.client_message_id !== clientMessageId));
+      setMessages(prev => prev.map(message =>
+        message.client_message_id === clientMessageId
+          ? { ...message, status: 'failed' }
+          : message,
+      ));
       throw err;
     } finally {
       setSending(false);
     }
-  }, [token, conversationId, conversationPublicId]);
+  }, [token, conversationId, conversationPublicId, conversationType, accountId, pushMessage]);
+
+  const retryMessage = useCallback(async (clientMessageId: string) => {
+    const failed = messages.find(message => message.client_message_id === clientMessageId && message.status === 'failed');
+    if (!failed) return;
+
+    setMessages(previous => previous.map(message =>
+      message.client_message_id === clientMessageId ? { ...message, status: 'sending' } : message,
+    ));
+    try {
+      const acknowledged = failed.message_type === 'text'
+        ? await chatApi.sendMessage(token, conversationId, failed.body_text, clientMessageId)
+        : await chatApi.sendTypedMessage(token, conversationId, clientMessageId, {
+          type: failed.message_type,
+          body: failed.body_text,
+          caption: failed.caption,
+          media_url: failed.media_url,
+          duration_seconds: failed.duration_seconds,
+          sticker_id: failed.sticker_id,
+          gif_id: failed.gif_id,
+          gift_id: failed.gift_id,
+          sent_gift_id: failed.sent_gift_id,
+        });
+      pushMessage(normalizeMessage(acknowledged as unknown as Record<string, unknown>));
+      await chatRepository.removeFromOutbox(accountId, clientMessageId);
+    } catch (error) {
+      setMessages(previous => previous.map(message =>
+        message.client_message_id === clientMessageId ? { ...message, status: 'failed' } : message,
+      ));
+      throw error;
+    }
+  }, [messages, token, conversationId, accountId, pushMessage]);
+
+  const flushOutbox = useCallback(async () => {
+    if (!token || accountId <= 0) return;
+    const queued = await chatRepository.listOutbox(accountId, conversationId);
+    for (const item of queued) {
+      setMessages(previous => {
+        if (!previous.some(message => message.client_message_id === item.clientMessageId)) {
+          return mergeMessages(previous, [messageFromOutbox(item, 'sending')]);
+        }
+        return previous.map(message =>
+          message.client_message_id === item.clientMessageId
+            ? { ...message, status: 'sending' }
+            : message,
+        );
+      });
+      try {
+        const acknowledged = item.payload.type === 'text'
+          ? await chatApi.sendMessage(token, conversationId, item.payload.body ?? '', item.clientMessageId)
+          : await chatApi.sendTypedMessage(token, conversationId, item.clientMessageId, item.payload);
+        pushMessage(normalizeMessage(acknowledged as unknown as Record<string, unknown>));
+        await chatRepository.removeFromOutbox(accountId, item.clientMessageId);
+      } catch {
+        setMessages(previous => previous.map(message =>
+          message.client_message_id === item.clientMessageId
+            ? { ...message, status: 'failed' }
+            : message,
+        ));
+      }
+    }
+  }, [token, accountId, conversationId, pushMessage]);
+
+  useEffect(() => {
+    queueMicrotask(() => { flushOutbox().catch(() => {}); });
+    return onConnect(() => { flushOutbox().catch(() => {}); });
+  }, [flushOutbox, onConnect]);
 
   const deleteMsg = useCallback(async (messageId: string) => {
     setMessages(prev => prev.map(m => m.message_id === messageId ? { ...m, is_deleted: true } : m));
@@ -343,7 +473,7 @@ export function useChatMessages(
       const res = await chatApi.getMessageContext(token, conversationId, messageId);
       if (res.items?.length) {
         // context API returns ascending (oldest first) — no reverse needed
-        setMessages([...res.items]);
+        setMessages(previous => mergeMessages(previous, res.items));
         setHasMore(true);
         setHighlightId(messageId);
         return messageId;
@@ -358,7 +488,7 @@ export function useChatMessages(
 
   return {
     messages, loading, sending, typingUserId,
-    send, sendTyped, pushMessage, loadMore, hasMore,
+    send, sendTyped, retryMessage, pushMessage, loadMore, hasMore,
     deleteMsg, editMsg,
     setReaction, removeReaction,
     loadContext, highlightId, clearHighlight,

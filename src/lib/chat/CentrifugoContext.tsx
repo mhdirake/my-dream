@@ -1,16 +1,32 @@
 import { Centrifuge, Subscription } from 'centrifuge';
-import React, { createContext, useCallback, useContext, useEffect, useRef } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { chatApi } from '@/lib/api/chat';
 
-export type CentrifugoEvent = { event: string; [key: string]: unknown };
+export type CentrifugoEvent = {
+  event: string;
+  event_id?: string;
+  schema_version?: number;
+  aggregate_sequence?: string;
+  occurred_at?: string;
+  payload?: unknown;
+  [key: string]: unknown;
+};
 type Handler = (data: CentrifugoEvent) => void;
+type ConnectionState = 'disabled' | 'connecting' | 'connected' | 'recovering' | 'disconnected' | 'failed';
+type ConversationSubscription = {
+  subscription: Subscription;
+  handlers: Set<Handler>;
+  gapHandlers: Set<() => void>;
+};
 
 interface CentrifugoContextValue {
   /** Ref whose .current is updated synchronously in WebSocket callbacks — safe to read in intervals */
   isConnectedRef: React.RefObject<boolean>;
+  connectionState: ConnectionState;
   /** Subscribe to a conversation channel. Returns an unsubscribe function. */
-  subscribeConversation: (publicId: string, handler: Handler) => () => void;
+  subscribeConversation: (publicId: string, handler: Handler, onGap?: () => void) => () => void;
   /** Register a handler for user-level events. Returns a remove function. */
   addUserEventHandler: (handler: Handler) => () => void;
   /** Register a callback that fires every time the WebSocket connects (including initial connect). Returns a remove function. */
@@ -19,6 +35,7 @@ interface CentrifugoContextValue {
 
 const CentrifugoContext = createContext<CentrifugoContextValue>({
   isConnectedRef: { current: false },
+  connectionState: 'disabled',
   subscribeConversation: () => () => {},
   addUserEventHandler: () => () => {},
   onConnect: () => () => {},
@@ -29,14 +46,29 @@ export function CentrifugoProvider({ children }: { children: React.ReactNode }) 
   const token = session?.accessToken;
 
   const isConnectedRef = useRef(false);
+  const [connectionState, setConnectionState] = useState<ConnectionState>('disabled');
   const clientRef = useRef<Centrifuge | null>(null);
   const userHandlersRef = useRef<Set<Handler>>(new Set());
   const connectHandlersRef = useRef<Set<() => void>>(new Set());
-  const convSubsRef = useRef<Map<string, Subscription>>(new Map());
+  const convSubsRef = useRef<Map<string, ConversationSubscription>>(new Map());
+  const seenEventIdsRef = useRef<Set<string>>(new Set());
+
+  const dispatchUnique = useCallback((data: CentrifugoEvent, handlers: Set<Handler>) => {
+    if (data.event_id) {
+      if (seenEventIdsRef.current.has(data.event_id)) return;
+      seenEventIdsRef.current.add(data.event_id);
+      if (seenEventIdsRef.current.size > 2000) {
+        const oldest = seenEventIdsRef.current.values().next().value;
+        if (oldest) seenEventIdsRef.current.delete(oldest);
+      }
+    }
+    handlers.forEach(handler => handler(data));
+  }, []);
 
   useEffect(() => {
     if (!token) {
       isConnectedRef.current = false;
+      queueMicrotask(() => setConnectionState('disabled'));
       clientRef.current?.disconnect();
       clientRef.current = null;
       convSubsRef.current.clear();
@@ -46,6 +78,7 @@ export function CentrifugoProvider({ children }: { children: React.ReactNode }) 
     if (clientRef.current) return;
 
     let destroyed = false;
+    const conversationSubscriptions = convSubsRef.current;
 
     const init = async () => {
       try {
@@ -57,26 +90,43 @@ export function CentrifugoProvider({ children }: { children: React.ReactNode }) 
           return;
         }
 
-        const client = new Centrifuge(ws_url, { token: rtToken });
+        const client = new Centrifuge(ws_url, {
+          token: rtToken,
+          getToken: async () => {
+            const refreshed = await chatApi.getRealtimeToken(token);
+            return refreshed.token;
+          },
+        });
         clientRef.current = client;
 
+        client.on('connecting', () => {
+          if (!destroyed) setConnectionState('connecting');
+        });
         client.on('connected', () => {
           if (destroyed) return;
           isConnectedRef.current = true;
+          setConnectionState('connected');
           console.log('[Centrifugo] connected ✓');
           connectHandlersRef.current.forEach(h => h());
         });
         client.on('disconnected', ({ code, reason }) => {
           if (!destroyed) isConnectedRef.current = false;
+          if (!destroyed) setConnectionState('disconnected');
           console.warn('[Centrifugo] disconnected', { code, reason });
         });
         client.on('error', ({ error }) => {
+          if (!destroyed) setConnectionState('failed');
           console.error('[Centrifugo] connection error', error);
         });
 
         const userSub = client.newSubscription(channels.user);
         userSub.on('publication', ({ data }) => {
-          userHandlersRef.current.forEach(h => h(data as CentrifugoEvent));
+          dispatchUnique(data as CentrifugoEvent, userHandlersRef.current);
+        });
+        userSub.on('subscribing', () => setConnectionState('recovering'));
+        userSub.on('subscribed', ({ recovered }) => {
+          setConnectionState('connected');
+          if (recovered === false) connectHandlersRef.current.forEach(handler => handler());
         });
         userSub.on('error', ({ error }) => {
           console.error('[Centrifugo] user channel error', error);
@@ -84,6 +134,7 @@ export function CentrifugoProvider({ children }: { children: React.ReactNode }) 
         userSub.subscribe();
         client.connect();
       } catch (err) {
+        if (!destroyed) setConnectionState('failed');
         console.error('[Centrifugo] init failed', err);
       }
     };
@@ -93,19 +144,35 @@ export function CentrifugoProvider({ children }: { children: React.ReactNode }) 
     return () => {
       destroyed = true;
       isConnectedRef.current = false;
-      convSubsRef.current.forEach(sub => {
-        sub.unsubscribe();
-        sub.removeAllListeners();
+      conversationSubscriptions.forEach(entry => {
+        entry.subscription.unsubscribe();
+        entry.subscription.removeAllListeners();
       });
-      convSubsRef.current.clear();
+      conversationSubscriptions.clear();
       clientRef.current?.disconnect();
       clientRef.current = null;
     };
+  }, [token, dispatchUnique]);
+
+  useEffect(() => {
+    if (!token) return;
+    let timer: ReturnType<typeof setInterval> | null = null;
+    const heartbeat = () => {
+      if (AppState.currentState === 'active') chatApi.heartbeat(token).catch(() => {});
+    };
+    heartbeat();
+    timer = setInterval(heartbeat, 30_000);
+    const subscription = AppState.addEventListener('change', state => {
+      if (state === 'active') heartbeat();
+    });
+    return () => {
+      if (timer) clearInterval(timer);
+      subscription.remove();
+    };
   }, [token]);
 
-  const subscribeConversation = useCallback((publicId: string, handler: Handler): (() => void) => {
+  const subscribeConversation = useCallback((publicId: string, handler: Handler, onGap?: () => void): (() => void) => {
     let cancelled = false;
-    let sub: Subscription | null = null;
 
     const doSubscribe = () => {
       if (cancelled) return;
@@ -114,14 +181,26 @@ export function CentrifugoProvider({ children }: { children: React.ReactNode }) 
         setTimeout(doSubscribe, 400);
         return;
       }
-      if (convSubsRef.current.has(publicId)) return;
+      const existing = convSubsRef.current.get(publicId);
+      if (existing) {
+        existing.handlers.add(handler);
+        if (onGap) existing.gapHandlers.add(onGap);
+        return;
+      }
 
       const channel = `conversation:${publicId}`;
-      sub = client.newSubscription(channel);
-      convSubsRef.current.set(publicId, sub);
-      sub.on('publication', ({ data }) => handler(data as CentrifugoEvent));
+      const sub = client.newSubscription(channel);
+      const entry: ConversationSubscription = {
+        subscription: sub,
+        handlers: new Set([handler]),
+        gapHandlers: new Set(onGap ? [onGap] : []),
+      };
+      convSubsRef.current.set(publicId, entry);
+      sub.on('publication', ({ data }) => dispatchUnique(data as CentrifugoEvent, entry.handlers));
       sub.on('error', ({ error }) => console.error('[Centrifugo] conv sub error', channel, error));
-      sub.on('subscribed', () => console.log('[Centrifugo] subscribed to', channel));
+      sub.on('subscribed', ({ recovered }) => {
+        if (recovered === false) entry.gapHandlers.forEach(gapHandler => gapHandler());
+      });
       sub.subscribe();
     };
 
@@ -129,14 +208,18 @@ export function CentrifugoProvider({ children }: { children: React.ReactNode }) 
 
     return () => {
       cancelled = true;
-      if (sub) {
-        sub.unsubscribe();
-        sub.removeAllListeners();
-        clientRef.current?.removeSubscription(sub);
+      const entry = convSubsRef.current.get(publicId);
+      if (entry) {
+        entry.handlers.delete(handler);
+        if (onGap) entry.gapHandlers.delete(onGap);
+        if (entry.handlers.size > 0) return;
+        entry.subscription.unsubscribe();
+        entry.subscription.removeAllListeners();
+        clientRef.current?.removeSubscription(entry.subscription);
         convSubsRef.current.delete(publicId);
       }
     };
-  }, []);
+  }, [dispatchUnique]);
 
   const addUserEventHandler = useCallback((handler: Handler): (() => void) => {
     userHandlersRef.current.add(handler);
@@ -149,7 +232,7 @@ export function CentrifugoProvider({ children }: { children: React.ReactNode }) 
   }, []);
 
   return (
-    <CentrifugoContext.Provider value={{ isConnectedRef, subscribeConversation, addUserEventHandler, onConnect }}>
+    <CentrifugoContext.Provider value={{ isConnectedRef, connectionState, subscribeConversation, addUserEventHandler, onConnect }}>
       {children}
     </CentrifugoContext.Provider>
   );

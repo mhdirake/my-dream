@@ -11,10 +11,20 @@ RUN --mount=type=cache,target=/root/.npm,sharing=locked \
 
 FROM deps AS test
 COPY . .
+RUN npm run test:unit
 RUN npx tsc --noEmit
 RUN npx eslint \
   src/lib/api/auth.ts \
   src/lib/api/client.ts \
+  src/lib/api/chat.ts \
+  src/lib/chat/CentrifugoContext.tsx \
+  src/lib/chat/useChatMessages.ts \
+  src/lib/chat/chatRepository.ts \
+  src/lib/chat/chatRepository.native.ts \
+  src/lib/chat/chatRepository.types.ts \
+  src/lib/chat/timeline.ts \
+  src/lib/chat/timeline.test.ts \
+  src/app/chat/\[id\].tsx \
   src/lib/notifications/push.ts \
   src/app/notifications.tsx
 RUN ! grep -R -E "EXPO_PUBLIC_KC_SECRET|process\.env\.KC_SECRET|grant_type.*password" src eas.json app.json

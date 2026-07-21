@@ -211,29 +211,33 @@ export const chatApi = {
     return res.items ?? [];
   },
 
-  sendMessage: (
+  sendMessage: async (
     token: string,
     conversationId: number,
     body: string,
     clientMessageId: string,
-  ) =>
-    api.post(
+  ): Promise<Message> => {
+    const response = await api.post<{ data: Message }>(
       `/api/client/conversations/${conversationId}/messages`,
       { client_message_id: clientMessageId, type: 'text', body },
       token,
-    ),
+    );
+    return response.data;
+  },
 
-  sendTypedMessage: (
+  sendTypedMessage: async (
     token: string,
     conversationId: number,
     clientMessageId: string,
     payload: TypedMessagePayload,
-  ) =>
-    api.post(
+  ): Promise<Message> => {
+    const response = await api.post<{ data: Message }>(
       `/api/client/conversations/${conversationId}/messages`,
       { client_message_id: clientMessageId, ...payload },
       token,
-    ),
+    );
+    return response.data;
+  },
 
   uploadConversationImage: async (
     token: string,
