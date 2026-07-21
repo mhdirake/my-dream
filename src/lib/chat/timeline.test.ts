@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Message } from '@/lib/api/chat';
-import { mergeMessages, messageFromOutbox } from './timeline';
+import { applyReceiptWatermark, mergeMessages, messageFromOutbox } from './timeline';
 
 function message(overrides: Partial<Message>): Message {
   return {
@@ -61,5 +61,51 @@ describe('messageFromOutbox', () => {
       body_text: 'queued text',
       status: 'failed',
     });
+  });
+
+  it('preserves reply and uploaded asset ids across an outbox restart', () => {
+    const restored = messageFromOutbox({
+      accountId: 1,
+      conversationId: 2,
+      conversationPublicId: 'conversation-1',
+      conversationType: 'direct',
+      clientMessageId: 'client-image',
+      payload: {
+        type: 'image',
+        media_file_id: 44,
+        media_url: 'https://cdn.example/image.jpg',
+        reply_to_message_id: 'message-parent',
+      },
+      senderUserId: 10,
+      createdAt: '2026-07-21T10:00:00.000Z',
+    }, 'sending');
+
+    expect(restored).toMatchObject({
+      media_file_id: 44,
+      reply_to_message_id: 'message-parent',
+    });
+  });
+});
+
+describe('applyReceiptWatermark', () => {
+  it('updates only the current users messages through the server watermark', () => {
+    const messages = [
+      message({ message_id: 'mine-old', sender_user_id: 1, created_at: '2026-07-21T10:00:00.000Z' }),
+      message({ message_id: 'theirs', sender_user_id: 2, created_at: '2026-07-21T10:01:00.000Z' }),
+      message({ message_id: 'mine-new', sender_user_id: 1, created_at: '2026-07-21T10:02:00.000Z' }),
+    ];
+
+    const updated = applyReceiptWatermark(
+      messages,
+      1,
+      'theirs',
+      '2026-07-21T10:01:00.000Z',
+      'read_at',
+      '2026-07-21T10:03:00.000Z',
+    );
+
+    expect(updated[0].read_at).toBe('2026-07-21T10:03:00.000Z');
+    expect(updated[1].read_at).toBeUndefined();
+    expect(updated[2].read_at).toBeUndefined();
   });
 });

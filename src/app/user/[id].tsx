@@ -488,7 +488,7 @@ export default function ProfileViewScreen() {
         profileApi.getProfile(session.accessToken),
         blockApi.getBlockStatus(session.accessToken, userId).catch(() => null),
         giftsApi.listUserGifts(session.accessToken, userId).catch(() => [] as SentGift[]),
-        chatApi.listConversations(session.accessToken).catch(() => [] as Conversation[]),
+        chatApi.listConversations(session.accessToken).catch(() => ({ data: [] as Conversation[], next_cursor: null })),
         chatApi.listPendingIncoming(session.accessToken).catch(() => [] as Conversation[]),
         chatApi.listPendingOutgoing(session.accessToken).catch(() => [] as Conversation[]),
       ]);
@@ -500,7 +500,7 @@ export default function ProfileViewScreen() {
       setBlockStatus(bStatus);
       setUserGifts(gifts);
       setExistingConversation(
-        [...convs, ...pendingIn, ...pendingOut].find(
+        [...convs.data, ...pendingIn, ...pendingOut].find(
           c => c.first_user_id === userId || c.second_user_id === userId,
         ) ?? null,
       );

@@ -13,10 +13,10 @@ import { Check, Clock, Search, X } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  FlatList,
   Platform,
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -53,7 +53,7 @@ export default function ChatScreen() {
     if (Platform.OS === 'web') return;
   }, [myId, showChatToast]);
 
-  const { conversations, pendingIncoming, pendingOutgoing, loading, refreshing, refresh, resetUnread } = useConversations(
+  const { conversations, pendingIncoming, pendingOutgoing, loading, refreshing, loadingMore, hasMore, refresh, loadMore, resetUnread } = useConversations(
     session?.accessToken,
     handleNewMessage,
   );
@@ -92,6 +92,7 @@ export default function ChatScreen() {
         conversationType: c.type,
         groupKey: c.group_key ?? '',
         memberCount: String(c.participant_count ?? 0),
+        unreadCount: String(c.unread_count ?? 0),
       },
     } as never);
   };
@@ -223,28 +224,26 @@ export default function ChatScreen() {
           )}
         </View>
       ) : (
-        <ScrollView
+        <FlatList
+          data={displayed}
+          keyExtractor={item => String(item.id)}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[styles.list, { paddingBottom: bottom + 92 }]}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={Colors.accent} />
           }
-        >
-          {tab === 'all'
-            ? displayed.map(c => (
+          renderItem={({ item: c }) =>
+            tab === 'all' ? (
                 <ActiveRow
-                  key={c.id}
                   conversation={c}
                   myId={myId}
                   other={otherUser(c)}
                   onPress={() => openConversation(c)}
                 />
-              ))
-            : displayed.map(c => {
+              ) : (() => {
                 const isSender = c.first_user_id === myId;
                 return (
                   <PendingRow
-                    key={c.id}
                     conversation={c}
                     other={conversationPeer(c, myId)}
                     isSender={isSender}
@@ -254,8 +253,12 @@ export default function ChatScreen() {
                     onPress={() => openConversation(c)}
                   />
                 );
-              })}
-        </ScrollView>
+              })()
+          }
+          onEndReached={tab === 'all' && !q && hasMore ? loadMore : undefined}
+          onEndReachedThreshold={0.4}
+          ListFooterComponent={loadingMore ? <ActivityIndicator color={Colors.accent} /> : null}
+        />
       )}
       </KeyboardAvoider>
     </SafeAreaView>

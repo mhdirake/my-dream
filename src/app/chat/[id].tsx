@@ -213,7 +213,7 @@ function formatLastSeen(iso: string): string {
 export default function ConversationScreen() {
   const insets = useSafeAreaInsets();
   const keyboardHeight = useKeyboardHeight();
-  const { id, publicId, name, avatar, status, otherId, isSender, conversationType, groupKey, memberCount } = useLocalSearchParams<{
+  const { id, publicId, name, avatar, status, otherId, isSender, conversationType, groupKey, memberCount, targetMessageId, unreadCount } = useLocalSearchParams<{
     id: string;
     publicId: string;
     name: string;
@@ -224,6 +224,8 @@ export default function ConversationScreen() {
     conversationType?: 'direct' | 'group';
     groupKey?: 'silver' | 'gold';
     memberCount?: string;
+    targetMessageId?: string;
+    unreadCount?: string;
   }>();
 
   const { session, user } = useAuth();
@@ -257,6 +259,8 @@ export default function ConversationScreen() {
   const [sendingVoice, setSendingVoice] = useState(false);
   const voiceRecorder = useVoiceRecorder();
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const [stickerPickerOpen, setStickerPickerOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [limitReached, setLimitReached] = useState(false);
   const [msgMenu, setMsgMenu] = useState<{ id: string; sender: number; body: string; type?: string; myReaction?: string | null } | null>(null);
@@ -355,6 +359,23 @@ export default function ConversationScreen() {
   const isNearTailRef = useRef(true);
   const [listReady, setListReady] = useState(false);
   const [unseenMessageCount, setUnseenMessageCount] = useState(0);
+  const openedTargetRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!targetMessageId || loading || openedTargetRef.current === targetMessageId) return;
+    openedTargetRef.current = targetMessageId;
+    loadContext(targetMessageId).catch(() => {
+      toast.error('پیام موردنظر پیدا نشد');
+    });
+  }, [targetMessageId, loading, loadContext]);
+
+  useEffect(() => {
+    if (targetMessageId || loading || Number(unreadCount ?? 0) <= 0 || openedTargetRef.current) return;
+    openedTargetRef.current = 'first-unread';
+    chatApi.getFirstUnreadMessage(token, conversationId)
+      .then(messageId => messageId && loadContext(messageId))
+      .catch(() => {});
+  }, [targetMessageId, unreadCount, loading, token, conversationId, loadContext]);
 
   useEffect(() => {
     initialScrollDoneRef.current = false;
@@ -513,18 +534,21 @@ export default function ConversationScreen() {
       await sendTyped(
         {
           type: 'image',
+          media_file_id: media.media_file_id,
           media_url: media.media_url,
           media_size: media.media_size,
           mime_type: media.mime_type,
           width: media.width,
           height: media.height,
           ...(caption ? { caption } : {}),
+          reply_to_message_id: replyingTo?.message_id,
         },
         myId,
         pendingImage.uri,
       );
       setPendingImage(null);
       setText('');
+      setReplyingTo(null);
     } catch (err: unknown) {
       const status = err instanceof ApiError ? err.status : null;
       const msg = err instanceof Error ? err.message : '';
@@ -568,15 +592,18 @@ export default function ConversationScreen() {
       await sendTyped(
         {
           type: 'voice',
+          media_file_id: media.media_file_id,
           media_url: media.media_url,
           media_size: media.media_size,
           mime_type: media.mime_type,
           duration_seconds: media.duration_seconds ?? duration,
+          reply_to_message_id: replyingTo?.message_id,
         },
         myId,
         uri,
       );
       voiceRecorder.reset();
+      setReplyingTo(null);
     } catch (err: unknown) {
       const status = err instanceof ApiError ? err.status : null;
       const msg = err instanceof Error ? err.message : '';
@@ -697,7 +724,12 @@ export default function ConversationScreen() {
     }
 
     try {
-      await send(body, myId);
+      if (replyingTo) {
+        await sendTyped({ type: 'text', body, reply_to_message_id: replyingTo.message_id }, myId);
+        setReplyingTo(null);
+      } else {
+        await send(body, myId);
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '';
       if (msg.includes('limit exceeded') || msg.includes('Daily messages')) {
@@ -713,6 +745,20 @@ export default function ConversationScreen() {
   const handleMessageLongPress = useCallback((messageId: string, senderId: number, bodyText: string, myReaction?: string | null, messageType?: string) => {
     setMsgMenu({ id: messageId, sender: senderId, body: bodyText, type: messageType, myReaction });
   }, []);
+
+  const sendSticker = useCallback(async (sticker: string) => {
+    setStickerPickerOpen(false);
+    try {
+      await sendTyped({
+        type: 'sticker',
+        sticker_id: sticker,
+        reply_to_message_id: replyingTo?.message_id,
+      }, myId);
+      setReplyingTo(null);
+    } catch {
+      toast.error('ارسال استیکر ناموفق بود');
+    }
+  }, [myId, replyingTo, sendTyped]);
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -877,12 +923,29 @@ export default function ConversationScreen() {
                 : null;
 
               const imageFailed = imageUri != null && failedImageUris.has(imageUri);
+              const repliedMessage = item.reply_to_message_id
+                ? messages.find(message => message.message_id === item.reply_to_message_id)
+                : null;
 
               const bubbleContent = (
                 <>
                   {isGroup && !isMine ? (
                     <Text style={[styles.groupSender, { color: isMine ? '#fff' : Colors.purple }]}>کاربر {toFaDigits(item.sender_user_id)}</Text>
                   ) : null}
+                  {item.reply_to_message_id && (
+                    <TouchableOpacity
+                      style={[styles.replyQuote, isMine && styles.replyQuoteMine]}
+                      onPress={() => loadContext(item.reply_to_message_id!).catch(() => {})}
+                      activeOpacity={0.75}
+                    >
+                      <Text style={[styles.replyQuoteTitle, isMine && styles.replyQuoteTitleMine]}>
+                        {repliedMessage?.sender_user_id === myId ? 'شما' : 'پیام پاسخ‌داده‌شده'}
+                      </Text>
+                      <Text style={[styles.replyQuoteBody, isMine && styles.replyQuoteBodyMine]} numberOfLines={1}>
+                        {repliedMessage?.body_text || repliedMessage?.caption || 'مشاهده پیام'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                   {imageUri && imageFailed ? (
                     <Pressable
                       style={styles.msgImageError}
@@ -950,7 +1013,7 @@ export default function ConversationScreen() {
                     );
                   })() : item.message_type !== 'text' && item.message_type !== 'template_first_message' ? (
                     <Text style={[styles.msgTypeBadge, isMine && { color: 'rgba(255,255,255,0.7)' }]}>
-                      {item.message_type === 'sticker' ? '😊' :
+                      {item.message_type === 'sticker' ? (item.sticker_id || '😊') :
                        item.message_type === 'gif' ? '🎞' : '🖼'}
                     </Text>
                   ) : null}
@@ -1146,6 +1209,21 @@ export default function ConversationScreen() {
           </View>
         )}
 
+        {replyingTo && !editingId && (
+          <View style={styles.editBar}>
+            <Text style={styles.replyBarIcon}>↩</Text>
+            <View style={styles.replyBarContent}>
+              <Text style={styles.editBarTxt}>پاسخ به پیام</Text>
+              <Text style={styles.replyBarPreview} numberOfLines={1}>
+                {replyingTo.body_text || replyingTo.caption || 'رسانه'}
+              </Text>
+            </View>
+            <TouchableOpacity onPress={() => setReplyingTo(null)} hitSlop={8}>
+              <X size={15} color={Colors.muted} strokeWidth={2} />
+            </TouchableOpacity>
+          </View>
+        )}
+
         {editingId && (
           <View style={styles.editBar}>
             <Pencil size={13} color={Colors.accent} strokeWidth={2} />
@@ -1190,6 +1268,16 @@ export default function ConversationScreen() {
                 <Trash2 size={16} color={Colors.danger} strokeWidth={2} />
               </TouchableOpacity>
             )}
+          </View>
+        )}
+
+        {stickerPickerOpen && !isGroup && (
+          <View style={styles.stickerPicker}>
+            {['😊', '😍', '🥰', '😂', '🤗', '😘', '😎', '💖'].map(sticker => (
+              <TouchableOpacity key={sticker} style={styles.stickerPickerItem} onPress={() => sendSticker(sticker)}>
+                <Text style={styles.stickerPickerEmoji}>{sticker}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
         )}
 
@@ -1259,6 +1347,9 @@ export default function ConversationScreen() {
                       <TouchableOpacity style={styles.giftAttachBtn} onPress={handleOpenGiftPicker} hitSlop={6} activeOpacity={0.7}>
                         <GiftIcon size={18} color={Colors.goldDeep} strokeWidth={1.8} />
                       </TouchableOpacity>
+                      <TouchableOpacity style={styles.stickerAttachBtn} onPress={() => setStickerPickerOpen(open => !open)} hitSlop={6} activeOpacity={0.7}>
+                        <Text style={styles.stickerAttachEmoji}>😊</Text>
+                      </TouchableOpacity>
                     </>
                   )}
                   {!text.trim() && (
@@ -1316,9 +1407,18 @@ export default function ConversationScreen() {
                   );
                 })()}
 
+                <TouchableOpacity style={styles.menuRow} activeOpacity={0.7}
+                  onPress={() => {
+                    const target = messages.find(message => message.message_id === msgMenu?.id);
+                    if (target) setReplyingTo(target);
+                    setMsgMenu(null);
+                  }}>
+                  <Text style={styles.menuRowTxt}>پاسخ</Text>
+                </TouchableOpacity>
+
                 {msgMenu?.sender === myId ? (
                   <>
-                    {msgMenu?.type !== 'gift' && (
+                    {msgMenu?.type === 'text' && (
                       <TouchableOpacity style={styles.menuRow} activeOpacity={0.7}
                         onPress={() => { setEditingId(msgMenu!.id); setText(msgMenu!.body); setMsgMenu(null); }}>
                         <Text style={styles.menuRowTxt}>ویرایش پیام</Text>
@@ -1330,10 +1430,12 @@ export default function ConversationScreen() {
                         <Text style={styles.menuRowTxt}>اشتراک‌گذاری</Text>
                       </TouchableOpacity>
                     )}
-                    <TouchableOpacity style={[styles.menuRow, styles.menuRowDanger]} activeOpacity={0.7}
-                      onPress={() => setConfirmDeleteId(msgMenu!.id)}>
-                      <Text style={[styles.menuRowTxt, styles.menuRowTxtDanger]}>حذف پیام</Text>
-                    </TouchableOpacity>
+                    {msgMenu?.type === 'text' && (
+                      <TouchableOpacity style={[styles.menuRow, styles.menuRowDanger]} activeOpacity={0.7}
+                        onPress={() => setConfirmDeleteId(msgMenu!.id)}>
+                        <Text style={[styles.menuRowTxt, styles.menuRowTxtDanger]}>حذف پیام</Text>
+                      </TouchableOpacity>
+                    )}
                   </>
                 ) : (
                   <>
@@ -1635,6 +1737,12 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     backgroundColor: Colors.goldSoft,
   },
+  stickerAttachBtn: {
+    width: 34, height: 34, borderRadius: 17,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: Colors.accentSoft,
+  },
+  stickerAttachEmoji: { fontSize: 17 },
   micAttachBtn: {
     width: 34, height: 34, borderRadius: 17,
     alignItems: 'center', justifyContent: 'center',
@@ -1793,6 +1901,15 @@ const styles = StyleSheet.create({
   bubbleTime: { fontSize: 10, fontFamily: Fonts.regular },
   bubbleTimeMine: { color: 'rgba(255,255,255,0.6)' },
   bubbleTimeTheirs: { color: Colors.muted },
+  replyQuote: {
+    borderRightWidth: 3, borderRightColor: Colors.accent,
+    paddingRight: 8, paddingVertical: 3, marginBottom: 6,
+  },
+  replyQuoteMine: { borderRightColor: 'rgba(255,255,255,0.85)' },
+  replyQuoteTitle: { fontSize: 10, fontFamily: Fonts.bold, color: Colors.accent },
+  replyQuoteTitleMine: { color: '#fff' },
+  replyQuoteBody: { fontSize: 11, fontFamily: Fonts.regular, color: Colors.muted },
+  replyQuoteBodyMine: { color: 'rgba(255,255,255,0.75)' },
 
   // Edit mode bar
   editBar: {
@@ -1804,6 +1921,19 @@ const styles = StyleSheet.create({
   editBarTxt: {
     flex: 1, fontSize: 12, fontFamily: Fonts.semiBold, color: Colors.accent,
   },
+  replyBarIcon: { fontSize: 18, color: Colors.accent },
+  replyBarContent: { flex: 1 },
+  replyBarPreview: { fontSize: 11, fontFamily: Fonts.regular, color: Colors.muted, marginTop: 2 },
+  stickerPicker: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: 6,
+    paddingHorizontal: 14, paddingVertical: 10,
+    backgroundColor: Colors.surface, borderTopWidth: 1, borderTopColor: Colors.hair,
+  },
+  stickerPickerItem: {
+    width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: Colors.bg,
+  },
+  stickerPickerEmoji: { fontSize: 26 },
 
   // Banners
   expiredBanner: {

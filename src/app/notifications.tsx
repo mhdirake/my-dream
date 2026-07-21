@@ -86,14 +86,14 @@ function buildGrouped(items: AppNotification[]): GroupedItem[] {
   return result;
 }
 
-async function openConversation(token: string, myId: number, conversationId: number) {
+async function openConversation(token: string, myId: number, conversationId: number, targetMessageId?: string) {
   try {
-    const [accepted, incoming, outgoing] = await Promise.all([
+    const [acceptedPage, incoming, outgoing] = await Promise.all([
       chatApi.listConversations(token),
       chatApi.listPendingIncoming(token),
       chatApi.listPendingOutgoing(token),
     ]);
-    const conversation = [...accepted, ...incoming, ...outgoing]
+    const conversation = [...acceptedPage.data, ...incoming, ...outgoing]
       .find(item => item.id === conversationId);
 
     if (!conversation) {
@@ -115,6 +115,7 @@ async function openConversation(token: string, myId: number, conversationId: num
         conversationType: conversation.type,
         groupKey: conversation.group_key ?? '',
         memberCount: String(conversation.participant_count ?? 0),
+        targetMessageId: targetMessageId ?? '',
       },
     });
   } catch {
@@ -132,7 +133,7 @@ async function handleNavigation(n: AppNotification, token: string, myId: number)
     case 'conversation_request_accepted': {
       const conversationId = Number(m.conversation_id);
       if (Number.isFinite(conversationId) && conversationId > 0) {
-        await openConversation(token, myId, conversationId);
+        await openConversation(token, myId, conversationId, typeof m.message_id === 'string' ? m.message_id : undefined);
       } else {
         router.push('/(tabs)/chat' as any);
       }

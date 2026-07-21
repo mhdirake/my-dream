@@ -44,6 +44,7 @@ export type Message = {
   body_text: string;
   caption: string;
   media_url: string;
+  media_file_id?: number;
   sticker_id: string;
   gif_id: string;
   gift_id: number;
@@ -95,6 +96,11 @@ export type Conversation = {
   unread_count?: number;
 };
 
+export type ConversationPage = {
+  data: Conversation[];
+  next_cursor: string | null;
+};
+
 export function conversationPeer(conversation: Conversation, myId: number): ConversationUser {
   if (conversation.type === 'group') {
     return {
@@ -126,6 +132,7 @@ export type ConversationTemplate = {
 };
 
 export type MediaUploadResult = {
+  media_file_id: number;
   media_url: string;
   media_size: number;
   mime_type: string;
@@ -149,6 +156,7 @@ type RawMediaFilePayload = {
 
 function toMediaUploadResult(raw: RawMediaFilePayload): MediaUploadResult {
   return {
+    media_file_id: raw.id,
     media_url: raw.urls?.original ?? '',
     media_size: raw.size ?? 0,
     mime_type: raw.mime_type,
@@ -163,6 +171,7 @@ export type TypedMessagePayload = {
   body?: string;
   caption?: string;
   media_url?: string;
+  media_file_id?: number;
   media_size?: number;
   mime_type?: string;
   width?: number;
@@ -172,12 +181,15 @@ export type TypedMessagePayload = {
   gif_id?: string;
   gift_id?: number;
   sent_gift_id?: number;
+  reply_to_message_id?: string;
 };
 
 export const chatApi = {
-  listConversations: async (token: string): Promise<Conversation[]> => {
-    const res = await api.get<{ data: Conversation[] }>('/api/client/conversations', token);
-    return res.data ?? [];
+  listConversations: async (token: string, cursor?: string): Promise<ConversationPage> => {
+    const params = new URLSearchParams({ limit: '50' });
+    if (cursor) params.set('cursor', cursor);
+    const res = await api.get<ConversationPage>(`/api/client/conversations?${params}`, token);
+    return { data: res.data ?? [], next_cursor: res.next_cursor ?? null };
   },
 
   listPendingIncoming: async (token: string): Promise<Conversation[]> => {
@@ -216,10 +228,11 @@ export const chatApi = {
     conversationId: number,
     body: string,
     clientMessageId: string,
+    replyToMessageId?: string,
   ): Promise<Message> => {
     const response = await api.post<{ data: Message }>(
       `/api/client/conversations/${conversationId}/messages`,
-      { client_message_id: clientMessageId, type: 'text', body },
+      { client_message_id: clientMessageId, type: 'text', body, reply_to_message_id: replyToMessageId },
       token,
     );
     return response.data;
@@ -378,6 +391,14 @@ export const chatApi = {
       token,
     );
     return res;
+  },
+
+  getFirstUnreadMessage: async (token: string, conversationId: number): Promise<string | null> => {
+    const response = await api.get<{ message_id?: string }>(
+      `/api/client/conversations/${conversationId}/unread/first`,
+      token,
+    );
+    return response.message_id || null;
   },
 
   heartbeat: (token: string) =>

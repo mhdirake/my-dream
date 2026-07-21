@@ -22,6 +22,24 @@ export function mergeMessages(current: Message[], incoming: Message[]): Message[
   });
 }
 
+export function applyReceiptWatermark(
+  messages: Message[],
+  accountId: number,
+  messageId: string,
+  throughCreatedAt: string | undefined,
+  field: 'read_at' | 'delivered_at',
+  recordedAt: string,
+): Message[] {
+  const target = messages.find(message => message.message_id === messageId);
+  const cutoff = throughCreatedAt || target?.created_at;
+
+  return messages.map(message =>
+    message.sender_user_id === accountId && (cutoff ? message.created_at <= cutoff : message.message_id === messageId)
+      ? { ...message, [field]: recordedAt }
+      : message,
+  );
+}
+
 export function messageFromOutbox(item: ChatOutboxItem, status: 'sending' | 'failed'): Message {
   return {
     message_id: `optimistic-${item.clientMessageId}`,
@@ -33,12 +51,13 @@ export function messageFromOutbox(item: ChatOutboxItem, status: 'sending' | 'fai
     body_text: item.payload.body ?? '',
     caption: item.payload.caption ?? '',
     media_url: item.localUri ?? item.payload.media_url ?? '',
+    media_file_id: item.payload.media_file_id,
     sticker_id: item.payload.sticker_id ?? '',
     gif_id: item.payload.gif_id ?? '',
     gift_id: item.payload.gift_id ?? 0,
     sent_gift_id: item.payload.sent_gift_id ?? 0,
     duration_seconds: item.payload.duration_seconds,
-    reply_to_message_id: null,
+    reply_to_message_id: item.payload.reply_to_message_id ?? null,
     status,
     is_edited: false,
     is_deleted: false,

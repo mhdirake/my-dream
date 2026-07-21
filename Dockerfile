@@ -7,7 +7,19 @@ ENV CI=1 \
 COPY package*.json ./
 
 RUN --mount=type=cache,target=/root/.npm,sharing=locked \
-  npm ci
+  set -eu; \
+  for attempt in 1 2 3; do \
+    if npm ci \
+      --fetch-retries=5 \
+      --fetch-retry-mintimeout=10000 \
+      --fetch-retry-maxtimeout=120000 \
+      --fetch-timeout=600000; then \
+      exit 0; \
+    fi; \
+    echo "npm ci attempt ${attempt} failed; retrying"; \
+    sleep $((attempt * 10)); \
+  done; \
+  exit 1
 
 FROM deps AS test
 COPY . .
@@ -19,12 +31,15 @@ RUN npx eslint \
   src/lib/api/chat.ts \
   src/lib/chat/CentrifugoContext.tsx \
   src/lib/chat/useChatMessages.ts \
+  src/lib/chat/useConversations.ts \
   src/lib/chat/chatRepository.ts \
   src/lib/chat/chatRepository.native.ts \
+  src/lib/chat/chatRepository.web.ts \
   src/lib/chat/chatRepository.types.ts \
   src/lib/chat/timeline.ts \
   src/lib/chat/timeline.test.ts \
   src/app/chat/\[id\].tsx \
+  src/app/\(tabs\)/chat.tsx \
   src/lib/notifications/push.ts \
   src/app/notifications.tsx
 RUN ! grep -R -E "EXPO_PUBLIC_KC_SECRET|process\.env\.KC_SECRET|grant_type.*password" src eas.json app.json
