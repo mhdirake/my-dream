@@ -55,6 +55,7 @@ const TYPING_CLEAR_MS = 4000;
 export interface ChatMessagesHook {
   messages: Message[];
   loading: boolean;
+  loadError: boolean;
   sending: boolean;
   typingUserId: number | null;
   send: (body: string, myId: number) => Promise<void>;
@@ -62,6 +63,7 @@ export interface ChatMessagesHook {
   retryMessage: (clientMessageId: string) => Promise<void>;
   pushMessage: (msg: Message) => void;
   loadMore: () => Promise<void>;
+  refresh: () => Promise<void>;
   hasMore: boolean;
   deleteMsg: (messageId: string) => Promise<void>;
   editMsg: (messageId: string, newBody: string) => Promise<void>;
@@ -81,7 +83,8 @@ export function useChatMessages(
 ): ChatMessagesHook {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
+  const [pendingSendCount, setPendingSendCount] = useState(0);
+  const [loadError, setLoadError] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [typingUserId, setTypingUserId] = useState<number | null>(null);
@@ -96,10 +99,17 @@ export function useChatMessages(
       const chronological = [...data].reverse();
       setMessages(previous => replace ? chronological : mergeMessages(previous, chronological));
       setHasMore(data.length >= 100);
+      setLoadError(false);
     } catch {
-      // silent
+      if (replace) setLoadError(true);
     }
   }, [token, conversationId]);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    await fetchMessages(true);
+    setLoading(false);
+  }, [fetchMessages]);
 
   useEffect(() => {
     let cancelled = false;
@@ -225,7 +235,7 @@ export function useChatMessages(
 
   const send = useCallback(async (body: string, myId: number) => {
     if (!body.trim() || !token) return;
-    setSending(true);
+    setPendingSendCount(count => count + 1);
 
     const clientMessageId = uuidv4();
     const optimistic: Message = {
@@ -263,7 +273,7 @@ export function useChatMessages(
         createdAt: optimistic.created_at,
       });
     } catch (error) {
-      setSending(false);
+      setPendingSendCount(count => Math.max(0, count - 1));
       throw error;
     }
     setMessages(prev => [...prev, optimistic]);
@@ -280,13 +290,13 @@ export function useChatMessages(
       ));
       throw err;
     } finally {
-      setSending(false);
+      setPendingSendCount(count => Math.max(0, count - 1));
     }
   }, [token, conversationId, conversationPublicId, conversationType, accountId, pushMessage]);
 
   const sendTyped = useCallback(async (payload: TypedMessagePayload, myId: number, localUri?: string) => {
     if (!token) return;
-    setSending(true);
+    setPendingSendCount(count => count + 1);
 
     const clientMessageId = uuidv4();
     const optimistic: Message = {
@@ -328,7 +338,7 @@ export function useChatMessages(
     try {
       await chatRepository.enqueue(outboxItem);
     } catch (error) {
-      setSending(false);
+      setPendingSendCount(count => Math.max(0, count - 1));
       throw error;
     }
     setMessages(prev => [...prev, optimistic]);
@@ -345,7 +355,7 @@ export function useChatMessages(
       ));
       throw err;
     } finally {
-      setSending(false);
+      setPendingSendCount(count => Math.max(0, count - 1));
     }
   }, [token, conversationId, conversationPublicId, conversationType, accountId, pushMessage]);
 
@@ -497,8 +507,8 @@ export function useChatMessages(
   const clearHighlight = useCallback(() => setHighlightId(null), []);
 
   return {
-    messages, loading, sending, typingUserId,
-    send, sendTyped, retryMessage, pushMessage, loadMore, hasMore,
+    messages, loading, loadError, sending: pendingSendCount > 0, typingUserId,
+    send, sendTyped, retryMessage, pushMessage, loadMore, refresh, hasMore,
     deleteMsg, editMsg,
     setReaction, removeReaction,
     loadContext, highlightId, clearHighlight,

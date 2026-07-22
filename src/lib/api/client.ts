@@ -19,14 +19,28 @@ async function request<T>(
   body?: object,
   token?: string,
 ): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20_000);
+  let res: Response;
+
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: body ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new ApiError(408, 'Request timed out');
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 
   const data = await res.json().catch(() => ({}));
 
