@@ -18,7 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import {
   ArrowLeft, Check, CheckCheck, Clock, Gift as GiftIcon,
-  ImageOff, ImagePlus, Lock, Mic, MoreVertical, Pause, Pencil, Play,
+  ImageOff, ImagePlus, Lock, Mic, MoreVertical, Paperclip, Pause, Pencil, Play,
   RefreshCw, Search, Send, Trash2, User, Users, X,
 } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -235,10 +235,10 @@ export default function ConversationScreen() {
   const isGroup = conversationType === 'group';
 
   const {
-    messages, loading, sending, send, sendTyped, retryMessage, pushMessage, typingUserId,
+    messages, loading, loadError, send, sendTyped, retryMessage, pushMessage, typingUserId,
     loadMore, hasMore, deleteMsg, editMsg,
     setReaction, removeReaction,
-    loadContext, highlightId, clearHighlight,
+    loadContext, highlightId, clearHighlight, refresh,
   } = useChatMessages(conversationId, publicId ?? '', token, myId, isGroup ? 'group' : 'direct');
   const { connectionState } = useCentrifugoCtx();
 
@@ -261,6 +261,7 @@ export default function ConversationScreen() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [stickerPickerOpen, setStickerPickerOpen] = useState(false);
+  const [attachmentTrayOpen, setAttachmentTrayOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [limitReached, setLimitReached] = useState(false);
   const [msgMenu, setMsgMenu] = useState<{ id: string; sender: number; body: string; type?: string; myReaction?: string | null } | null>(null);
@@ -394,6 +395,7 @@ export default function ConversationScreen() {
     requestAnimationFrame(() => {
       listRef.current?.scrollToEnd({ animated: false });
       lastMsgIdRef.current = messages[messages.length - 1]?.message_id ?? null;
+      initialScrollDoneRef.current = true;
       setListReady(true);
     });
   }, [messages]);
@@ -565,6 +567,8 @@ export default function ConversationScreen() {
   };
 
   const handleMicPress = async () => {
+    setAttachmentTrayOpen(false);
+    setStickerPickerOpen(false);
     if (myPlan === 'basic') {
       toast.error('ارسال پیام صوتی مخصوص اشتراک نقره‌ای یا طلایی است');
       router.push('/subscription' as never);
@@ -710,8 +714,9 @@ export default function ConversationScreen() {
 
   const handleSend = async () => {
     const body = text.trim();
-    if (!body || sending) return;
+    if (!body) return;
     setText('');
+    setAttachmentTrayOpen(false);
 
     if (editingId) {
       setEditingId(null);
@@ -876,6 +881,8 @@ export default function ConversationScreen() {
             onContentSizeChange={handleContentSizeChange}
             onViewableItemsChanged={onViewableItemsChanged}
             viewabilityConfig={CHAT_VIEWABILITY_CONFIG}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
             style={!listReady && { opacity: 0 }}
             renderItem={({ item, index }) => {
               if (item.is_deleted) return null;
@@ -1138,6 +1145,13 @@ export default function ConversationScreen() {
           </View>
         )}
 
+        {loadError && (
+          <TouchableOpacity style={styles.loadErrorBanner} onPress={refresh} activeOpacity={0.8}>
+            <RefreshCw size={13} color={Colors.danger} strokeWidth={2} />
+            <Text style={styles.loadErrorBannerText}>دریافت پیام‌ها کامل نشد؛ برای تلاش دوباره بزنید.</Text>
+          </TouchableOpacity>
+        )}
+
         {isPending && (
           <View style={styles.pendingBanner}>
             <Clock size={14} color={Colors.trust} strokeWidth={2} />
@@ -1271,6 +1285,47 @@ export default function ConversationScreen() {
           </View>
         )}
 
+        {attachmentTrayOpen && !editingId && !pendingImage && !voiceRecorder.recordedUri && (
+          <View style={styles.attachmentTray}>
+            {!isGroup && (
+              <TouchableOpacity
+                style={styles.attachmentOption}
+                onPress={() => { setAttachmentTrayOpen(false); handlePickImage(); }}
+                activeOpacity={0.75}
+              >
+                <View style={[styles.attachmentOptionIcon, { backgroundColor: Colors.trustSoft }]}>
+                  <ImagePlus size={20} color={Colors.trust} strokeWidth={1.9} />
+                </View>
+                <Text style={styles.attachmentOptionText}>تصویر</Text>
+              </TouchableOpacity>
+            )}
+            {!isGroup && (
+              <TouchableOpacity
+                style={styles.attachmentOption}
+                onPress={() => { setAttachmentTrayOpen(false); handleOpenGiftPicker(); }}
+                activeOpacity={0.75}
+              >
+                <View style={[styles.attachmentOptionIcon, { backgroundColor: Colors.goldSoft }]}>
+                  <GiftIcon size={20} color={Colors.goldDeep} strokeWidth={1.9} />
+                </View>
+                <Text style={styles.attachmentOptionText}>هدیه</Text>
+              </TouchableOpacity>
+            )}
+            {!isGroup && (
+              <TouchableOpacity
+                style={styles.attachmentOption}
+                onPress={() => { setAttachmentTrayOpen(false); setStickerPickerOpen(open => !open); }}
+                activeOpacity={0.75}
+              >
+                <View style={[styles.attachmentOptionIcon, { backgroundColor: Colors.accentSoft }]}>
+                  <Text style={styles.attachmentOptionEmoji}>😊</Text>
+                </View>
+                <Text style={styles.attachmentOptionText}>استیکر</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
         {stickerPickerOpen && !isGroup && (
           <View style={styles.stickerPicker}>
             {['😊', '😍', '🥰', '😂', '🤗', '😘', '😎', '💖'].map(sticker => (
@@ -1308,11 +1363,11 @@ export default function ConversationScreen() {
             <>
               <TouchableOpacity
                 style={[styles.sendBtn, (!!text.trim() || !!pendingImage) && styles.sendBtnActive]}
-                onPress={pendingImage ? handleSendImage : handleSend}
-                disabled={pendingImage ? uploadingImage : (!text.trim() || sending)}
+                onPress={pendingImage ? handleSendImage : text.trim() ? handleSend : handleMicPress}
+                disabled={uploadingImage}
                 activeOpacity={0.8}
               >
-                {(sending || uploadingImage) ? (
+                {uploadingImage ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
                   <>
@@ -1321,44 +1376,42 @@ export default function ConversationScreen() {
                     )}
                     {editingId
                       ? <Pencil size={17} color={text.trim() ? '#fff' : Colors.muted} strokeWidth={2} />
-                      : <Send style={[styles.sendBtnIcon]} size={18} color={(text.trim() || pendingImage) ? '#fff' : Colors.muted} strokeWidth={2} />
+                      : (text.trim() || pendingImage)
+                        ? <Send style={[styles.sendBtnIcon]} size={18} color="#fff" strokeWidth={2} />
+                        : <Mic size={19} color={Colors.accent} strokeWidth={2} />
                     }
                   </>
                 )}
               </TouchableOpacity>
-              <TextInput
-                style={styles.input}
-                value={text}
-                onChangeText={handleTextChange}
-                placeholder={editingId ? 'ویرایش' : pendingImage ? 'زیرنویس (اختیاری)' : 'پیام'}
-                placeholderTextColor={Colors.muted}
-                multiline
-                maxLength={pendingImage ? 500 : isGroup ? 1000 : 2000}
-                textAlign="right"
-                textAlignVertical="top"
-              />
-              {!editingId && !pendingImage && (
-                <>
-                  {!isGroup && (
-                    <>
-                      <TouchableOpacity style={styles.attachBtn} onPress={handlePickImage} hitSlop={6} activeOpacity={0.7}>
-                        <ImagePlus size={20} color={Colors.muted} strokeWidth={1.8} />
-                      </TouchableOpacity>
-                      <TouchableOpacity style={styles.giftAttachBtn} onPress={handleOpenGiftPicker} hitSlop={6} activeOpacity={0.7}>
-                        <GiftIcon size={18} color={Colors.goldDeep} strokeWidth={1.8} />
-                      </TouchableOpacity>
-                      <TouchableOpacity style={styles.stickerAttachBtn} onPress={() => setStickerPickerOpen(open => !open)} hitSlop={6} activeOpacity={0.7}>
-                        <Text style={styles.stickerAttachEmoji}>😊</Text>
-                      </TouchableOpacity>
-                    </>
-                  )}
-                  {!text.trim() && (
-                    <TouchableOpacity style={styles.micAttachBtn} onPress={handleMicPress} hitSlop={6} activeOpacity={0.7}>
-                      <Mic size={18} color={Colors.trust} strokeWidth={1.8} />
-                    </TouchableOpacity>
-                  )}
-                </>
-              )}
+              <View style={styles.composerShell}>
+                <TextInput
+                  style={styles.input}
+                  value={text}
+                  onChangeText={handleTextChange}
+                  onFocus={() => { setAttachmentTrayOpen(false); setStickerPickerOpen(false); }}
+                  placeholder={editingId ? 'ویرایش پیام' : pendingImage ? 'افزودن توضیح…' : 'پیام بنویسید…'}
+                  placeholderTextColor={Colors.muted}
+                  multiline
+                  maxLength={pendingImage ? 500 : isGroup ? 1000 : 2000}
+                  textAlign="right"
+                  textAlignVertical="center"
+                  returnKeyType="default"
+                />
+                {!editingId && !pendingImage && !isGroup && (
+                  <TouchableOpacity
+                    style={[styles.composerAttachBtn, attachmentTrayOpen && styles.composerAttachBtnActive]}
+                    onPress={() => {
+                      setStickerPickerOpen(false);
+                      setAttachmentTrayOpen(open => !open);
+                    }}
+                    hitSlop={6}
+                    activeOpacity={0.7}
+                    accessibilityLabel="افزودن پیوست"
+                  >
+                    <Paperclip size={20} color={attachmentTrayOpen ? Colors.accent : Colors.muted} strokeWidth={1.9} />
+                  </TouchableOpacity>
+                )}
+              </View>
             </>
           )}
         </View>
@@ -1637,7 +1690,7 @@ const styles = StyleSheet.create({
 
   listContent: {
     padding: Spacing.md,
-    paddingBottom: 80,
+    paddingBottom: Spacing.lg,
     flexGrow: 1,
   },
   newMessagesChip: {
@@ -1663,6 +1716,22 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.regular,
     fontSize: 11,
     textAlign: 'center',
+  },
+  loadErrorBanner: {
+    minHeight: 36,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    paddingHorizontal: Spacing.md,
+    backgroundColor: Colors.dangerSoft,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.danger,
+  },
+  loadErrorBannerText: {
+    color: Colors.danger,
+    fontFamily: Fonts.semiBold,
+    fontSize: 11.5,
   },
 
   emptyWrap: {
@@ -1934,6 +2003,35 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bg,
   },
   stickerPickerEmoji: { fontSize: 26 },
+  attachmentTray: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.lg,
+    backgroundColor: Colors.surface,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.hair,
+  },
+  attachmentOption: {
+    minWidth: 56,
+    alignItems: 'center',
+    gap: 6,
+  },
+  attachmentOptionIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  attachmentOptionEmoji: { fontSize: 20 },
+  attachmentOptionText: {
+    color: Colors.inkSoft,
+    fontFamily: Fonts.semiBold,
+    fontSize: 11,
+  },
 
   // Banners
   expiredBanner: {
@@ -1985,7 +2083,7 @@ const styles = StyleSheet.create({
   // Input bar
   inputBar: {
     flexDirection: 'row', alignItems: 'flex-end', gap: 8,
-    paddingHorizontal: 12, paddingTop: 8, paddingBottom: 10,
+    paddingHorizontal: 10, paddingTop: 7, paddingBottom: 10,
     borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Colors.hair,
     backgroundColor: Colors.surface,
     shadowColor: '#000',
@@ -1995,24 +2093,45 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   inputBarDisabled: { backgroundColor: Colors.ph2, shadowOpacity: 0 },
+  composerShell: {
+    flex: 1,
+    minHeight: 46,
+    maxHeight: 132,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    backgroundColor: Colors.surface,
+    borderRadius: 23,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.lineSoft,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
   input: {
     flex: 1,
-    minHeight: 44,
-    maxHeight: 128,
+    minHeight: 45,
+    maxHeight: 130,
     textAlign: 'right',
-    backgroundColor: Colors.bg,
-    borderRadius: 22,
-    borderWidth: 1.5,
-    borderColor: Colors.hair,
-    paddingHorizontal: 16,
-    paddingTop: 11,
-    paddingBottom: 11,
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    paddingBottom: 10,
     fontSize: 14.5,
     fontFamily: Fonts.regular,
     color: Colors.ink,
   },
+  composerAttachBtn: {
+    width: 42,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 21,
+    marginLeft: 2,
+  },
+  composerAttachBtnActive: { backgroundColor: Colors.accentSoft },
   sendBtn: {
-    width: 44, height: 44, borderRadius: 22,
+    width: 46, height: 46, borderRadius: 23,
     overflow: 'hidden', alignItems: 'center', justifyContent: 'center',
     backgroundColor: Colors.ph2,
   },
