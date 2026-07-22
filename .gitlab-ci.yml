@@ -19,9 +19,12 @@ test:
     - runner01
   script:
     - docker build --file Dockerfile --target test --tag native-app-test .
+  after_script:
+    - docker image rm native-app-test:latest || true
 
 build-web:
   stage: build
+  resource_group: native-app-runner-build
   tags:
     - runner01
   only:
@@ -66,8 +69,9 @@ build-web:
 build-android:
   stage: build
   interruptible: true
+  resource_group: native-app-runner-build
   tags:
-    - germany
+    - runner01
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
   script:
