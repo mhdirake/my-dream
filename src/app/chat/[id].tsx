@@ -6,8 +6,8 @@ import { giftsApi } from '@/lib/api/gifts';
 import { profileApi } from '@/lib/api/profile';
 import { useChatMessages } from '@/lib/chat/useChatMessages';
 import { useCentrifugoCtx } from '@/lib/chat/CentrifugoContext';
+import { selectInitialChatPosition, type InitialChatPosition } from '@/lib/chat/initialPosition';
 import { useVoiceRecorder } from '@/lib/chat/useVoiceRecorder';
-import { useKeyboardHeight } from '@/lib/useKeyboardHeight';
 import { toFaDigits } from '@/lib/localization';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -26,7 +26,9 @@ import {
   ActivityIndicator,
   AppState,
   FlatList,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   Share,
@@ -212,8 +214,7 @@ function formatLastSeen(iso: string): string {
 
 export default function ConversationScreen() {
   const insets = useSafeAreaInsets();
-  const keyboardHeight = useKeyboardHeight();
-  const { id, publicId, name, avatar, status, otherId, isSender, conversationType, groupKey, memberCount, targetMessageId, unreadCount } = useLocalSearchParams<{
+  const { id, publicId, name, avatar, status, otherId, isSender, conversationType, groupKey, memberCount, targetMessageId } = useLocalSearchParams<{
     id: string;
     publicId: string;
     name: string;
@@ -225,7 +226,6 @@ export default function ConversationScreen() {
     groupKey?: 'silver' | 'gold';
     memberCount?: string;
     targetMessageId?: string;
-    unreadCount?: string;
   }>();
 
   const { session, user } = useAuth();
@@ -289,6 +289,7 @@ export default function ConversationScreen() {
   const lastMarkedReadIdRef = useRef<string | null>(null);
   const lastMarkedDeliveredIdRef = useRef<string | null>(null);
   const isScreenFocusedRef = useRef(false);
+  const initialScrollDoneRef = useRef(false);
 
   const [reqStatus, setReqStatus] = useState(status);
   const [responding, setResponding] = useState(false);
@@ -339,7 +340,11 @@ export default function ConversationScreen() {
   }, [messages, token, conversationId, myId]);
 
   const onViewableItemsChanged = useCallback(({ viewableItems }: { viewableItems: ViewToken<Message>[] }) => {
-    if (!isScreenFocusedRef.current || AppState.currentState !== 'active') return;
+    if (
+      !initialScrollDoneRef.current ||
+      !isScreenFocusedRef.current ||
+      AppState.currentState !== 'active'
+    ) return;
     const latestVisibleInbound = viewableItems
       .filter(item => item.isViewable && item.item.sender_user_id !== myId && !item.item.is_deleted)
       .map(item => item.item)
@@ -355,50 +360,136 @@ export default function ConversationScreen() {
 
   // Auto-scroll to bottom when a new message arrives (not when old ones are prepended)
   const lastMsgIdRef = useRef<string | null>(null);
-  const initialScrollDoneRef = useRef(false);
   const loadingMoreRef = useRef(false);
   const isNearTailRef = useRef(true);
   const [listReady, setListReady] = useState(false);
   const [unseenMessageCount, setUnseenMessageCount] = useState(0);
-  const openedTargetRef = useRef<string | null>(null);
+  const messagesRef = useRef(messages);
+  const initialHighlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scrollRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingScrollRetryRef = useRef<{ index: number; viewPosition: number } | null>(null);
+  const [initialPosition, setInitialPosition] = useState<InitialChatPosition>({ kind: 'resolving' });
 
   useEffect(() => {
-    if (!targetMessageId || loading || openedTargetRef.current === targetMessageId) return;
-    openedTargetRef.current = targetMessageId;
-    loadContext(targetMessageId).catch(() => {
-      toast.error('پیام موردنظر پیدا نشد');
-    });
-  }, [targetMessageId, loading, loadContext]);
-
-  useEffect(() => {
-    if (targetMessageId || loading || Number(unreadCount ?? 0) <= 0 || openedTargetRef.current) return;
-    openedTargetRef.current = 'first-unread';
-    chatApi.getFirstUnreadMessage(token, conversationId)
-      .then(messageId => messageId && loadContext(messageId))
-      .catch(() => {});
-  }, [targetMessageId, unreadCount, loading, token, conversationId, loadContext]);
+    messagesRef.current = messages;
+  }, [messages]);
 
   useEffect(() => {
     initialScrollDoneRef.current = false;
     lastMsgIdRef.current = null;
     isNearTailRef.current = true;
+    pendingScrollRetryRef.current = null;
+    setListReady(false);
+    setInitialPosition({ kind: 'resolving' });
   }, [publicId]);
+
+  useEffect(() => {
+    if (loading) return;
+    let cancelled = false;
+
+    const resolveInitialPosition = async () => {
+      if (!token || !conversationId) {
+        if (!cancelled) setInitialPosition({ kind: 'tail' });
+        return;
+      }
+
+      if (targetMessageId) {
+        const position = selectInitialChatPosition({ targetMessageId, isGroup });
+        setInitialPosition(position);
+        const loadedId = await loadContext(targetMessageId);
+        if (!loadedId && !messagesRef.current.some(message => message.message_id === targetMessageId)) {
+          if (!cancelled) {
+            toast.error('پیام موردنظر پیدا نشد');
+            setInitialPosition({ kind: 'tail' });
+          }
+        }
+        return;
+      }
+
+      if (isGroup) {
+        if (!cancelled) setInitialPosition(selectInitialChatPosition({ isGroup }));
+        return;
+      }
+
+      try {
+        // Do not trust the route's unread count: it can be stale by the time
+        // this screen opens. The server watermark is the source of truth.
+        const firstUnreadId = await chatApi.getFirstUnreadMessage(token, conversationId);
+        if (cancelled) return;
+        if (!firstUnreadId) {
+          setInitialPosition({ kind: 'tail' });
+          return;
+        }
+
+        setInitialPosition(selectInitialChatPosition({
+          isGroup,
+          firstUnreadMessageId: firstUnreadId,
+        }));
+        const loadedId = await loadContext(firstUnreadId);
+        if (!loadedId && !messagesRef.current.some(message => message.message_id === firstUnreadId)) {
+          if (!cancelled) setInitialPosition({ kind: 'tail' });
+        }
+      } catch {
+        if (!cancelled) setInitialPosition({ kind: 'tail' });
+      }
+    };
+
+    resolveInitialPosition().catch(() => {
+      if (!cancelled) setInitialPosition({ kind: 'tail' });
+    });
+    return () => { cancelled = true; };
+  }, [loading, token, conversationId, targetMessageId, isGroup, loadContext]);
+
+  useEffect(() => () => {
+    if (initialHighlightTimerRef.current) clearTimeout(initialHighlightTimerRef.current);
+    if (scrollRetryTimerRef.current) clearTimeout(scrollRetryTimerRef.current);
+  }, []);
 
   // onContentSizeChange fires after FlatList has measured content — reliable for initial scroll
   const handleContentSizeChange = useCallback(() => {
     if (initialScrollDoneRef.current) return;
+    if (initialPosition.kind === 'resolving') return;
     if (messages.length === 0) {
       // چت خالی: empty state باید دیده بشه — بدون این، لیست برای همیشه opacity:0 می‌مونه
+      initialScrollDoneRef.current = true;
       setListReady(true);
       return;
     }
+
     requestAnimationFrame(() => {
-      listRef.current?.scrollToEnd({ animated: false });
+      if (initialPosition.kind === 'message') {
+        const index = messages.findIndex(message => message.message_id === initialPosition.id);
+        if (index < 0) return;
+        pendingScrollRetryRef.current = { index, viewPosition: initialPosition.viewPosition };
+        if (scrollRetryTimerRef.current) clearTimeout(scrollRetryTimerRef.current);
+        scrollRetryTimerRef.current = setTimeout(() => {
+          pendingScrollRetryRef.current = null;
+        }, 1000);
+        listRef.current?.scrollToIndex({
+          index,
+          animated: false,
+          viewPosition: initialPosition.viewPosition,
+        });
+        isNearTailRef.current = index >= messages.length - 2;
+        if (initialHighlightTimerRef.current) clearTimeout(initialHighlightTimerRef.current);
+        initialHighlightTimerRef.current = setTimeout(clearHighlight, 2000);
+      } else {
+        listRef.current?.scrollToEnd({ animated: false });
+        isNearTailRef.current = true;
+      }
       lastMsgIdRef.current = messages[messages.length - 1]?.message_id ?? null;
       initialScrollDoneRef.current = true;
       setListReady(true);
     });
-  }, [messages]);
+  }, [messages, initialPosition, clearHighlight]);
+
+  // The unread lookup can finish after FlatList's first content-size event.
+  // Re-attempt positioning when the resolved destination becomes available.
+  useEffect(() => {
+    if (loading || initialPosition.kind === 'resolving' || initialScrollDoneRef.current) return;
+    const frame = requestAnimationFrame(handleContentSizeChange);
+    return () => cancelAnimationFrame(frame);
+  }, [loading, initialPosition, handleContentSizeChange]);
 
   // For subsequent new messages (after initial load)
   useEffect(() => {
@@ -473,13 +564,18 @@ export default function ConversationScreen() {
   // Scroll to highlighted message
   useEffect(() => {
     if (!highlightId) return;
+    if (
+      !initialScrollDoneRef.current &&
+      initialPosition.kind === 'message' &&
+      initialPosition.id === highlightId
+    ) return;
     const idx = messages.findIndex(m => m.message_id === highlightId);
     if (idx >= 0) {
       setTimeout(() => listRef.current?.scrollToIndex({ index: idx, animated: true, viewPosition: 0.5 }), 200);
     }
     const t = setTimeout(clearHighlight, 2000);
     return () => clearTimeout(t);
-  }, [highlightId, messages, clearHighlight]);
+  }, [highlightId, messages, clearHighlight, initialPosition]);
 
   const handleTextChange = (val: string) => {
     setText(val);
@@ -832,7 +928,7 @@ export default function ConversationScreen() {
         </View>
       )}
 
-      <View style={[styles.flex, { paddingBottom: keyboardHeight }]}>
+      <View style={styles.flex}>
         {loading ? (
           <View style={styles.center}>
             <ActivityIndicator color={Colors.accent} />
@@ -1107,8 +1203,18 @@ export default function ConversationScreen() {
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
             onScrollToIndexFailed={({ index, averageItemLength }) => {
-              listRef.current?.scrollToOffset({ offset: Math.max(0, averageItemLength * index), animated: false });
-              setTimeout(() => listRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 }), 100);
+              const retry = pendingScrollRetryRef.current;
+              const retryIndex = retry?.index ?? index;
+              const viewPosition = retry?.viewPosition ?? 0.5;
+              listRef.current?.scrollToOffset({ offset: Math.max(0, averageItemLength * retryIndex), animated: false });
+              setTimeout(() => {
+                listRef.current?.scrollToIndex({ index: retryIndex, animated: false, viewPosition });
+                pendingScrollRetryRef.current = null;
+                if (scrollRetryTimerRef.current) {
+                  clearTimeout(scrollRetryTimerRef.current);
+                  scrollRetryTimerRef.current = null;
+                }
+              }, 100);
             }}
             ListEmptyComponent={
               canChat ? (
@@ -1557,8 +1663,12 @@ export default function ConversationScreen() {
 
       {/* Gift picker */}
       <Modal visible={giftPickerOpen} transparent animationType="slide" onRequestClose={closeGiftPicker}>
-        <Pressable style={styles.menuOverlay} onPress={closeGiftPicker}>
-          <View style={styles.giftSheet}>
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <Pressable style={styles.menuOverlay} onPress={closeGiftPicker}>
+            <View style={styles.giftSheet}>
             <View style={styles.menuHandle} />
             {selectedGift ? (
               <>
@@ -1645,8 +1755,9 @@ export default function ConversationScreen() {
                 )}
               </>
             )}
-          </View>
-        </Pressable>
+            </View>
+          </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );

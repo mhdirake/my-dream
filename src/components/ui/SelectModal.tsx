@@ -3,7 +3,9 @@ import { Check, ChevronDown, Search, X } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import {
   FlatList,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -60,50 +62,57 @@ export function SelectModal({
       </View>
 
       <Modal visible={open} animationType="slide" presentationStyle="pageSheet">
-        <SafeAreaView style={styles.sheet}>
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>{label}</Text>
-            <Pressable onPress={() => { setOpen(false); setQuery(''); }} hitSlop={12}>
-              <X size={20} color={Colors.ink} strokeWidth={2} />
-            </Pressable>
-          </View>
-
-          <View style={styles.searchWrap}>
-            <Search size={16} color={Colors.muted} strokeWidth={2} style={styles.searchIcon} />
-            <TextInput
-              style={styles.searchInput}
-              value={query}
-              onChangeText={setQuery}
-              placeholder="جستجو…"
-              placeholderTextColor={Colors.muted}
-              autoFocus
-            />
-          </View>
-
-          <FlatList
-            data={filtered}
-            keyExtractor={item => String(item.id)}
-            renderItem={({ item }) => (
-              <Pressable
-                style={styles.item}
-                onPress={() => {
-                  onSelect(item);
-                  setOpen(false);
-                  setQuery('');
-                }}
-              >
-                <Text style={[styles.itemText, value?.id === item.id && styles.itemActive]}>
-                  {item.name}
-                </Text>
-                {value?.id === item.id && (
-                  <Check size={16} color={Colors.accent} strokeWidth={2.5} />
-                )}
+        <KeyboardAvoidingView
+          style={styles.sheet}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <SafeAreaView style={styles.sheet}>
+            <View style={styles.header}>
+              <Text style={styles.headerTitle}>{label}</Text>
+              <Pressable onPress={() => { setOpen(false); setQuery(''); }} hitSlop={12}>
+                <X size={20} color={Colors.ink} strokeWidth={2} />
               </Pressable>
-            )}
-            ItemSeparatorComponent={() => <View style={styles.sep} />}
-            contentContainerStyle={{ paddingBottom: 40 }}
-          />
-        </SafeAreaView>
+            </View>
+
+            <View style={styles.searchWrap}>
+              <Search size={16} color={Colors.muted} strokeWidth={2} style={styles.searchIcon} />
+              <TextInput
+                style={styles.searchInput}
+                value={query}
+                onChangeText={setQuery}
+                placeholder="جستجو…"
+                placeholderTextColor={Colors.muted}
+                autoFocus
+              />
+            </View>
+
+            <FlatList
+              data={filtered}
+              keyExtractor={item => String(item.id)}
+              renderItem={({ item }) => (
+                <Pressable
+                  style={styles.item}
+                  onPress={() => {
+                    onSelect(item);
+                    setOpen(false);
+                    setQuery('');
+                  }}
+                >
+                  <Text style={[styles.itemText, value?.id === item.id && styles.itemActive]}>
+                    {item.name}
+                  </Text>
+                  {value?.id === item.id && (
+                    <Check size={16} color={Colors.accent} strokeWidth={2.5} />
+                  )}
+                </Pressable>
+              )}
+              ItemSeparatorComponent={() => <View style={styles.sep} />}
+              contentContainerStyle={{ paddingBottom: 40 }}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="interactive"
+            />
+          </SafeAreaView>
+        </KeyboardAvoidingView>
       </Modal>
     </>
   );

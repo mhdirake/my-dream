@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import { View, type StyleProp, type ViewStyle } from 'react-native';
-import { useKeyboardHeight } from '@/lib/useKeyboardHeight';
 
 export function KeyboardStickyBar({
   style,
@@ -11,6 +10,7 @@ export function KeyboardStickyBar({
   bottomOffset?: number;
   children: ReactNode;
 }) {
-  const keyboardHeight = useKeyboardHeight();
-  return <View style={[style, { bottom: bottomOffset + keyboardHeight }]}>{children}</View>;
+  // The root viewport shrinks above the keyboard, so adding the keyboard
+  // height here would move fixed actions twice.
+  return <View style={[style, { bottom: bottomOffset }]}>{children}</View>;
 }

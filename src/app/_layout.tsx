@@ -12,6 +12,7 @@ import { I18nManager } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { toastConfig } from '@/components/ui/ToastConfig';
 import { PrivacyGuard } from '@/components/privacy/PrivacyGuard';
+import { KeyboardViewport } from '@/components/ui/KeyboardViewport';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -41,16 +42,18 @@ export default function RootLayout() {
           <AuthProvider>
             <ModerationProvider>
               <CentrifugoProvider>
-                <Stack screenOptions={{ headerShown: false }}>
-                  <Stack.Screen name="(tabs)" />
-                  <Stack.Screen name="onboarding" options={{ animation: 'fade' }} />
-                  <Stack.Screen name="profile-setup" options={{ animation: 'slide_from_right' }} />
-                  <Stack.Screen name="moderation/banned" options={{ gestureEnabled: false }} />
-                  <Stack.Screen name="moderation/restriction-warning" options={{ presentation: 'modal' }} />
-                  <Stack.Screen name="moderation/admin-review" options={{ gestureEnabled: false }} />
-                  <Stack.Screen name="ai-coach" />
-                  <Stack.Screen name="search" options={{ animation: 'fade_from_bottom' }} />
-                </Stack>
+                <KeyboardViewport>
+                  <Stack screenOptions={{ headerShown: false }}>
+                    <Stack.Screen name="(tabs)" />
+                    <Stack.Screen name="onboarding" options={{ animation: 'fade' }} />
+                    <Stack.Screen name="profile-setup" options={{ animation: 'slide_from_right' }} />
+                    <Stack.Screen name="moderation/banned" options={{ gestureEnabled: false }} />
+                    <Stack.Screen name="moderation/restriction-warning" options={{ presentation: 'modal' }} />
+                    <Stack.Screen name="moderation/admin-review" options={{ gestureEnabled: false }} />
+                    <Stack.Screen name="ai-coach" />
+                    <Stack.Screen name="search" options={{ animation: 'fade_from_bottom' }} />
+                  </Stack>
+                </KeyboardViewport>
               </CentrifugoProvider>
             </ModerationProvider>
           </AuthProvider>

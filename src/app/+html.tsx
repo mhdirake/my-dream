@@ -7,7 +7,10 @@ export default function Root({ children }: PropsWithChildren) {
       <head>
         <meta charSet="utf-8" />
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
+        />
 
         {/* PWA */}
         <meta name="theme-color" content="#D94F70" />
@@ -21,8 +24,33 @@ export default function Root({ children }: PropsWithChildren) {
 
         <ScrollViewStyleReset />
         <style dangerouslySetInnerHTML={{ __html: `
-          body { direction: rtl; margin: 0; background: #0D0A1E; }
-          #root { max-width: 600px; margin: 0 auto; min-height: 100dvh; position: relative; overflow: hidden; box-shadow: 0 0 60px rgba(0,0,0,0.5); }
+          :root {
+            --app-viewport-height: 100dvh;
+            --app-viewport-offset-top: 0px;
+            --keyboard-inset: 0px;
+          }
+          html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            overscroll-behavior: none;
+          }
+          body { direction: rtl; background: #0D0A1E; }
+          #root {
+            max-width: 600px;
+            width: 100%;
+            height: var(--app-viewport-height);
+            min-height: 0;
+            margin: var(--app-viewport-offset-top) auto 0;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 60px rgba(0,0,0,0.5);
+          }
+          input, textarea, [contenteditable="true"] {
+            scroll-margin-top: 20px;
+            scroll-margin-bottom: calc(var(--keyboard-inset) + 20px);
+          }
         ` }} />
       </head>
       <body>{children}</body>

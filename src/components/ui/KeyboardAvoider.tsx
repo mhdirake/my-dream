@@ -1,11 +1,9 @@
-import { KeyboardAvoidingView, StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 export function KeyboardAvoider({ children }: { children: React.ReactNode }) {
-  return (
-    <KeyboardAvoidingView style={styles.flex} behavior="padding" keyboardVerticalOffset={0}>
-      {children}
-    </KeyboardAvoidingView>
-  );
+  // KeyboardViewport at the application root owns avoidance. This wrapper is
+  // retained so form screens keep a single flex layout without double padding.
+  return <View style={styles.flex}>{children}</View>;
 }
 
 const styles = StyleSheet.create({

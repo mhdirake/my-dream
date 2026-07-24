@@ -14,6 +14,7 @@
     "android": {
       "package": "mydream.app",
       "icon": "./assets/images/logo.png",
+      "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "monochromeImage": "./assets/images/monochrome-icon.png",
