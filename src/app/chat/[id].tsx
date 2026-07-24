@@ -203,6 +203,7 @@ const msgLimitStyles = StyleSheet.create({
 
 const TYPING_DEBOUNCE = 3000;
 const CHAT_VIEWABILITY_CONFIG = { itemVisiblePercentThreshold: 60, minimumViewTime: 250 };
+const RESOLVING_INITIAL_POSITION: InitialChatPosition = { kind: 'resolving' };
 
 function formatLastSeen(iso: string): string {
   const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
@@ -368,7 +369,18 @@ export default function ConversationScreen() {
   const initialHighlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingScrollRetryRef = useRef<{ index: number; viewPosition: number } | null>(null);
-  const [initialPosition, setInitialPosition] = useState<InitialChatPosition>({ kind: 'resolving' });
+  const conversationKey = publicId ?? String(conversationId);
+  const [initialPositionState, setInitialPositionState] = useState<{
+    conversationKey: string;
+    position: InitialChatPosition;
+  }>({ conversationKey, position: RESOLVING_INITIAL_POSITION });
+  const initialPosition = initialPositionState.conversationKey === conversationKey
+    ? initialPositionState.position
+    : RESOLVING_INITIAL_POSITION;
+  const listIsReady = initialPositionState.conversationKey === conversationKey && listReady;
+  const setInitialPosition = useCallback((position: InitialChatPosition) => {
+    setInitialPositionState({ conversationKey, position });
+  }, [conversationKey]);
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -379,8 +391,6 @@ export default function ConversationScreen() {
     lastMsgIdRef.current = null;
     isNearTailRef.current = true;
     pendingScrollRetryRef.current = null;
-    setListReady(false);
-    setInitialPosition({ kind: 'resolving' });
   }, [publicId]);
 
   useEffect(() => {
@@ -438,7 +448,7 @@ export default function ConversationScreen() {
       if (!cancelled) setInitialPosition({ kind: 'tail' });
     });
     return () => { cancelled = true; };
-  }, [loading, token, conversationId, targetMessageId, isGroup, loadContext]);
+  }, [loading, token, conversationId, targetMessageId, isGroup, loadContext, setInitialPosition]);
 
   useEffect(() => () => {
     if (initialHighlightTimerRef.current) clearTimeout(initialHighlightTimerRef.current);
@@ -979,7 +989,7 @@ export default function ConversationScreen() {
             viewabilityConfig={CHAT_VIEWABILITY_CONFIG}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="interactive"
-            style={!listReady && { opacity: 0 }}
+            style={!listIsReady && { opacity: 0 }}
             renderItem={({ item, index }) => {
               if (item.is_deleted) return null;
               const showDaySep = index === 0 || !isSameDay(item.created_at, messages[index - 1].created_at);
