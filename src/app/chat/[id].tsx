@@ -284,7 +284,9 @@ export default function ConversationScreen() {
   const [searchResults, setSearchResults] = useState<import('@/lib/api/chat').MessageSearchItem[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const searchRef = useRef<TextInput>(null);
+  const composerRef = useRef<TextInput>(null);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const composerFocusTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const listRef = useRef<FlatList>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastMarkedReadIdRef = useRef<string | null>(null);
@@ -301,6 +303,38 @@ export default function ConversationScreen() {
   const isRejected = reqStatus === 'rejected';
   const canChat = reqStatus === 'accepted';
   const canRespond = isPending && isSender !== '1';
+
+  const focusComposerOnWeb = useCallback(() => {
+    if (Platform.OS !== 'web') return;
+
+    const focus = () => composerRef.current?.focus();
+    focus();
+
+    for (const delay of [0, 80, 180]) {
+      const timer = setTimeout(() => {
+        composerFocusTimersRef.current = composerFocusTimersRef.current.filter(item => item !== timer);
+        focus();
+      }, delay);
+      composerFocusTimersRef.current.push(timer);
+    }
+  }, []);
+
+  const preventComposerBlurOnWeb = useCallback((event: unknown) => {
+    if (Platform.OS !== 'web') return;
+
+    const maybeEvent = event as {
+      preventDefault?: () => void;
+      nativeEvent?: { preventDefault?: () => void };
+    };
+    maybeEvent.preventDefault?.();
+    maybeEvent.nativeEvent?.preventDefault?.();
+    composerRef.current?.focus();
+  }, []);
+
+  useEffect(() => () => {
+    for (const timer of composerFocusTimersRef.current) clearTimeout(timer);
+    composerFocusTimersRef.current = [];
+  }, []);
 
   const handleRespond = async (action: 'accepted' | 'rejected') => {
     if (!token || !conversationId) return;
@@ -630,6 +664,7 @@ export default function ConversationScreen() {
   const handleSendImage = async () => {
     if (!pendingImage || uploadingImage) return;
     const caption = text.trim();
+    focusComposerOnWeb();
     setUploadingImage(true);
     try {
       const media = await chatApi.uploadConversationImage(
@@ -669,6 +704,7 @@ export default function ConversationScreen() {
       }
     } finally {
       setUploadingImage(false);
+      focusComposerOnWeb();
     }
   };
 
@@ -821,6 +857,7 @@ export default function ConversationScreen() {
   const handleSend = async () => {
     const body = text.trim();
     if (!body) return;
+    focusComposerOnWeb();
     setText('');
     setAttachmentTrayOpen(false);
 
@@ -831,6 +868,7 @@ export default function ConversationScreen() {
       } catch {
         toast.error('ویرایش پیام ناموفق بود');
       }
+      focusComposerOnWeb();
       return;
     }
 
@@ -848,6 +886,8 @@ export default function ConversationScreen() {
       } else {
         toast.error('ارسال پیام ناموفق بود');
       }
+    } finally {
+      focusComposerOnWeb();
     }
   };
 
@@ -1479,6 +1519,9 @@ export default function ConversationScreen() {
             <>
               <TouchableOpacity
                 style={[styles.sendBtn, (!!text.trim() || !!pendingImage) && styles.sendBtnActive]}
+                onPressIn={event => {
+                  if (text.trim() || pendingImage || editingId) preventComposerBlurOnWeb(event);
+                }}
                 onPress={pendingImage ? handleSendImage : text.trim() ? handleSend : handleMicPress}
                 disabled={uploadingImage}
                 activeOpacity={0.8}
@@ -1501,6 +1544,7 @@ export default function ConversationScreen() {
               </TouchableOpacity>
               <View style={styles.composerShell}>
                 <TextInput
+                  ref={composerRef}
                   style={styles.input}
                   value={text}
                   onChangeText={handleTextChange}
@@ -1512,6 +1556,7 @@ export default function ConversationScreen() {
                   textAlign="right"
                   textAlignVertical="center"
                   returnKeyType="default"
+                  blurOnSubmit={false}
                 />
                 {!editingId && !pendingImage && !isGroup && (
                   <TouchableOpacity

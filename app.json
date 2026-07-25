@@ -33,7 +33,12 @@
       "backgroundColor": "#0D0A1E"
     },
     "plugins": [
-      "expo-router",
+      [
+        "expo-router",
+        {
+          "unstable_useServerRendering": true
+        }
+      ],
       [
         "expo-splash-screen",
         {
