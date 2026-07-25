@@ -289,6 +289,7 @@ export default function ConversationScreen() {
   const composerFocusTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const listRef = useRef<FlatList>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const chatRuntimeRef = useRef({ conversationId, myId, token });
   const lastMarkedReadIdRef = useRef<string | null>(null);
   const lastMarkedDeliveredIdRef = useRef<string | null>(null);
   const isScreenFocusedRef = useRef(false);
@@ -303,6 +304,10 @@ export default function ConversationScreen() {
   const isRejected = reqStatus === 'rejected';
   const canChat = reqStatus === 'accepted';
   const canRespond = isPending && isSender !== '1';
+
+  useEffect(() => {
+    chatRuntimeRef.current = { conversationId, myId, token };
+  }, [conversationId, myId, token]);
 
   const focusComposerOnWeb = useCallback(() => {
     if (Platform.OS !== 'web') return;
@@ -380,8 +385,14 @@ export default function ConversationScreen() {
       !isScreenFocusedRef.current ||
       AppState.currentState !== 'active'
     ) return;
+    const {
+      conversationId: currentConversationId,
+      myId: currentMyId,
+      token: currentToken,
+    } = chatRuntimeRef.current;
+    if (!currentToken || !currentConversationId) return;
     const latestVisibleInbound = viewableItems
-      .filter(item => item.isViewable && item.item.sender_user_id !== myId && !item.item.is_deleted)
+      .filter(item => item.isViewable && item.item.sender_user_id !== currentMyId && !item.item.is_deleted)
       .map(item => item.item)
       .at(-1);
     if (
@@ -390,8 +401,8 @@ export default function ConversationScreen() {
       lastMarkedReadIdRef.current === latestVisibleInbound.message_id
     ) return;
     lastMarkedReadIdRef.current = latestVisibleInbound.message_id;
-    chatApi.markRead(token, conversationId, latestVisibleInbound.message_id).catch(() => {});
-  }, [token, conversationId, myId]);
+    chatApi.markRead(currentToken, currentConversationId, latestVisibleInbound.message_id).catch(() => {});
+  }, []);
 
   // Auto-scroll to bottom when a new message arrives (not when old ones are prepended)
   const lastMsgIdRef = useRef<string | null>(null);

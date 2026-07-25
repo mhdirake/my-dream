@@ -8,7 +8,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { I18nManager } from 'react-native';
+import { I18nManager, Platform } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { toastConfig } from '@/components/ui/ToastConfig';
 import { PrivacyGuard } from '@/components/privacy/PrivacyGuard';
@@ -18,6 +18,11 @@ SplashScreen.preventAutoHideAsync();
 
 I18nManager.allowRTL(true);
 I18nManager.forceRTL(true);
+
+const WEB_INITIAL_SAFE_AREA_METRICS = {
+  frame: { x: 0, y: 0, width: 0, height: 0 },
+  insets: { top: 0, right: 0, bottom: 0, left: 0 },
+};
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -37,7 +42,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <PrivacyGuard>
-        <SafeAreaProvider>
+        <SafeAreaProvider initialMetrics={Platform.OS === 'web' ? WEB_INITIAL_SAFE_AREA_METRICS : undefined}>
           <StatusBar style="dark" />
           <AuthProvider>
             <ModerationProvider>
