@@ -50,8 +50,19 @@ export default function Root({ children }: PropsWithChildren) {
             box-shadow: 0 0 60px rgba(0,0,0,0.5);
           }
           input, textarea, [contenteditable="true"] {
+            -webkit-tap-highlight-color: transparent;
+            -webkit-text-size-adjust: 100%;
+            font-size: 16px;
+            outline: none !important;
+            box-shadow: none !important;
+            -webkit-appearance: none;
+            appearance: none;
             scroll-margin-top: 20px;
             scroll-margin-bottom: calc(var(--keyboard-inset) + 20px);
+          }
+          input:focus, textarea:focus, [contenteditable="true"]:focus {
+            outline: none !important;
+            box-shadow: none !important;
           }
         ` }} />
         {headNodes}

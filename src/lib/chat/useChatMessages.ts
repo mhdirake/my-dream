@@ -8,38 +8,40 @@ import { applyReceiptWatermark, mergeMessages, messageFromOutbox } from './timel
 // Go service publishes PascalCase until JSON tags are fixed on the backend.
 // This normalizer accepts both PascalCase and snake_case so the fix is backward-compatible.
 function normalizeMessage(raw: Record<string, unknown>): Message {
-  const str = (a: unknown, b: unknown, fallback = '') =>
-    ((a ?? b ?? fallback) as string);
-  const num = (a: unknown, b: unknown) =>
-    Number(a ?? b ?? 0);
-  const bool = (a: unknown, b: unknown) =>
-    Boolean(a ?? b ?? false);
+  const nested = (raw.message ?? raw.data ?? raw.payload) as Record<string, unknown> | undefined;
+  const source = nested && typeof nested === 'object' && ('message_id' in nested || 'MessageID' in nested)
+    ? nested
+    : raw;
+  const first = (...values: unknown[]) => values.find(value => value !== undefined && value !== null);
+  const str = (...values: unknown[]) => String(first(...values, '') ?? '');
+  const num = (...values: unknown[]) => Number(first(...values, 0) ?? 0);
+  const bool = (...values: unknown[]) => Boolean(first(...values, false));
 
   return {
-    message_id:          str(raw.message_id,          raw.MessageID),
-    client_message_id:   str(raw.client_message_id,   raw.ClientMessageID),
-    conversation_id:     str(raw.conversation_id,      raw.ConversationID),
-    conversation_type:   str(raw.conversation_type,    raw.ConversationType) as 'direct' | 'group',
-    sender_user_id:      num(raw.sender_user_id,       raw.SenderUserID),
-    message_type:        str(raw.message_type,         raw.MessageType) as Message['message_type'],
-    body_text:           str(raw.body_text,            raw.BodyText),
-    caption:             str(raw.caption,              raw.Caption),
-    media_url:           str(raw.media_url,            raw.MediaURL),
-    media_file_id:       Number(raw.media_file_id ?? raw.MediaFileID ?? 0) || undefined,
-    sticker_id:          str(raw.sticker_id,           raw.StickerID),
-    gif_id:              str(raw.gif_id,               raw.GIFID),
-    gift_id:             num(raw.gift_id,              raw.GiftID),
-    sent_gift_id:        num(raw.sent_gift_id,         raw.SentGiftID),
-    duration_seconds:    Number(raw.duration_seconds ?? raw.DurationSeconds ?? 0) || undefined,
-    reply_to_message_id: (raw.reply_to_message_id ?? raw.ReplyToMessageID ?? null) as string | null,
-    status:              str(raw.status,               raw.Status, 'sent'),
-    is_edited:           bool(raw.is_edited,           raw.IsEdited),
-    is_deleted:          bool(raw.is_deleted,          raw.IsDeleted),
-    created_at:          str(raw.created_at,           raw.CreatedAt),
-    reactions:           (raw.reactions ?? raw.Reactions ?? []) as Reaction[],
-    my_reaction:         (raw.my_reaction ?? raw.MyReaction ?? null) as string | null,
-    delivered_at:        (raw.delivered_at ?? raw.DeliveredAt ?? null) as string | null,
-    read_at:             (raw.read_at ?? raw.ReadAt ?? null) as string | null,
+    message_id:          str(source.message_id,          source.MessageID, source.id, source.ID),
+    client_message_id:   str(source.client_message_id,   source.ClientMessageID),
+    conversation_id:     str(source.conversation_id,      source.ConversationID),
+    conversation_type:   str(source.conversation_type,    source.ConversationType) as 'direct' | 'group',
+    sender_user_id:      num(source.sender_user_id,       source.SenderUserID, source.sender_id, source.SenderID, source.user_id, source.UserID),
+    message_type:        str(source.message_type,         source.MessageType, source.type, source.Type, 'text') as Message['message_type'],
+    body_text:           str(source.body_text,            source.BodyText, source.body, source.Body, source.text, source.Text, source.message, source.Message),
+    caption:             str(source.caption,              source.Caption),
+    media_url:           str(source.media_url,            source.MediaURL, source.media, source.Media),
+    media_file_id:       Number(first(source.media_file_id, source.MediaFileID, 0)) || undefined,
+    sticker_id:          str(source.sticker_id,           source.StickerID),
+    gif_id:              str(source.gif_id,               source.GIFID),
+    gift_id:             num(source.gift_id,              source.GiftID),
+    sent_gift_id:        num(source.sent_gift_id,         source.SentGiftID),
+    duration_seconds:    Number(first(source.duration_seconds, source.DurationSeconds, 0)) || undefined,
+    reply_to_message_id: (first(source.reply_to_message_id, source.ReplyToMessageID, null)) as string | null,
+    status:              str(source.status,               source.Status, 'sent'),
+    is_edited:           bool(source.is_edited,           source.IsEdited),
+    is_deleted:          bool(source.is_deleted,          source.IsDeleted),
+    created_at:          str(source.created_at,           source.CreatedAt, new Date().toISOString()),
+    reactions:           (source.reactions ?? source.Reactions ?? []) as Reaction[],
+    my_reaction:         (source.my_reaction ?? source.MyReaction ?? null) as string | null,
+    delivered_at:        (source.delivered_at ?? source.DeliveredAt ?? null) as string | null,
+    read_at:             (source.read_at ?? source.ReadAt ?? null) as string | null,
   };
 }
 
@@ -58,8 +60,8 @@ export interface ChatMessagesHook {
   loadError: boolean;
   sending: boolean;
   typingUserId: number | null;
-  send: (body: string, myId: number) => Promise<void>;
-  sendTyped: (payload: TypedMessagePayload, myId: number, localUri?: string) => Promise<void>;
+  send: (body: string) => Promise<void>;
+  sendTyped: (payload: TypedMessagePayload, localUri?: string) => Promise<void>;
   retryMessage: (clientMessageId: string) => Promise<void>;
   pushMessage: (msg: Message) => void;
   loadMore: () => Promise<void>;
@@ -233,8 +235,8 @@ export function useChatMessages(
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
   }, []);
 
-  const send = useCallback(async (body: string, myId: number) => {
-    if (!body.trim() || !token) return;
+  const send = useCallback(async (body: string) => {
+    if (!body.trim() || !token || accountId <= 0) return;
     setPendingSendCount(count => count + 1);
 
     const clientMessageId = uuidv4();
@@ -243,7 +245,7 @@ export function useChatMessages(
       client_message_id: clientMessageId,
       conversation_id: conversationPublicId,
       conversation_type: conversationType,
-      sender_user_id: myId,
+      sender_user_id: accountId,
       message_type: 'text',
       body_text: body,
       caption: '',
@@ -269,7 +271,7 @@ export function useChatMessages(
         conversationType,
         clientMessageId,
         payload: { type: 'text', body },
-        senderUserId: myId,
+        senderUserId: accountId,
         createdAt: optimistic.created_at,
       });
     } catch (error) {
@@ -294,8 +296,8 @@ export function useChatMessages(
     }
   }, [token, conversationId, conversationPublicId, conversationType, accountId, pushMessage]);
 
-  const sendTyped = useCallback(async (payload: TypedMessagePayload, myId: number, localUri?: string) => {
-    if (!token) return;
+  const sendTyped = useCallback(async (payload: TypedMessagePayload, localUri?: string) => {
+    if (!token || accountId <= 0) return;
     setPendingSendCount(count => count + 1);
 
     const clientMessageId = uuidv4();
@@ -304,7 +306,7 @@ export function useChatMessages(
       client_message_id: clientMessageId,
       conversation_id: conversationPublicId,
       conversation_type: conversationType,
-      sender_user_id: myId,
+      sender_user_id: accountId,
       message_type: payload.type,
       body_text: payload.body ?? '',
       caption: payload.caption ?? '',
@@ -332,7 +334,7 @@ export function useChatMessages(
       clientMessageId,
       payload,
       localUri,
-      senderUserId: myId,
+      senderUserId: accountId,
       createdAt: optimistic.created_at,
     };
     try {
@@ -397,7 +399,7 @@ export function useChatMessages(
     const queued = await chatRepository.listOutbox(accountId, conversationId);
     for (const item of queued) {
       setMessages(previous => {
-        if (!previous.some(message => message.client_message_id === item.clientMessageId)) {
+        if (!previous.some(message => message.client_message_id === item.clientMessageId) && item.senderUserId > 0) {
           return mergeMessages(previous, [messageFromOutbox(item, 'sending')]);
         }
         return previous.map(message =>

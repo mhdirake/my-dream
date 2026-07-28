@@ -460,32 +460,7 @@ export default function ConversationScreen() {
         return;
       }
 
-      if (isGroup) {
-        if (!cancelled) setInitialPosition(selectInitialChatPosition({ isGroup }));
-        return;
-      }
-
-      try {
-        // Do not trust the route's unread count: it can be stale by the time
-        // this screen opens. The server watermark is the source of truth.
-        const firstUnreadId = await chatApi.getFirstUnreadMessage(token, conversationId);
-        if (cancelled) return;
-        if (!firstUnreadId) {
-          setInitialPosition({ kind: 'tail' });
-          return;
-        }
-
-        setInitialPosition(selectInitialChatPosition({
-          isGroup,
-          firstUnreadMessageId: firstUnreadId,
-        }));
-        const loadedId = await loadContext(firstUnreadId);
-        if (!loadedId && !messagesRef.current.some(message => message.message_id === firstUnreadId)) {
-          if (!cancelled) setInitialPosition({ kind: 'tail' });
-        }
-      } catch {
-        if (!cancelled) setInitialPosition({ kind: 'tail' });
-      }
+      if (!cancelled) setInitialPosition({ kind: 'tail' });
     };
 
     resolveInitialPosition().catch(() => {
@@ -696,7 +671,6 @@ export default function ConversationScreen() {
           ...(caption ? { caption } : {}),
           reply_to_message_id: replyingTo?.message_id,
         },
-        myId,
         pendingImage.uri,
       );
       setPendingImage(null);
@@ -755,7 +729,6 @@ export default function ConversationScreen() {
           duration_seconds: media.duration_seconds ?? duration,
           reply_to_message_id: replyingTo?.message_id,
         },
-        myId,
         uri,
       );
       voiceRecorder.reset();
@@ -867,6 +840,10 @@ export default function ConversationScreen() {
   const handleSend = async () => {
     const body = text.trim();
     if (!body) return;
+    if (myId <= 0) {
+      toast.error('حساب کاربری هنوز آماده نشده. چند لحظه دیگر دوباره تلاش کن.');
+      return;
+    }
     focusComposerOnWeb();
     setText('');
     setAttachmentTrayOpen(false);
@@ -884,10 +861,10 @@ export default function ConversationScreen() {
 
     try {
       if (replyingTo) {
-        await sendTyped({ type: 'text', body, reply_to_message_id: replyingTo.message_id }, myId);
+        await sendTyped({ type: 'text', body, reply_to_message_id: replyingTo.message_id });
         setReplyingTo(null);
       } else {
-        await send(body, myId);
+        await send(body);
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '';
@@ -914,7 +891,7 @@ export default function ConversationScreen() {
         type: 'sticker',
         sticker_id: sticker,
         reply_to_message_id: replyingTo?.message_id,
-      }, myId);
+      });
       setReplyingTo(null);
     } catch {
       toast.error('ارسال استیکر ناموفق بود');
@@ -1089,6 +1066,18 @@ export default function ConversationScreen() {
               const repliedMessage = item.reply_to_message_id
                 ? messages.find(message => message.message_id === item.reply_to_message_id)
                 : null;
+              const messageText = imageUri ? item.caption : (item.body_text || item.caption);
+              const hasVisibleContent =
+                !!messageText ||
+                !!imageUri ||
+                !!voiceUri ||
+                !!item.reply_to_message_id ||
+                isGift ||
+                isFailed ||
+                reactionEntries.length > 0 ||
+                (item.message_type !== 'text' && item.message_type !== 'template_first_message');
+
+              if (!hasVisibleContent) return null;
 
               const bubbleContent = (
                 <>
@@ -1180,9 +1169,9 @@ export default function ConversationScreen() {
                        item.message_type === 'gif' ? '🎞' : '🖼'}
                     </Text>
                   ) : null}
-                  {(item.message_type !== 'gift') && !!(imageUri ? item.caption : (item.body_text || item.caption)) && (
+                  {(item.message_type !== 'gift') && !!messageText && (
                     <Text style={[styles.bubbleTxt, isMine ? styles.bubbleTxtMine : styles.bubbleTxtTheirs, imageUri != null && { marginTop: 6 }]}>
-                      {imageUri ? item.caption : (item.body_text || item.caption)}
+                      {messageText}
                     </Text>
                   )}
                   {isFailed && (
@@ -1528,24 +1517,24 @@ export default function ConversationScreen() {
           ) : (
             <>
               <TouchableOpacity
-                style={[styles.sendBtn, (!!text.trim() || !!pendingImage) && styles.sendBtnActive]}
+                style={[styles.sendBtn, (!!text.trim() || !!pendingImage) && myId > 0 && styles.sendBtnActive]}
                 onPressIn={event => {
                   if (text.trim() || pendingImage || editingId) preventComposerBlurOnWeb(event);
                 }}
                 onPress={pendingImage ? handleSendImage : text.trim() ? handleSend : handleMicPress}
-                disabled={uploadingImage}
+                disabled={uploadingImage || myId <= 0}
                 activeOpacity={0.8}
               >
                 {uploadingImage ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
                   <>
-                    {(!!text.trim() || !!pendingImage) && (
+                    {(!!text.trim() || !!pendingImage) && myId > 0 && (
                       <LinearGradient colors={Colors.gradColors as [string, string]} style={StyleSheet.absoluteFill} />
                     )}
                     {editingId
                       ? <Pencil size={17} color={text.trim() ? '#fff' : Colors.muted} strokeWidth={2} />
-                      : (text.trim() || pendingImage)
+                      : (text.trim() || pendingImage) && myId > 0
                         ? <Send style={[styles.sendBtnIcon]} size={18} color="#fff" strokeWidth={2} />
                         : <Mic size={19} color={Colors.accent} strokeWidth={2} />
                     }
@@ -1555,7 +1544,17 @@ export default function ConversationScreen() {
               <View style={styles.composerShell}>
                 <TextInput
                   ref={composerRef}
-                  style={styles.input}
+                  style={[
+                    styles.input,
+                    Platform.OS === 'web' && ({
+                      fontSize: 16,
+                      outlineColor: 'transparent',
+                      outlineStyle: 'none',
+                      outlineWidth: 0,
+                      boxShadow: 'none',
+                      WebkitAppearance: 'none',
+                    } as any),
+                  ]}
                   value={text}
                   onChangeText={handleTextChange}
                   onFocus={() => { setAttachmentTrayOpen(false); setStickerPickerOpen(false); }}
@@ -1567,6 +1566,8 @@ export default function ConversationScreen() {
                   textAlignVertical="center"
                   returnKeyType="default"
                   blurOnSubmit={false}
+                  underlineColorAndroid="transparent"
+                  selectionColor={Colors.accent}
                 />
                 {!editingId && !pendingImage && !isGroup && (
                   <TouchableOpacity
