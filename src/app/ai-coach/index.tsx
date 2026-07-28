@@ -1,6 +1,7 @@
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { aiCoachApi, type CoachSession } from '@/lib/api/ai-coach';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { formatPersianDate } from '@/lib/date/persian';
 import { router } from 'expo-router';
 import { Bot, ChevronLeft, MessageCircle, Plus, Trash2 } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
@@ -16,7 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('fa-IR', { month: 'short', day: 'numeric' });
+  return formatPersianDate(iso, { month: 'short' });
 }
 
 export default function AiCoachIndex() {

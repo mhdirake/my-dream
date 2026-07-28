@@ -5,6 +5,7 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { Conversation, ConversationUser, chatApi } from '@/lib/api/chat';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useConversations } from '@/lib/chat/useConversations';
+import { formatPersianTime } from '@/lib/date/persian';
 import { toast } from '@/lib/toast';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -34,7 +35,7 @@ function timeAgo(iso: string | null | undefined) {
   const diff = (Date.now() - d.getTime()) / 1000;
   if (diff < 60) return 'همین الان';
   if (diff < 3600) return `${Math.floor(diff / 60)} دقیقه`;
-  if (diff < 86400) return d.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
+  if (diff < 86400) return formatPersianTime(iso);
   return 'دیروز';
 }
 

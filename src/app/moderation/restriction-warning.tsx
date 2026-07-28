@@ -1,4 +1,5 @@
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
+import { formatPersianDate } from '@/lib/date/persian';
 import { useModerationCtx } from '@/lib/moderation/ModerationContext';
 import { router } from 'expo-router';
 import { AlertTriangle } from 'lucide-react-native';
@@ -9,7 +10,7 @@ const LEVELS = [1, 2, 3, 7, 10, 15, 20, 30];
 
 function formatDate(iso: string | null) {
   if (!iso) return '';
-  return new Date(iso).toLocaleDateString('fa-IR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return formatPersianDate(iso, { time: true });
 }
 
 export default function RestrictionWarningScreen() {

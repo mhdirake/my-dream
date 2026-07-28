@@ -10,6 +10,7 @@ import { notificationsApi } from '@/lib/api/notifications';
 import { profileApi } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { profileCache } from '@/lib/cache/profileCache';
+import { formatPersianDate, formatPersianTime } from '@/lib/date/persian';
 import { toast } from '@/lib/toast';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -64,12 +65,10 @@ function formatUnlockLabel(iso: string): string {
   const now = new Date();
   const startOfDay = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
   const diffDays = Math.round((startOfDay(d) - startOfDay(now)) / 86400000);
-  const time = d.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
+  const time = formatPersianTime(iso);
   if (diffDays <= 0) return `امروز ساعت ${time}`;
   if (diffDays === 1) return `فردا ساعت ${time}`;
-  const opts: Intl.DateTimeFormatOptions = { month: 'long', day: 'numeric' };
-  if (d.getFullYear() !== now.getFullYear()) opts.year = 'numeric';
-  return `${d.toLocaleDateString('fa-IR', opts)} ساعت ${time}`;
+  return `${formatPersianDate(iso, { year: d.getFullYear() !== now.getFullYear() })} ساعت ${time}`;
 }
 
 function badgeKind(slug: string): 'ai' | 'community' | 'gold' | 'complete' | 'personality' | 'check' {

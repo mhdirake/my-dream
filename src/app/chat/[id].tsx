@@ -5,6 +5,7 @@ import { BackendGift } from '@/lib/api/discover';
 import { giftsApi } from '@/lib/api/gifts';
 import { profileApi } from '@/lib/api/profile';
 import { useChatMessages } from '@/lib/chat/useChatMessages';
+import { formatPersianDate, formatPersianTime } from '@/lib/date/persian';
 import { useVoiceRecorder } from '@/lib/chat/useVoiceRecorder';
 import { useKeyboardHeight } from '@/lib/useKeyboardHeight';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
@@ -15,7 +16,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import {
-  ArrowLeft, Check, CheckCheck, Clock, Gift as GiftIcon,
+  ArrowRight, Check, CheckCheck, Clock, Gift as GiftIcon,
   ImageOff, ImagePlus, Lock, Mic, MoreVertical, Pause, Pencil, Play,
   RefreshCw, Search, Send, Trash2, User, X,
 } from 'lucide-react-native';
@@ -24,6 +25,7 @@ import {
   ActivityIndicator,
   FlatList,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   Share,
@@ -37,7 +39,7 @@ import Animated, { ZoomIn } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
+  return formatPersianTime(iso);
 }
 
 function toPersianNum(n: number) {
@@ -117,9 +119,7 @@ function formatDayLabel(iso: string) {
   const diffDays = Math.round((startOfDay(now) - startOfDay(d)) / 86400000);
   if (diffDays === 0) return 'امروز';
   if (diffDays === 1) return 'دیروز';
-  const opts: Intl.DateTimeFormatOptions = { month: 'long', day: 'numeric' };
-  if (d.getFullYear() !== now.getFullYear()) opts.year = 'numeric';
-  return d.toLocaleDateString('fa-IR', opts);
+  return formatPersianDate(iso, { year: d.getFullYear() !== now.getFullYear() });
 }
 
 function MsgLimitCard() {
@@ -664,7 +664,7 @@ export default function ConversationScreen() {
           style={styles.iconBtn}
           onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/chat' as never)}
         >
-          <ArrowLeft size={20} color={Colors.ink} strokeWidth={2.5} />
+          <ArrowRight size={20} color={Colors.ink} strokeWidth={2.5} />
         </TouchableOpacity>
 
         <Pressable
@@ -1620,8 +1620,14 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: Colors.inkSoft,
   },
-  bubblePressMine: { marginLeft: 'auto', maxWidth: '78%' },
-  bubblePressTheirs: { marginRight: 'auto', maxWidth: '78%' },
+  bubblePressMine: Platform.select({
+    web: { marginLeft: 'auto', maxWidth: '78%' },
+    default: { alignSelf: 'flex-start', maxWidth: '78%' },
+  }),
+  bubblePressTheirs: Platform.select({
+    web: { marginRight: 'auto', maxWidth: '78%' },
+    default: { alignSelf: 'flex-end', maxWidth: '78%' },
+  }),
 
   bubble: {
     borderRadius: 18,
@@ -1635,10 +1641,16 @@ const styles = StyleSheet.create({
   },
   bubbleMine: {
     backgroundColor: Colors.accent,
-    borderBottomRightRadius: 4,
+    ...Platform.select({
+      web: { borderBottomRightRadius: 4 },
+      default: { borderBottomLeftRadius: 4 },
+    }),
   },
   bubbleTheirs: {
-    borderBottomLeftRadius: 4,
+    ...Platform.select({
+      web: { borderBottomLeftRadius: 4 },
+      default: { borderBottomLeftRadius: 4 },
+    }),
     shadowColor: Colors.purple,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.12,
