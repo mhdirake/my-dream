@@ -8,7 +8,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { toast } from '@/lib/toast';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function LoginScreen() {
@@ -75,6 +75,14 @@ export default function LoginScreen() {
           secureTextEntry
         />
 
+        <Pressable
+          onPress={() => router.push('/onboarding/forgot-password')}
+          accessibilityRole="button"
+          accessibilityLabel="بازیابی رمز عبور"
+        >
+          <Text style={styles.forgotPassword}>رمز عبورت را فراموش کردی؟</Text>
+        </Pressable>
+
         <Button
           variant="accent"
           onPress={handleLogin}
@@ -93,4 +101,11 @@ const styles = StyleSheet.create({
   content: { padding: 24, gap: 12 },
   headline: { fontSize: 20, fontFamily: Fonts.bold, color: Colors.ink },
   sub: { fontSize: 13, fontFamily: Fonts.regular, color: Colors.muted, lineHeight: 22 },
+  forgotPassword: {
+    color: Colors.accent,
+    fontSize: 12,
+    fontFamily: Fonts.semiBold,
+    textAlign: 'right',
+    marginBottom: 4,
+  },
 });

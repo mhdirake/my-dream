@@ -1,9 +1,12 @@
 import { api } from './client';
 
 export type OtpSendResponse = {
+  success: boolean;
   message: string;
-  expires_in: number;
-  resend_after: number;
+  data: {
+    expires_in: number;
+    resend_after: number;
+  };
 };
 
 export type OtpVerifyResponse = {
@@ -28,6 +31,20 @@ export type RegisterCompleteResponse = {
     };
     next_step: string;
   };
+};
+
+export type PasswordResetVerifyResponse = {
+  success: boolean;
+  message: string;
+  data: {
+    password_reset_token: string;
+    expires_in: number;
+  };
+};
+
+export type PasswordResetResponse = {
+  success: boolean;
+  message: string;
 };
 
 export type LoginResponse = {
@@ -57,6 +74,21 @@ export const authApi = {
 
   verifyOtp: (mobile: string, code: string) =>
     api.post<OtpVerifyResponse>('/api/auth/register/verify-otp', { mobile, code }),
+
+  sendPasswordResetOtp: (mobile: string) =>
+    api.post<OtpSendResponse>('/api/auth/password/forgot/send-otp', { mobile }),
+
+  verifyPasswordResetOtp: (mobile: string, code: string) =>
+    api.post<PasswordResetVerifyResponse>('/api/auth/password/forgot/verify-otp', {
+      mobile,
+      code,
+    }),
+
+  resetPassword: (data: {
+    password_reset_token: string;
+    password: string;
+    password_confirmation: string;
+  }) => api.post<PasswordResetResponse>('/api/auth/password/forgot/reset', data),
 
   register: (data: {
     registration_token: string;

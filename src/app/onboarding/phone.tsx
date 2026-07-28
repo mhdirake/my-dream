@@ -19,7 +19,10 @@ export default function PhoneScreen() {
     const mobile = phone.startsWith('0') ? phone : `0${phone}`;
     try {
       const res = await authApi.sendOtp(mobile);
-      router.push({ pathname: '/onboarding/otp', params: { phone: mobile, resend_after: res.resend_after } });
+      router.push({
+        pathname: '/onboarding/otp',
+        params: { phone: mobile, resend_after: res.data.resend_after },
+      });
     } catch (e: any) {
       toast.error(e.message ?? 'خطا در ارسال کد');
     } finally {

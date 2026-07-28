@@ -166,6 +166,12 @@ export default function WelcomeScreen() {
             <Button variant="ghost" onPress={() => router.push('/onboarding/login')}>
               قبلاً حساب دارم
             </Button>
+            <Button
+              variant="ghost"
+              onPress={() => router.push('/onboarding/forgot-password')}
+            >
+              بازیابی رمز عبور
+            </Button>
             <Text style={styles.legal}>
               با ورود، <Text style={styles.link}>قوانین</Text> و{' '}
               <Text style={styles.link}>حریم خصوصی</Text> را می‌پذیرم
