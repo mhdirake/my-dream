@@ -76,6 +76,7 @@ export default function LoginScreen() {
         />
 
         <Pressable
+          style={styles.forgotPasswordLink}
           onPress={() => router.push('/onboarding/forgot-password')}
           accessibilityRole="button"
           accessibilityLabel="بازیابی رمز عبور"
@@ -101,6 +102,9 @@ const styles = StyleSheet.create({
   content: { padding: 24, gap: 12 },
   headline: { fontSize: 20, fontFamily: Fonts.bold, color: Colors.ink },
   sub: { fontSize: 13, fontFamily: Fonts.regular, color: Colors.muted, lineHeight: 22 },
+  forgotPasswordLink: {
+    alignSelf: 'flex-start',
+  },
   forgotPassword: {
     color: Colors.accent,
     fontSize: 12,
