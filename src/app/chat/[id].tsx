@@ -435,7 +435,7 @@ export default function ConversationScreen() {
     initialScrollDoneRef.current = false;
     lastMsgIdRef.current = null;
     isNearTailRef.current = true;
-    setListReady(false);
+    queueMicrotask(() => setListReady(false));
     pendingScrollRetryRef.current = null;
     tailScrollTimersRef.current.forEach(clearTimeout);
     tailScrollTimersRef.current = [];
@@ -548,7 +548,7 @@ export default function ConversationScreen() {
     } else {
       setUnseenMessageCount(count => count + 1);
     }
-  }, [messages, myId]);
+  }, [messages, myId, scrollToTail]);
 
   // Debounced typing signal
   const sendTypingSignal = useCallback(() => {
@@ -912,7 +912,7 @@ export default function ConversationScreen() {
     } catch {
       toast.error('ارسال استیکر ناموفق بود');
     }
-  }, [myId, replyingTo, sendTyped]);
+  }, [replyingTo, sendTyped]);
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
