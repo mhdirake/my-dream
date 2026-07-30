@@ -5,16 +5,18 @@ import { ChatToastProvider } from '@/components/ui/ChatToast';
 import { RestrictionBanner } from '@/components/moderation/RestrictionBanner';
 import { UnreadProvider, useUnreadCtx } from '@/lib/chat/UnreadContext';
 import { useModerationCtx } from '@/lib/moderation/ModerationContext';
+import { useCentrifugoCtx } from '@/lib/chat/CentrifugoContext';
 import {
   consumeLastPushResponse,
   registerAndSyncPushToken,
+  showLocalNotificationFromRealtime,
   subscribeToPushResponses,
 } from '@/lib/notifications/push';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Redirect, router, Tabs } from 'expo-router';
 import { Compass, Gift, Heart, MessageCircle, User } from 'lucide-react-native';
 import { useEffect } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, AppState, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabsLayout() {
@@ -59,6 +61,7 @@ function TabsNav() {
   const insets = useSafeAreaInsets();
   const { totalUnread } = useUnreadCtx();
   const { session } = useAuth();
+  const { addUserEventHandler } = useCentrifugoCtx();
 
   useEffect(() => {
     if (!session?.accessToken) return;
@@ -72,6 +75,25 @@ function TabsNav() {
 
     return unsubscribe;
   }, [session?.accessToken]);
+
+  useEffect(() => {
+    if (!session?.accessToken) return;
+
+    return addUserEventHandler(data => {
+      if (data.event !== 'notification.created' || AppState.currentState !== 'active') return;
+      const payload = data.payload as {
+        notification?: {
+          id: number;
+          type: string;
+          title: string | null;
+          body: string | null;
+        };
+      } | undefined;
+      if (!payload?.notification?.id) return;
+
+      showLocalNotificationFromRealtime(payload.notification).catch(() => undefined);
+    });
+  }, [addUserEventHandler, session?.accessToken]);
 
   return (
     <View style={{ flex: 1 }}>

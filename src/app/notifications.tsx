@@ -3,6 +3,7 @@ import { Colors, Fonts, Spacing } from '@/constants/colors';
 import { type AppNotification, notificationsApi } from '@/lib/api/notifications';
 import { chatApi, conversationPeer } from '@/lib/api/chat';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { useCentrifugoCtx } from '@/lib/chat/CentrifugoContext';
 import { toast } from '@/lib/toast';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
@@ -178,6 +179,7 @@ export default function NotificationsScreen() {
   const accessToken = session?.accessToken;
   const userId = user?.id ?? -1;
   const { open } = useLocalSearchParams<{ open?: string }>();
+  const { addUserEventHandler, onConnect } = useCentrifugoCtx();
   const openedNotification = useRef<number | null>(null);
   const [items, setItems] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -212,6 +214,37 @@ export default function NotificationsScreen() {
     const timer = setTimeout(() => { void load(1, true); }, 0);
     return () => clearTimeout(timer);
   }, [load]);
+
+  useEffect(() => {
+    return onConnect(() => {
+      void load(1, true);
+    });
+  }, [load, onConnect]);
+
+  useEffect(() => {
+    return addUserEventHandler(data => {
+      if (data.event !== 'notification.created') return;
+
+      const payload = data.payload as {
+        notification?: AppNotification;
+        unread_count?: number;
+      } | undefined;
+      if (!payload?.notification?.id) {
+        void load(1, true);
+        return;
+      }
+
+      setItems(prev => {
+        if (prev.some(item => item.id === payload.notification!.id)) return prev;
+        return [payload.notification!, ...prev];
+      });
+      if (typeof payload.unread_count === 'number') {
+        setUnreadCount(payload.unread_count);
+      } else {
+        setUnreadCount(count => count + 1);
+      }
+    });
+  }, [addUserEventHandler, load]);
 
   const markAllRead = async () => {
     if (!session?.accessToken || markingAll || unreadCount === 0) return;

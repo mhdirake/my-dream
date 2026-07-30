@@ -412,6 +412,7 @@ export default function ConversationScreen() {
   const messagesRef = useRef(messages);
   const initialHighlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tailScrollTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const pendingScrollRetryRef = useRef<{ index: number; viewPosition: number } | null>(null);
   const conversationKey = publicId ?? String(conversationId);
   const [initialPositionState, setInitialPositionState] = useState<{
@@ -434,7 +435,10 @@ export default function ConversationScreen() {
     initialScrollDoneRef.current = false;
     lastMsgIdRef.current = null;
     isNearTailRef.current = true;
+    setListReady(false);
     pendingScrollRetryRef.current = null;
+    tailScrollTimersRef.current.forEach(clearTimeout);
+    tailScrollTimersRef.current = [];
   }, [publicId]);
 
   useEffect(() => {
@@ -472,6 +476,18 @@ export default function ConversationScreen() {
   useEffect(() => () => {
     if (initialHighlightTimerRef.current) clearTimeout(initialHighlightTimerRef.current);
     if (scrollRetryTimerRef.current) clearTimeout(scrollRetryTimerRef.current);
+    tailScrollTimersRef.current.forEach(clearTimeout);
+  }, []);
+
+  const scrollToTail = useCallback((animated: boolean) => {
+    listRef.current?.scrollToEnd({ animated });
+
+    tailScrollTimersRef.current.forEach(clearTimeout);
+    tailScrollTimersRef.current = [80, 180, 360].map(delay =>
+      setTimeout(() => {
+        listRef.current?.scrollToEnd({ animated: false });
+      }, delay),
+    );
   }, []);
 
   // onContentSizeChange fires after FlatList has measured content — reliable for initial scroll
@@ -503,14 +519,14 @@ export default function ConversationScreen() {
         if (initialHighlightTimerRef.current) clearTimeout(initialHighlightTimerRef.current);
         initialHighlightTimerRef.current = setTimeout(clearHighlight, 2000);
       } else {
-        listRef.current?.scrollToEnd({ animated: false });
+        scrollToTail(false);
         isNearTailRef.current = true;
       }
       lastMsgIdRef.current = messages[messages.length - 1]?.message_id ?? null;
       initialScrollDoneRef.current = true;
       setListReady(true);
     });
-  }, [messages, initialPosition, clearHighlight]);
+  }, [messages, initialPosition, clearHighlight, scrollToTail]);
 
   // The unread lookup can finish after FlatList's first content-size event.
   // Re-attempt positioning when the resolved destination becomes available.
@@ -527,7 +543,7 @@ export default function ConversationScreen() {
     if (!last || last.message_id === lastMsgIdRef.current) return;
     lastMsgIdRef.current = last.message_id;
     if (isNearTailRef.current || last.sender_user_id === myId) {
-      requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
+      requestAnimationFrame(() => scrollToTail(true));
       setUnseenMessageCount(0);
     } else {
       setUnseenMessageCount(count => count + 1);
@@ -1280,7 +1296,7 @@ export default function ConversationScreen() {
             <TouchableOpacity
               style={styles.newMessagesChip}
               onPress={() => {
-                listRef.current?.scrollToEnd({ animated: true });
+                scrollToTail(true);
                 setUnseenMessageCount(0);
               }}
             >

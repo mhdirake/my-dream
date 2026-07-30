@@ -72,6 +72,29 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
   }
 }
 
+export async function showLocalNotificationFromRealtime(notification: {
+  id: number;
+  type: string;
+  title: string | null;
+  body: string | null;
+}): Promise<void> {
+  const Notifications = await getNotifications();
+  if (!Notifications || Platform.OS === 'web') return;
+
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: notification.title ?? 'My Dream',
+      body: notification.body ?? '',
+      data: {
+        notification_id: notification.id,
+        type: notification.type,
+        url: `/notifications?open=${notification.id}`,
+      },
+    },
+    trigger: null,
+  });
+}
+
 export async function getPushPreferences(authToken: string): Promise<PushPreferences> {
   const response = await api.get<{ data: PushPreferences }>('/api/client/push-notifications/preferences', authToken);
   return response.data;
