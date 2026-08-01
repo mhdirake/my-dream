@@ -64,9 +64,11 @@ export default function LoginScreen() {
           value={username}
           onChangeText={v => setUsername(v.replace(/[۰-۹]/g, d => String(d.charCodeAt(0) - 1776)))}
           placeholder=""
-          keyboardType="numeric"
+          keyboardType="phone-pad"
           autoCapitalize="none"
           autoCorrect={false}
+          textDirection="ltr"
+          keepCursorAtEnd
         />
         <Field
           label="رمز عبور"

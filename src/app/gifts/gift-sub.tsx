@@ -89,7 +89,7 @@ export default function GiftSubScreen() {
     let active = true;
     const timeout = setTimeout(() => {
       setSearching(true);
-      searchApi.search(token, cleaned, 8)
+      searchApi.search(token, cleaned, 8, 1, 'gift')
         .then(result => {
           if (active) setSuggestions(result.data);
         })
@@ -182,7 +182,7 @@ export default function GiftSubScreen() {
     if (hasUserId) return Number(params.userId);
     const cleaned = username.trim().replace(/^@/, '');
     if (selectedReceiverId) return selectedReceiverId;
-    const result = await searchApi.search(session!.accessToken, cleaned, 20);
+    const result = await searchApi.search(session!.accessToken, cleaned, 20, 1, 'gift');
     const match = result.data.find(u => u.username.toLowerCase() === cleaned.toLowerCase());
     return match?.id ?? null;
   };

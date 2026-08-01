@@ -350,6 +350,7 @@ function SwipeView({
   swipeMeta,
   onInteract,
   onExhausted,
+  onProfileUpdate,
 }: {
   profiles: DiscoverProfile[];
   loading: boolean;
@@ -357,6 +358,7 @@ function SwipeView({
   swipeMeta: SwipePoolMeta | null;
   onInteract: (userId: number, type: 'like' | 'pass' | 'swipe_like' | 'swipe_pass') => Promise<boolean>;
   onExhausted: () => void;
+  onProfileUpdate: (userId: number, patch: Partial<DiscoverProfile>) => void;
 }) {
   const { bottom } = useSafeAreaInsets();
   // tab bar: height 68 + bottom: insets.bottom + 8 (from _layout.tsx)
@@ -396,12 +398,20 @@ function SwipeView({
   const handleSwiped = () => setIndex(i => i + 1);
 
   const handleLike = async () => {
-    if (!current || liked) {
-      setLiked(l => !l);
-      return;
-    }
+    if (!current) return;
+    const previousLiked = liked;
+    const previousCount = current.likes_count ?? 0;
+    const optimisticLiked = !previousLiked;
+    const optimisticCount = Math.max(0, previousCount + (optimisticLiked ? 1 : -1));
+
+    setLiked(optimisticLiked);
+    onProfileUpdate(current.id, { liked_by_me: optimisticLiked, likes_count: optimisticCount });
+
     const ok = await onInteract(current.id, 'like');
-    if (ok) setLiked(true);
+    if (!ok) {
+      setLiked(previousLiked);
+      onProfileUpdate(current.id, { liked_by_me: previousLiked, likes_count: previousCount });
+    }
   };
 
   if (loading) {
@@ -864,6 +874,11 @@ export default function DiscoverScreen() {
     fetchProfiles(safeMode);
   }, [fetchProfiles, safeMode]);
 
+  const updateProfile = useCallback((userId: number, patch: Partial<DiscoverProfile>) => {
+    setProfiles(prev => prev.map(profile => profile.id === userId ? { ...profile, ...patch } : profile));
+    setDaily(prev => prev.map(profile => profile.id === userId ? { ...profile, ...patch } : profile));
+  }, []);
+
   useEffect(() => {
     if (!session?.accessToken) return;
     profileApi.getProfile(session.accessToken)
@@ -932,10 +947,11 @@ export default function DiscoverScreen() {
             profiles={profiles}
             loading={loading}
             token={session?.accessToken ?? ''}
-            swipeMeta={swipeMeta}
-            onInteract={handleInteract}
-            onExhausted={handleExhausted}
-          />
+          swipeMeta={swipeMeta}
+          onInteract={handleInteract}
+          onExhausted={handleExhausted}
+          onProfileUpdate={updateProfile}
+        />
         )}
         {mode === 'daily' && <DailyView profiles={daily} loading={dailyLoading} meta={dailyMeta} />}
         {mode === 'ai' && <AiView plan={planSlug} profiles={daily} loading={dailyLoading} token={session?.accessToken ?? ''} />}

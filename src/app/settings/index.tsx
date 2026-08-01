@@ -1,5 +1,6 @@
 import { AppBar } from '@/components/ui/AppBar';
 import { Card } from '@/components/ui/Card';
+import { APP_VERSION_LABEL } from '@/constants/appVersion';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { toast } from '@/lib/toast';
@@ -148,7 +149,7 @@ export default function SettingsScreen() {
           </View>
         ))}
 
-        <Text style={styles.version}>نسخه ۱.۰.۰</Text>
+        <Text style={styles.version}>{APP_VERSION_LABEL}</Text>
         <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>

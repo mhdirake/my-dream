@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { ApiError } from '../api/client';
 import { authApi, type MeResponse } from '../api/auth';
 import { clearSession, isExpired, loadSession, saveSession, type Session } from './storage';
 
@@ -16,6 +17,10 @@ type AuthCtx = {
 
 const AuthContext = createContext<AuthCtx | null>(null);
 
+function isAuthFailure(error: unknown): boolean {
+  return error instanceof ApiError && (error.status === 401 || error.status === 403);
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -31,10 +36,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       };
       await saveSession(next);
       setSession(next);
-    } catch {
-      await clearSession();
-      setSession(null);
-      setUser(null);
+    } catch (error) {
+      if (isAuthFailure(error)) {
+        await clearSession();
+        setSession(null);
+        setUser(null);
+      }
     }
   }, []);
 
@@ -70,8 +77,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               expiresAt: Date.now() + (token.expires_in ?? 300) * 1000,
             };
             await saveSession(active);
-          } catch {
-            await clearSession();
+          } catch (error) {
+            if (isAuthFailure(error)) {
+              await clearSession();
+              return;
+            }
+            setSession(active);
             return;
           }
         }
@@ -79,8 +90,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const me = await authApi.me(active.accessToken);
         setSession(active);
         setUser(me);
-      } catch {
-        await clearSession();
+      } catch (error) {
+        if (isAuthFailure(error)) {
+          await clearSession();
+          setSession(null);
+          setUser(null);
+        }
       } finally {
         setIsLoading(false);
       }

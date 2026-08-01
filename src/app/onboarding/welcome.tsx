@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/Button';
+import { APP_VERSION_LABEL } from '@/constants/appVersion';
 import { Colors, Fonts } from '@/constants/colors';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -176,6 +177,7 @@ export default function WelcomeScreen() {
               با ورود، <Text style={styles.link}>قوانین</Text> و{' '}
               <Text style={styles.link}>حریم خصوصی</Text> را می‌پذیرم
             </Text>
+            <Text style={styles.version}>{APP_VERSION_LABEL}</Text>
           </Animated.View>
         </View>
       </ScrollView>
@@ -280,4 +282,11 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.regular,
   },
   link: { color: Colors.accent },
+  version: {
+    fontSize: 11,
+    color: Colors.muted,
+    textAlign: 'center',
+    fontFamily: Fonts.regular,
+    marginTop: 4,
+  },
 });

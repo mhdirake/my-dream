@@ -4,7 +4,7 @@ import { Card } from '@/components/ui/Card';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import {
   AnonSummary, ReceivedAnonInterest, ReceivedResponse,
-  RevealPackage, SentAnonInterest, likesApi, mediaUrl,
+  RevealPackage, SentAnonInterest, SentLike, likesApi, mediaUrl,
 } from '@/lib/api/likes';
 import { ApiError } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -36,6 +36,7 @@ export default function LikesScreen() {
   const [tab, setTab] = useState<Tab>('received');
   const [summary, setSummary] = useState<AnonSummary | null>(null);
   const [received, setReceived] = useState<ReceivedResponse | null>(null);
+  const [sentLikes, setSentLikes] = useState<SentLike[]>([]);
   const [sent, setSent] = useState<SentAnonInterest[]>([]);
   const [packages, setPackages] = useState<RevealPackage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,14 +47,16 @@ export default function LikesScreen() {
     if (!session?.accessToken) return;
     showRefresh ? setRefreshing(true) : setLoading(true);
     try {
-      const [sumRes, recRes, sentRes, pkgRes] = await Promise.all([
+      const [sumRes, recRes, likedRes, sentRes, pkgRes] = await Promise.all([
         likesApi.summary(session.accessToken),
         likesApi.received(session.accessToken),
+        likesApi.listSentLikes(session.accessToken),
         likesApi.listSentAnonInterests(session.accessToken, 'active'),
         likesApi.revealPackages(session.accessToken),
       ]);
       setSummary(sumRes.data);
       setReceived(recRes.data);
+      setSentLikes(likedRes.data);
       setSent(sentRes.data);
       setPackages(pkgRes.data);
     } catch (e: any) {
@@ -170,7 +173,7 @@ export default function LikesScreen() {
             onPurchase={handlePurchaseReveal}
           />
         ) : (
-          <SentSection items={sent} />
+          <SentSection likedItems={sentLikes} anonItems={sent} />
         )}
       </ScrollView>
     </SafeAreaView>
@@ -281,31 +284,62 @@ function ReceivedSection({
 
 // ── Sent Section ──────────────────────────────────────────────────────────────
 
-function SentSection({ items }: { items: SentAnonInterest[] }) {
-  if (items.length === 0) {
+function displayName(user: { first_name?: string | null; last_name?: string | null; username?: string | null }) {
+  return [user.first_name, user.last_name].filter(Boolean).join(' ') || user.username || 'کاربر';
+}
+
+function SentSection({ likedItems, anonItems }: { likedItems: SentLike[]; anonItems: SentAnonInterest[] }) {
+  if (likedItems.length === 0 && anonItems.length === 0) {
     return (
       <View style={styles.emptyBox}>
         <Heart size={32} color={Colors.hair} strokeWidth={1.5} />
-        <Text style={styles.emptyTxt}>هنوز علاقه ناشناسی نفرستادی</Text>
-        <Text style={styles.emptySub}>از صفحه کشف می‌تونی ارسال کنی</Text>
+        <Text style={styles.emptyTxt}>هنوز کسی رو نپسندیدی</Text>
+        <Text style={styles.emptySub}>پروفایل‌هایی که لایک کنی اینجا ذخیره می‌شن</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.sentList}>
-      {items.map(item => (
+      {likedItems.length > 0 && (
+        <Text style={styles.sectionTitle}>پروفایل‌هایی که پسندیدی</Text>
+      )}
+      {likedItems.map(item => (
         <TouchableOpacity
-          key={item.id}
+          key={`like-${item.id}`}
           style={styles.sentRow}
           onPress={() => router.push({ pathname: '/user/[id]' as any, params: { id: String(item.target.id) } })}
           activeOpacity={0.8}
         >
           <Avatar size={50} name={item.target.first_name} photoUrl={mediaUrl(item.target.profile_photo)} />
           <View style={styles.sentInfo}>
-            <Text style={styles.sentName}>
-              {item.target.first_name}{item.target.last_name ? ' ' + item.target.last_name : ''}
+            <Text style={styles.sentName}>{displayName(item.target)}</Text>
+            <Text style={styles.sentTime}>
+              {[item.target.city, item.target.province].filter(Boolean).join('، ') || timeAgo(item.liked_at)}
             </Text>
+          </View>
+          {item.is_mutual && (
+            <View style={styles.mutualPill}>
+              <Heart size={10} color={Colors.accent} strokeWidth={2} fill={Colors.accent} />
+              <Text style={styles.mutualPillTxt}>متقابل</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      ))}
+
+      {anonItems.length > 0 && (
+        <Text style={[styles.sectionTitle, likedItems.length > 0 && { marginTop: 8 }]}>علاقه ناشناس فرستاده‌شده</Text>
+      )}
+      {anonItems.map(item => (
+        <TouchableOpacity
+          key={`anon-${item.id}`}
+          style={styles.sentRow}
+          onPress={() => router.push({ pathname: '/user/[id]' as any, params: { id: String(item.target.id) } })}
+          activeOpacity={0.8}
+        >
+          <Avatar size={50} name={item.target.first_name} photoUrl={mediaUrl(item.target.profile_photo)} />
+          <View style={styles.sentInfo}>
+            <Text style={styles.sentName}>{displayName(item.target)}</Text>
             <Text style={styles.sentTime}>{timeAgo(item.sent_at)}</Text>
           </View>
           {item.is_mutual && (
@@ -409,6 +443,13 @@ const styles = StyleSheet.create({
 
   // Sent list
   sentList: { gap: 8 },
+  sectionTitle: {
+    fontSize: 12,
+    fontFamily: Fonts.extraBold,
+    color: Colors.muted,
+    textAlign: 'right',
+    marginBottom: 2,
+  },
   sentRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: Colors.surface, borderRadius: Radius.lg,

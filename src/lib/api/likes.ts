@@ -26,6 +26,16 @@ export type SentAnonInterest = {
   is_mutual: boolean;
 };
 
+export type SentLike = {
+  id: number;
+  target: AnonUser & {
+    province?: string | null;
+    city?: string | null;
+  };
+  liked_at: string;
+  is_mutual: boolean;
+};
+
 export type ReceivedAnonInterest = {
   id: number;
   sender: AnonUser;
@@ -76,6 +86,9 @@ export const likesApi = {
     page = 1,
   ): Promise<{ data: SentAnonInterest[]; meta: Meta }> =>
     api.get(`/api/client/anonymous-interests/sent?status=${status}&page=${page}&per_page=20`, token),
+
+  listSentLikes: (token: string, page = 1): Promise<{ data: SentLike[]; meta: Meta }> =>
+    api.get(`/api/client/likes/sent?page=${page}&per_page=20`, token),
 
   revealPackages: (token: string): Promise<{ data: RevealPackage[] }> =>
     api.get('/api/client/packages?feature=anonymous_interest_reveal', token),

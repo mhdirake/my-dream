@@ -1,5 +1,6 @@
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
+import { APP_VERSION_LABEL } from '@/constants/appVersion';
 import { Chip } from '@/components/ui/Chip';
 import { Colors, Fonts, Spacing } from '@/constants/colors';
 import { ApiError } from '@/lib/api/client';
@@ -270,6 +271,8 @@ export default function MeScreen() {
           ))}
         </Card>
 
+        <Text style={styles.version}>{APP_VERSION_LABEL}</Text>
+
         <TouchableOpacity style={styles.signOut} onPress={logout}>
           <Text style={styles.signOutTxt}>خروج از حساب</Text>
         </TouchableOpacity>
@@ -378,6 +381,10 @@ const styles = StyleSheet.create({
   menuLabel: { fontSize: 13.5, fontFamily: Fonts.semiBold, color: Colors.ink },
   menuSub: { fontSize: 11, color: Colors.muted, fontFamily: Fonts.regular, marginTop: 1 },
 
-  signOut: { alignItems: 'center', padding: 16, marginTop: 12 },
+  version: {
+    fontSize: 11, color: Colors.muted, fontFamily: Fonts.regular,
+    textAlign: 'center', marginTop: Spacing.xl,
+  },
+  signOut: { alignItems: 'center', padding: 16, marginTop: 4 },
   signOutTxt: { fontSize: 13, color: Colors.danger, fontFamily: Fonts.semiBold },
 });

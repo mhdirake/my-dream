@@ -1,6 +1,6 @@
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { ApiError } from '@/lib/api/client';
-import { Message, chatApi } from '@/lib/api/chat';
+import { Message, type MessageSender, chatApi } from '@/lib/api/chat';
 import { BackendGift } from '@/lib/api/discover';
 import { giftsApi } from '@/lib/api/gifts';
 import { profileApi } from '@/lib/api/profile';
@@ -27,6 +27,7 @@ import {
   ActivityIndicator,
   AppState,
   FlatList,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -56,6 +57,8 @@ function formatDuration(totalSeconds: number) {
   const s = totalSeconds % 60;
   return toFaDigits(`${m}:${String(s).padStart(2, '0')}`);
 }
+
+const VOICE_WAVE_BARS = [3, 5, 10, 18, 18, 15, 18, 9, 8, 10, 7, 5, 6, 13, 16, 14, 19, 12, 10, 16, 20, 8, 6, 13, 9, 17, 19, 17, 16, 13, 11, 10, 8];
 
 function VoiceBubblePlayer({
   uri, durationSeconds, isMine, tint,
@@ -91,14 +94,29 @@ function VoiceBubblePlayer({
 
   return (
     <View style={styles.voicePlayerRow}>
-      <TouchableOpacity style={[styles.voicePlayBtn, { backgroundColor: isMine ? 'rgba(255,255,255,0.25)' : Colors.purpleSoft }]} onPress={toggle} activeOpacity={0.8}>
+      <TouchableOpacity style={[styles.voicePlayBtn, { backgroundColor: isMine ? 'rgba(255,255,255,0.84)' : '#D8E3EE' }]} onPress={toggle} activeOpacity={0.8}>
         {status.playing
-          ? <Pause size={14} color={tint} fill={tint} strokeWidth={0} />
-          : <Play size={14} color={tint} fill={tint} strokeWidth={0} />
+          ? <Pause size={18} color={isMine ? Colors.accent : Colors.ink} strokeWidth={2.6} />
+          : <Play size={18} color={isMine ? Colors.accent : Colors.ink} fill={isMine ? Colors.accent : Colors.ink} strokeWidth={0} />
         }
       </TouchableOpacity>
-      <View style={[styles.voiceWave, { backgroundColor: isMine ? 'rgba(255,255,255,0.3)' : Colors.lineSoft }]} />
-      <Text style={[styles.voiceDurationTxt, { color: tint }]}>{formatDuration(remaining)}</Text>
+      <View style={styles.voiceContent}>
+        <View style={styles.voiceWave}>
+          {VOICE_WAVE_BARS.map((height, index) => (
+            <View
+              key={`${height}-${index}`}
+              style={[
+                styles.voiceWaveBar,
+                {
+                  height,
+                  backgroundColor: isMine ? 'rgba(255,255,255,0.58)' : '#9AABBC',
+                },
+              ]}
+            />
+          ))}
+        </View>
+        <Text style={[styles.voiceDurationTxt, { color: isMine ? 'rgba(255,255,255,0.76)' : Colors.muted }]}>{formatDuration(remaining)}</Text>
+      </View>
     </View>
   );
 }
@@ -203,6 +221,9 @@ const msgLimitStyles = StyleSheet.create({
 const TYPING_DEBOUNCE = 3000;
 const CHAT_VIEWABILITY_CONFIG = { itemVisiblePercentThreshold: 60, minimumViewTime: 250 };
 const RESOLVING_INITIAL_POSITION: InitialChatPosition = { kind: 'resolving' };
+const MESSAGE_BUBBLE_MIN_WIDTH = 132;
+const GROUP_AVATAR_SIZE = 30;
+const ANDROID_KEYBOARD_COMPOSER_GAP = 24;
 
 function formatLastSeen(iso: string): string {
   const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
@@ -210,6 +231,67 @@ function formatLastSeen(iso: string): string {
   if (diff < 3600) return `${Math.floor(diff / 60)} دقیقه پیش`;
   if (diff < 86400) return `${Math.floor(diff / 3600)} ساعت پیش`;
   return `${Math.floor(diff / 86400)} روز پیش`;
+}
+
+function resolveMessageSender(
+  message: Message,
+  allMessages: Message[],
+  mySender: MessageSender | null,
+): MessageSender | null {
+  return message.sender
+    ?? (message.sender_user_id === mySender?.id ? mySender : null)
+    ?? allMessages.find(item => item.sender_user_id === message.sender_user_id && item.sender)?.sender
+    ?? null;
+}
+
+function senderDisplayName(
+  message: Message,
+  allMessages: Message[],
+  mySender: MessageSender | null,
+): string {
+  const sender = resolveMessageSender(message, allMessages, mySender);
+
+  return [sender?.first_name, sender?.last_name].filter(Boolean).join(' ')
+    || sender?.username
+    || `کاربر ${toFaDigits(message.sender_user_id)}`;
+}
+
+function senderAvatarUrl(
+  message: Message,
+  allMessages: Message[],
+  mySender: MessageSender | null,
+): string | null {
+  const sender = resolveMessageSender(message, allMessages, mySender);
+
+  return sender?.profile_photo?.urls?.thumbnail
+    ?? sender?.profile_photo?.urls?.small
+    ?? sender?.profile_photo?.urls?.medium
+    ?? null;
+}
+
+function senderById(userId: number, allMessages: Message[], mySender: MessageSender | null): MessageSender | null {
+  if (userId === mySender?.id || userId === -1) return mySender;
+  return allMessages.find(item => item.sender_user_id === userId && item.sender)?.sender ?? null;
+}
+
+function reactionAvatarUrl(userId: number, allMessages: Message[], mySender: MessageSender | null): string | null {
+  const sender = senderById(userId, allMessages, mySender);
+
+  return sender?.profile_photo?.urls?.thumbnail
+    ?? sender?.profile_photo?.urls?.small
+    ?? sender?.profile_photo?.urls?.medium
+    ?? null;
+}
+
+function replyPreviewText(message: Message | null): string {
+  if (!message) return 'مشاهده پیام';
+  if (message.body_text || message.caption) return message.body_text || message.caption;
+  if (message.message_type === 'voice') return 'پیام صوتی';
+  if (message.message_type === 'image') return 'تصویر';
+  if (message.message_type === 'gift') return 'هدیه';
+  if (message.message_type === 'sticker') return message.sticker_id || 'استیکر';
+  if (message.message_type === 'gif') return 'GIF';
+  return 'مشاهده پیام';
 }
 
 export default function ConversationScreen() {
@@ -248,6 +330,7 @@ export default function ConversationScreen() {
   const [pendingImage, setPendingImage] = useState<{ uri: string; mimeType: string } | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [myPlan, setMyPlan] = useState<string>('basic');
+  const [mySender, setMySender] = useState<MessageSender | null>(null);
   const [giftPickerOpen, setGiftPickerOpen] = useState(false);
   const [gifts, setGifts] = useState<BackendGift[]>([]);
   const [giftsLoading, setGiftsLoading] = useState(false);
@@ -264,6 +347,7 @@ export default function ConversationScreen() {
   const [attachmentTrayOpen, setAttachmentTrayOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [limitReached, setLimitReached] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [msgMenu, setMsgMenu] = useState<{ id: string; sender: number; body: string; type?: string; myReaction?: string | null } | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
@@ -423,6 +507,10 @@ export default function ConversationScreen() {
     ? initialPositionState.position
     : RESOLVING_INITIAL_POSITION;
   const listIsReady = initialPositionState.conversationKey === conversationKey && listReady;
+  const inputBottomPadding = insets.bottom + 10;
+  const composerLift = Platform.OS === 'android' && keyboardHeight > 0
+    ? Math.max(0, keyboardHeight - insets.bottom + ANDROID_KEYBOARD_COMPOSER_GAP)
+    : 0;
   const setInitialPosition = useCallback((position: InitialChatPosition) => {
     setInitialPositionState({ conversationKey, position });
   }, [conversationKey]);
@@ -564,6 +652,20 @@ export default function ConversationScreen() {
     if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
   }, []);
 
+  useEffect(() => {
+    if (Platform.OS !== 'android') return undefined;
+    const showSub = Keyboard.addListener('keyboardDidShow', event => {
+      setKeyboardHeight(event.endCoordinates.height);
+    });
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardHeight(0);
+    });
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
   // Presence: fetch on open, heartbeat every 30s
   useEffect(() => {
     if (!token || !otherId) return;
@@ -630,7 +732,16 @@ export default function ConversationScreen() {
   useFocusEffect(useCallback(() => {
     if (!token) return;
     profileApi.getProfile(token)
-      .then(p => setMyPlan(p.active_subscription?.plan?.slug ?? 'basic'))
+      .then(p => {
+        setMyPlan(p.active_subscription?.plan?.slug ?? 'basic');
+        setMySender({
+          id: p.id,
+          username: p.username,
+          first_name: p.first_name,
+          last_name: p.last_name,
+          profile_photo: p.profile_photo,
+        });
+      })
       .catch(() => {});
   }, [token]));
 
@@ -957,9 +1068,11 @@ export default function ConversationScreen() {
           <TouchableOpacity style={styles.iconBtn} onPress={() => setSearchOpen(s => !s)}>
             <Search size={18} color={searchOpen ? Colors.accent : Colors.ink} strokeWidth={2} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn} onPress={handleMore}>
-            <MoreVertical size={20} color={Colors.ink} strokeWidth={2} />
-          </TouchableOpacity>
+          {!isGroup && (
+            <TouchableOpacity style={styles.iconBtn} onPress={handleMore}>
+              <MoreVertical size={20} color={Colors.ink} strokeWidth={2} />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -981,7 +1094,11 @@ export default function ConversationScreen() {
         </View>
       )}
 
-      <View style={styles.flex}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={0}
+      >
         {loading ? (
           <View style={styles.center}>
             <ActivityIndicator color={Colors.accent} />
@@ -1040,6 +1157,11 @@ export default function ConversationScreen() {
               const isSending = item.status === 'sending';
               const isFailed = item.status === 'failed';
               const isHighlighted = item.message_id === highlightId;
+              const previousMessage = messages[index - 1];
+              const nextMessage = messages[index + 1];
+              const showGroupSender = isGroup && !isMine && previousMessage?.sender_user_id !== item.sender_user_id;
+              const showGroupAvatar = isGroup && nextMessage?.sender_user_id !== item.sender_user_id;
+              const groupAvatarUri = showGroupAvatar ? senderAvatarUrl(item, messages, mySender) : null;
 
               // Tick icon: clock=sending, single check=sent, double grey=delivered, double accent=read
               const TickIcon = isFailed ? X : isSending ? Clock : item.read_at ? CheckCheck : item.delivered_at ? CheckCheck : item.status === 'sent' ? Check : CheckCheck;
@@ -1049,11 +1171,14 @@ export default function ConversationScreen() {
                 : 'rgba(255,255,255,0.55)';
 
               // Reaction summary: group by emoji
-              const reactionGroups: Record<string, number> = {};
+              const reactionGroups: Record<string, { count: number; userIds: number[] }> = {};
               for (const r of item.reactions ?? []) {
-                reactionGroups[r.reaction] = (reactionGroups[r.reaction] ?? 0) + 1;
+                const group = reactionGroups[r.reaction] ?? { count: 0, userIds: [] };
+                group.count += 1;
+                group.userIds.push(r.user_id);
+                reactionGroups[r.reaction] = group;
               }
-              const reactionEntries: [string, number][] = Object.entries(reactionGroups);
+              const reactionEntries = Object.entries(reactionGroups);
 
               const isGift = item.message_type === 'gift';
               const BubbleContainer = isGift || !isMine ? LinearGradient : View;
@@ -1082,6 +1207,7 @@ export default function ConversationScreen() {
               const repliedMessage = item.reply_to_message_id
                 ? messages.find(message => message.message_id === item.reply_to_message_id)
                 : null;
+              const replyTarget = repliedMessage ?? null;
               const messageText = imageUri ? item.caption : (item.body_text || item.caption);
               const hasVisibleContent =
                 !!messageText ||
@@ -1097,8 +1223,8 @@ export default function ConversationScreen() {
 
               const bubbleContent = (
                 <>
-                  {isGroup && !isMine ? (
-                    <Text style={[styles.groupSender, { color: isMine ? '#fff' : Colors.purple }]}>کاربر {toFaDigits(item.sender_user_id)}</Text>
+                  {showGroupSender ? (
+                    <Text style={[styles.groupSender, { color: isMine ? '#fff' : Colors.purple }]}>{senderDisplayName(item, messages, mySender)}</Text>
                   ) : null}
                   {item.reply_to_message_id && (
                     <TouchableOpacity
@@ -1106,12 +1232,17 @@ export default function ConversationScreen() {
                       onPress={() => loadContext(item.reply_to_message_id!).catch(() => {})}
                       activeOpacity={0.75}
                     >
-                      <Text style={[styles.replyQuoteTitle, isMine && styles.replyQuoteTitleMine]}>
-                        {repliedMessage?.sender_user_id === myId ? 'شما' : 'پیام پاسخ‌داده‌شده'}
-                      </Text>
-                      <Text style={[styles.replyQuoteBody, isMine && styles.replyQuoteBodyMine]} numberOfLines={1}>
-                        {repliedMessage?.body_text || repliedMessage?.caption || 'مشاهده پیام'}
-                      </Text>
+                      <View style={[styles.replyQuoteAccent, isMine && styles.replyQuoteAccentMine]} />
+                      <View style={styles.replyQuoteContent}>
+                        <Text style={[styles.replyQuoteTitle, isMine && styles.replyQuoteTitleMine]} numberOfLines={1}>
+                          {replyTarget
+                            ? (replyTarget.sender_user_id === myId ? 'شما' : senderDisplayName(replyTarget, messages, mySender))
+                            : 'پیام پاسخ‌داده‌شده'}
+                        </Text>
+                        <Text style={[styles.replyQuoteBody, isMine && styles.replyQuoteBodyMine]} numberOfLines={2}>
+                          {replyPreviewText(replyTarget)}
+                        </Text>
+                      </View>
                     </TouchableOpacity>
                   )}
                   {imageUri && imageFailed ? (
@@ -1203,27 +1334,54 @@ export default function ConversationScreen() {
                   )}
                   {reactionEntries.length > 0 && (
                     <View style={styles.reactionsRow}>
-                      {reactionEntries.map(([emoji, count]) => (
-                        <TouchableOpacity
-                          key={emoji}
-                          style={[
-                            styles.reactionChip,
-                            isMine ? styles.reactionChipOnMine : styles.reactionChipOnTheirs,
-                            item.my_reaction === emoji && styles.reactionChipActive,
-                          ]}
-                          onPress={() => {
-                            if (item.my_reaction === emoji) removeReaction(item.message_id);
-                            else setReaction(item.message_id, emoji);
-                          }}
-                        >
-                          <Text style={styles.reactionEmoji}>{emoji}</Text>
-                          {count > 1 && (
-                            <Text style={[styles.reactionCount, isMine && styles.reactionCountMine]}>
-                              {count}
-                            </Text>
-                          )}
-                        </TouchableOpacity>
-                      ))}
+                      {reactionEntries.map(([emoji, group]) => {
+                        const visibleUserIds = group.userIds.slice(0, 3);
+                        const extraCount = Math.max(0, group.count - visibleUserIds.length);
+
+                        return (
+                          <TouchableOpacity
+                            key={emoji}
+                            style={[
+                              styles.reactionChip,
+                              isMine ? styles.reactionChipOnMine : styles.reactionChipOnTheirs,
+                              item.my_reaction === emoji && styles.reactionChipActive,
+                            ]}
+                            onPress={() => {
+                              if (item.my_reaction === emoji) removeReaction(item.message_id);
+                              else setReaction(item.message_id, emoji);
+                            }}
+                          >
+                            <Text style={styles.reactionEmoji}>{emoji}</Text>
+                            <View style={styles.reactionAvatars}>
+                              {visibleUserIds.map((userId, avatarIndex) => {
+                                const avatarUri = reactionAvatarUrl(userId, messages, mySender);
+
+                                return (
+                                  <View
+                                    key={`${userId}-${avatarIndex}`}
+                                    style={[
+                                      styles.reactionAvatar,
+                                      avatarIndex > 0 && styles.reactionAvatarOverlap,
+                                      isMine && styles.reactionAvatarMine,
+                                    ]}
+                                  >
+                                    {avatarUri ? (
+                                      <Image source={{ uri: avatarUri }} style={styles.reactionAvatarImage} contentFit="cover" />
+                                    ) : (
+                                      <User size={9} color={isMine ? '#fff' : Colors.purple} strokeWidth={2} />
+                                    )}
+                                  </View>
+                                );
+                              })}
+                            </View>
+                            {extraCount > 0 && (
+                              <Text style={[styles.reactionCount, isMine && styles.reactionCountMine]}>
+                                +{toFaDigits(extraCount)}
+                              </Text>
+                            )}
+                          </TouchableOpacity>
+                        );
+                      })}
                     </View>
                   )}
                   <View style={styles.bubbleMeta}>
@@ -1250,18 +1408,46 @@ export default function ConversationScreen() {
                       </View>
                     </View>
                   )}
-                  <Pressable
-                    style={isMine ? styles.bubblePressMine : styles.bubblePressTheirs}
-                    onLongPress={() => handleMessageLongPress(item.message_id, item.sender_user_id, item.body_text || item.caption, item.my_reaction, item.message_type)}
-                    delayLongPress={400}
-                  >
-                    <BubbleContainer
-                      {...(gradProps as any)}
-                      style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleTheirs, isGift && styles.bubbleGift]}
+                  {isGroup ? (
+                    <View style={[styles.groupMessageRow, isMine && styles.groupMessageRowMine]}>
+                      <Pressable
+                        style={styles.groupBubblePress}
+                        onLongPress={() => handleMessageLongPress(item.message_id, item.sender_user_id, item.body_text || item.caption, item.my_reaction, item.message_type)}
+                        delayLongPress={400}
+                      >
+                        <BubbleContainer
+                          {...(gradProps as any)}
+                          style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleTheirs, isGift && styles.bubbleGift]}
+                        >
+                          {bubbleContent}
+                        </BubbleContainer>
+                      </Pressable>
+                      <View style={styles.groupAvatarSlot}>
+                        {showGroupAvatar ? (
+                          groupAvatarUri ? (
+                            <Image source={{ uri: groupAvatarUri }} style={styles.groupAvatarImage} contentFit="cover" />
+                          ) : (
+                            <View style={styles.groupAvatarFallback}>
+                              <User size={14} color={Colors.purple} strokeWidth={1.8} />
+                            </View>
+                          )
+                        ) : null}
+                      </View>
+                    </View>
+                  ) : (
+                    <Pressable
+                      style={isMine ? styles.bubblePressMine : styles.bubblePressTheirs}
+                      onLongPress={() => handleMessageLongPress(item.message_id, item.sender_user_id, item.body_text || item.caption, item.my_reaction, item.message_type)}
+                      delayLongPress={400}
                     >
-                      {bubbleContent}
-                    </BubbleContainer>
-                  </Pressable>
+                      <BubbleContainer
+                        {...(gradProps as any)}
+                        style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleTheirs, isGift && styles.bubbleGift]}
+                      >
+                        {bubbleContent}
+                      </BubbleContainer>
+                    </Pressable>
+                  )}
                 </View>
               );
             }}
@@ -1507,7 +1693,7 @@ export default function ConversationScreen() {
           </View>
         )}
 
-        <View style={[styles.inputBar, { paddingBottom: insets.bottom + 10 }, (!canChat || limitReached) && styles.inputBarDisabled]}>
+        <View style={[styles.inputBar, { paddingBottom: inputBottomPadding, marginBottom: composerLift }, (!canChat || limitReached) && styles.inputBarDisabled]}>
           {!canChat || limitReached ? (
             <View style={styles.inputLocked}>
               <Lock size={14} color={Colors.muted} strokeWidth={1.8} />
@@ -1603,7 +1789,7 @@ export default function ConversationScreen() {
             </>
           )}
         </View>
-      </View>
+      </KeyboardAvoidingView>
 
       {/* Message long-press menu */}
       <Modal visible={!!msgMenu} transparent animationType="fade" onRequestClose={() => { setMsgMenu(null); setConfirmDeleteId(null); }}>
@@ -1937,7 +2123,7 @@ const styles = StyleSheet.create({
 
   // Message rows
   msgWrap: { marginVertical: 3 },
-  groupSender: { fontSize: 10.5, fontFamily: Fonts.semiBold, marginBottom: 3 },
+  groupSender: { fontSize: 11, fontFamily: Fonts.extraBold, marginBottom: 3 },
   msgImage: {
     width: 220,
     height: 220,
@@ -2034,13 +2220,30 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderTopWidth: 1, borderTopColor: Colors.hair,
   },
-  voicePlayerRow: { flexDirection: 'row', alignItems: 'center', gap: 8, minWidth: 130 },
+  voicePlayerRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 10,
+    minWidth: 190,
+    paddingVertical: 1,
+  },
   voicePlayBtn: {
-    width: 28, height: 28, borderRadius: 14,
+    width: 38, height: 38, borderRadius: 19,
     alignItems: 'center', justifyContent: 'center',
   },
-  voiceWave: { flex: 1, height: 3, borderRadius: 2 },
-  voiceDurationTxt: { fontFamily: Fonts.semiBold, fontSize: 11.5 },
+  voiceContent: { flex: 1, minWidth: 0 },
+  voiceWave: {
+    height: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    overflow: 'hidden',
+  },
+  voiceWaveBar: {
+    width: 2,
+    borderRadius: 2,
+  },
+  voiceDurationTxt: { fontFamily: Fonts.regular, fontSize: 13, marginTop: 1 },
   viewerOverlay: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.92)',
     alignItems: 'center', justifyContent: 'center',
@@ -2133,9 +2336,49 @@ const styles = StyleSheet.create({
     web: { marginRight: 'auto', maxWidth: '78%' },
     default: { alignSelf: 'flex-end', maxWidth: '78%' },
   }),
+  groupMessageRow: Platform.select({
+    web: {
+      alignSelf: 'flex-end',
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      gap: 6,
+      maxWidth: '86%',
+    },
+    default: {
+      alignSelf: 'flex-end',
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      gap: 6,
+      maxWidth: '86%',
+    },
+  }),
+  groupMessageRowMine: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row-reverse',
+  },
+  groupBubblePress: { flexShrink: 1, maxWidth: '100%' },
+  groupAvatarSlot: {
+    width: GROUP_AVATAR_SIZE,
+    height: GROUP_AVATAR_SIZE,
+    marginBottom: 2,
+  },
+  groupAvatarImage: {
+    width: GROUP_AVATAR_SIZE,
+    height: GROUP_AVATAR_SIZE,
+    borderRadius: GROUP_AVATAR_SIZE / 2,
+  },
+  groupAvatarFallback: {
+    width: GROUP_AVATAR_SIZE,
+    height: GROUP_AVATAR_SIZE,
+    borderRadius: GROUP_AVATAR_SIZE / 2,
+    backgroundColor: Colors.accentSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
   bubble: {
     borderRadius: 18,
+    minWidth: MESSAGE_BUBBLE_MIN_WIDTH,
     paddingHorizontal: 13,
     paddingVertical: 8,
     shadowColor: '#000',
@@ -2165,7 +2408,7 @@ const styles = StyleSheet.create({
   msgTypeBadge: {
     fontSize: 11, color: Colors.muted, marginBottom: 3,
   },
-  bubbleTxt: { fontSize: 14, fontFamily: Fonts.regular, lineHeight: 22 },
+  bubbleTxt: { fontSize: 12, fontFamily: Fonts.regular, lineHeight: 19 },
   bubbleTxtMine: { color: '#fff' },
   bubbleTxtTheirs: { color: Colors.ink },
   bubbleMeta: {
@@ -2176,14 +2419,40 @@ const styles = StyleSheet.create({
   bubbleTimeMine: { color: 'rgba(255,255,255,0.6)' },
   bubbleTimeTheirs: { color: Colors.muted },
   replyQuote: {
-    borderRightWidth: 3, borderRightColor: Colors.accent,
-    paddingRight: 8, paddingVertical: 3, marginBottom: 6,
+    flexDirection: 'row-reverse',
+    alignItems: 'stretch',
+    gap: 8,
+    borderRadius: 12,
+    paddingHorizontal: 9,
+    paddingVertical: 7,
+    marginBottom: 7,
+    backgroundColor: '#FFF7FA',
+    borderWidth: 1,
+    borderColor: Colors.accent + '55',
+    overflow: 'hidden',
   },
-  replyQuoteMine: { borderRightColor: 'rgba(255,255,255,0.85)' },
-  replyQuoteTitle: { fontSize: 10, fontFamily: Fonts.bold, color: Colors.accent },
+  replyQuoteMine: {
+    backgroundColor: 'rgba(255,255,255,0.24)',
+    borderColor: 'rgba(255,255,255,0.5)',
+  },
+  replyQuoteAccent: {
+    width: 3,
+    borderRadius: 2,
+    backgroundColor: Colors.accent,
+  },
+  replyQuoteAccentMine: { backgroundColor: 'rgba(255,255,255,0.9)' },
+  replyQuoteContent: { flex: 1, minWidth: 0 },
+  replyQuoteTitle: { fontSize: 10.5, fontFamily: Fonts.bold, color: Colors.accent, textAlign: 'right' },
   replyQuoteTitleMine: { color: '#fff' },
-  replyQuoteBody: { fontSize: 11, fontFamily: Fonts.regular, color: Colors.muted },
-  replyQuoteBodyMine: { color: 'rgba(255,255,255,0.75)' },
+  replyQuoteBody: {
+    fontSize: 11.5,
+    fontFamily: Fonts.regular,
+    color: Colors.inkSoft,
+    lineHeight: 17,
+    marginTop: 2,
+    textAlign: 'right',
+  },
+  replyQuoteBodyMine: { color: 'rgba(255,255,255,0.9)' },
 
   // Edit mode bar
   editBar: {
@@ -2397,9 +2666,9 @@ const styles = StyleSheet.create({
     gap: 4, marginTop: 6,
   },
   reactionChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 3,
-    paddingHorizontal: 7, paddingVertical: 3,
-    borderRadius: 10, borderWidth: 1,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 6, paddingVertical: 3,
+    borderRadius: 12, borderWidth: 1,
   },
   reactionChipOnMine: {
     backgroundColor: 'rgba(255,255,255,0.18)', borderColor: 'rgba(255,255,255,0.35)',
@@ -2412,6 +2681,24 @@ const styles = StyleSheet.create({
   },
   reactionChipMine: { borderColor: Colors.accent, backgroundColor: Colors.accentSoft },
   reactionEmoji: { fontSize: 13 },
+  reactionAvatars: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  reactionAvatar: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: Colors.accentSoft,
+    borderWidth: 1,
+    borderColor: Colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  reactionAvatarMine: { borderColor: 'rgba(255,255,255,0.7)' },
+  reactionAvatarOverlap: { marginLeft: -5 },
+  reactionAvatarImage: { width: '100%', height: '100%' },
   reactionCount: { fontSize: 11, fontFamily: Fonts.semiBold, color: Colors.ink },
   reactionCountMine: { color: 'rgba(255,255,255,0.9)' },
 
@@ -2459,5 +2746,14 @@ const styles = StyleSheet.create({
   searchEmptyTxt: { fontSize: 14, fontFamily: Fonts.bold, color: Colors.inkSoft },
 
   // Message highlight
-  msgHighlight: { backgroundColor: Colors.accentSoft + '55' },
+  msgHighlight: {
+    backgroundColor: Colors.goldSoft,
+    borderWidth: 1,
+    borderColor: Colors.goldDeep + '66',
+    shadowColor: Colors.goldDeep,
+    shadowOpacity: 0.14,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
 });

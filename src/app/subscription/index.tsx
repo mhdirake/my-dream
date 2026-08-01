@@ -39,10 +39,12 @@ type Plan = {
 };
 
 const PERIODS = [
-  { label: '۳ ماهه', key: 'quarterly', multiplier: 2.7, discount: '۱۰٪ تخفیف' },
   { label: 'ماهانه',  key: 'monthly',  multiplier: 1,   discount: null },
+  { label: '۳ ماهه', key: 'quarterly', multiplier: 2.7, discount: '۱۰٪ تخفیف' },
   { label: 'سالانه', key: 'yearly',    multiplier: 9,   discount: '۲۵٪ تخفیف' },
 ] as const;
+
+const PLAN_PRIORITY: Record<string, number> = { basic: 0, silver: 1, gold: 2 };
 
 function formatPrice(amountRial: number, multiplier: number): string {
   if (amountRial === 0) return 'رایگان';
@@ -80,6 +82,7 @@ export default function PlansScreen() {
   const basic = plans.find(p => p.slug === 'basic');
   const silver = plans.find(p => p.slug === 'silver');
   const gold = plans.find(p => p.slug === 'gold');
+  const isDowngrade = (slug: string) => (PLAN_PRIORITY[slug] ?? 0) < (PLAN_PRIORITY[currentSlug] ?? 0);
 
   return (
     <SafeAreaView style={styles.root}>
@@ -170,6 +173,10 @@ export default function PlansScreen() {
                 {currentSlug === 'silver' ? (
                   <View style={[styles.planFooter, { marginTop: 10 }]}>
                     <Text style={[styles.currentPlanTxt, { color: 'rgba(255,255,255,0.8)' }]}>پلن فعلی شما</Text>
+                  </View>
+                ) : isDowngrade('silver') ? (
+                  <View style={[styles.planFooter, { marginTop: 10 }]}>
+                    <Text style={[styles.currentPlanTxt, { color: 'rgba(255,255,255,0.8)' }]}>پلن فعلی شما بالاتر است</Text>
                   </View>
                 ) : (
                   <TouchableOpacity

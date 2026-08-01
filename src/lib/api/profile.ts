@@ -39,7 +39,7 @@ export type UserProfile = {
     result_key: string;
     result_title: string;
     completed_at: string | null;
-    scores?: Record<string, number> | null;
+    scores?: unknown;
     assistant_analysis?: { summary?: string } | null;
     assistant_analysis_status?: string;
   } | null;
@@ -47,6 +47,8 @@ export type UserProfile = {
   voice_intro_duration_seconds?: number | null;
   // Preserved from cache when available — not in API response
   compatibility_score?: number | null;
+  liked_by_me?: boolean;
+  likes_count?: number;
 };
 
 export type ClientProfile = {

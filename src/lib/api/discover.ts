@@ -105,6 +105,15 @@ export type ProfileViewTimelineItem = {
   display_name: string;
 };
 
+export type ProfileViewTimelineResponse = {
+  summary?: ProfileViewSummary;
+  data?: {
+    current_page?: number;
+    last_page?: number;
+    data?: ProfileViewTimelineItem[];
+  } | ProfileViewTimelineItem[];
+};
+
 export type ViewPackage = {
   id: number;
   name: string;
@@ -167,16 +176,16 @@ export const discoverApi = {
   },
 
   getProfileViewTimeline: async (token: string, page = 1) => {
-    const res = await api.get<{
-      summary: ProfileViewSummary;
-      data: { current_page: number; last_page: number; data: ProfileViewTimelineItem[] };
-    }>(`/api/client/profile-view-history/timeline?page_number=${page}`, token);
+    const res = await api.get<ProfileViewTimelineResponse>(
+      `/api/client/profile-view-history/timeline?page_number=${page}`,
+      token,
+    );
     return res;
   },
 
   getViewPackages: async (token: string) => {
     const res = await api.get<{ data: ViewPackage[] }>(
-      '/api/client/packages?feature=profile_view_history',
+      '/api/client/profile-view-packages?feature=profile_view_history',
       token,
     );
     return res.data ?? [];

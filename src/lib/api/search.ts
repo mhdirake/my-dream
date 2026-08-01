@@ -18,9 +18,9 @@ export type SearchResult = {
 };
 
 export const searchApi = {
-  search: (token: string, q: string, limit = 20, page = 1): Promise<SearchResult> =>
+  search: (token: string, q: string, limit = 20, page = 1, context?: 'discover' | 'gift'): Promise<SearchResult> =>
     api.get<SearchResult>(
-      `/api/client/users/search?q=${encodeURIComponent(q)}&limit=${limit}&page=${page}`,
+      `/api/client/users/search?q=${encodeURIComponent(q)}&limit=${limit}&page=${page}${context ? `&context=${context}` : ''}`,
       token,
     ),
 };

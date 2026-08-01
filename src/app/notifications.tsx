@@ -46,6 +46,28 @@ function getMeta(type: string): NotifMeta {
   return TYPE_META[type] ?? DEFAULT_META;
 }
 
+function userDisplayName(user: AppNotification['related_user']): string {
+  if (!user) return '';
+  return [user.first_name, user.last_name].filter(Boolean).join(' ') || user.username;
+}
+
+function notificationTitle(n: AppNotification): string {
+  const name = userDisplayName(n.related_user);
+  if (name && ['new_message', 'message_received', 'chat_message_created'].includes(n.type)) {
+    return `پیام جدید از ${name}`;
+  }
+  return n.title ?? n.type;
+}
+
+function metadataNumber(metadata: Record<string, unknown>, keys: string[]): number | null {
+  for (const key of keys) {
+    const value = metadata[key];
+    const numberValue = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN;
+    if (Number.isFinite(numberValue) && numberValue > 0) return numberValue;
+  }
+  return null;
+}
+
 function relativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const mins  = Math.floor(diff / 60_000);
@@ -144,6 +166,13 @@ async function handleNavigation(n: AppNotification, token: string, myId: number)
       router.push('/gifts/wallet' as any);
       break;
     case 'payment_succeeded':
+      {
+        const paymentId = metadataNumber(m, ['payment_transaction_id', 'payment_id', 'transaction_id']);
+        if (paymentId) {
+          router.push({ pathname: '/payments/[id]' as any, params: { id: String(paymentId) } });
+          break;
+        }
+      }
       if (m.purchase_type === 'subscription') {
         router.push('/subscription' as any);
       } else if (m.purchase_type === 'gold_badge') {
@@ -315,7 +344,7 @@ export default function NotificationsScreen() {
         <View style={styles.rowContent}>
           <View style={styles.rowTop}>
             <Text style={[styles.rowTitle, isUnread && styles.rowTitleBold]} numberOfLines={1}>
-              {n.title ?? n.type}
+              {notificationTitle(n)}
             </Text>
             <Text style={styles.rowTime}>{relativeTime(n.created_at)}</Text>
           </View>
@@ -324,7 +353,7 @@ export default function NotificationsScreen() {
           ) : null}
           {n.related_user && (
             <Text style={styles.rowUser}>
-              {n.related_user.first_name ?? n.related_user.username}
+              {userDisplayName(n.related_user)}
             </Text>
           )}
         </View>

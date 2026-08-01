@@ -23,6 +23,7 @@ function normalizeMessage(raw: Record<string, unknown>): Message {
     conversation_id:     str(source.conversation_id,      source.ConversationID),
     conversation_type:   str(source.conversation_type,    source.ConversationType) as 'direct' | 'group',
     sender_user_id:      num(source.sender_user_id,       source.SenderUserID, source.sender_id, source.SenderID, source.user_id, source.UserID),
+    sender:              (source.sender ?? source.Sender ?? null) as Message['sender'],
     message_type:        str(source.message_type,         source.MessageType, source.type, source.Type, 'text') as Message['message_type'],
     body_text:           str(source.body_text,            source.BodyText, source.body, source.Body, source.text, source.Text, source.message, source.Message),
     caption:             str(source.caption,              source.Caption),
@@ -159,7 +160,6 @@ export function useChatMessages(
 
   const pushMessage = useCallback((msg: Message) => {
     setMessages(prev => {
-      if (prev.some(m => m.message_id === msg.message_id)) return prev;
       return mergeMessages(prev, [msg]);
     });
   }, []);
@@ -182,7 +182,7 @@ export function useChatMessages(
 
       } else if (data.event === 'message.updated') {
         const updated = normalizeMessage(raw);
-        setMessages(prev => prev.map(m => m.message_id === updated.message_id ? updated : m));
+        setMessages(prev => mergeMessages(prev, [updated]));
 
       } else if (data.event === 'message.reaction.updated') {
         const msgId = raw.message_id as string;

@@ -34,6 +34,42 @@ describe('mergeMessages', () => {
     expect(mergeMessages([optimistic], [acknowledged])).toEqual([acknowledged]);
   });
 
+  it('keeps the optimistic sender when media acknowledgements omit sender data', () => {
+    const optimistic = message({
+      message_id: 'optimistic-client-voice',
+      client_message_id: 'client-voice',
+      sender_user_id: 7,
+      message_type: 'voice',
+      media_url: 'file:///voice.m4a',
+      status: 'sending',
+    });
+    const acknowledged = message({
+      message_id: 'server-voice',
+      client_message_id: 'client-voice',
+      sender_user_id: 0,
+      message_type: 'voice',
+      media_url: 'https://cdn.example/voice.m4a',
+      status: 'sent',
+    });
+
+    expect(mergeMessages([optimistic], [acknowledged])[0]).toMatchObject({
+      message_id: 'server-voice',
+      sender_user_id: 7,
+      media_url: 'https://cdn.example/voice.m4a',
+    });
+  });
+
+  it('does not let partial updates overwrite a known sender', () => {
+    const existing = message({ message_id: 'server-1', sender_user_id: 11, body_text: 'old' });
+    const updated = message({ message_id: 'server-1', sender_user_id: 0, body_text: 'new', is_edited: true });
+
+    expect(mergeMessages([existing], [updated])[0]).toMatchObject({
+      sender_user_id: 11,
+      body_text: 'new',
+      is_edited: true,
+    });
+  });
+
   it('deduplicates replayed events and keeps chronological order', () => {
     const newer = message({ message_id: 'server-2', client_message_id: 'client-2', created_at: '2026-07-21T10:01:00.000Z' });
     const older = message({ message_id: 'server-1', created_at: '2026-07-21T10:00:00.000Z' });

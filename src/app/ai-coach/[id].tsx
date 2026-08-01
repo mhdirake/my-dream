@@ -23,6 +23,24 @@ const QUICK_CHIPS = [
   { label: 'اول قرار', prompt: 'برای اولین قرار ملاقات چه پیشنهادی داری؟' },
 ];
 
+type ProfileSuggestion = NonNullable<NonNullable<CoachMessage['metadata']>['suggestions']>[number];
+
+const toPersian = (value: number | string) =>
+  String(value).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
+
+function suggestionTitle(suggestion: ProfileSuggestion) {
+  return suggestion.display_name?.trim() || `پروفایل ${toPersian(suggestion.user_id)}`;
+}
+
+function suggestionMeta(suggestion: ProfileSuggestion) {
+  return [
+    suggestion.age ? `${toPersian(suggestion.age)} سال` : null,
+    suggestion.province,
+    suggestion.relationship_goal,
+    suggestion.compatibility_score != null ? `سازگاری ${toPersian(suggestion.compatibility_score)}٪` : null,
+  ].filter(Boolean).join(' · ');
+}
+
 function ThinkingDots() {
   return (
     <View style={styles.thinkingBubble}>
@@ -108,17 +126,22 @@ export default function AiCoachChat() {
           <Text style={[styles.bubbleTxt, isUser ? styles.bubbleTxtUser : styles.bubbleTxtAi]}>
             {item.body}
           </Text>
-          {item.role === 'assistant' && item.metadata?.suggestions?.map(suggestion => (
-            <TouchableOpacity
-              key={suggestion.user_id}
-              style={styles.suggestion}
-              onPress={() => router.push(`/user/${suggestion.user_id}` as never)}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.suggestionTitle}>مشاهده پروفایل پیشنهادی</Text>
-              <Text style={styles.suggestionReason}>{suggestion.reason}</Text>
-            </TouchableOpacity>
-          ))}
+          {item.role === 'assistant' && item.metadata?.suggestions?.map(suggestion => {
+            const meta = suggestionMeta(suggestion);
+
+            return (
+              <TouchableOpacity
+                key={suggestion.user_id}
+                style={styles.suggestion}
+                onPress={() => router.push(`/user/${suggestion.user_id}` as never)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.suggestionTitle}>{suggestionTitle(suggestion)}</Text>
+                {meta ? <Text style={styles.suggestionMeta}>{meta}</Text> : null}
+                <Text style={styles.suggestionReason}>{suggestion.reason}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
     );
@@ -287,7 +310,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.16)', borderRadius: Radius.md,
     paddingHorizontal: 10, paddingVertical: 8, marginTop: 8,
   },
-  suggestionTitle: { fontSize: 12, fontFamily: Fonts.bold, color: '#fff', textAlign: 'right' },
+  suggestionTitle: { fontSize: 13, fontFamily: Fonts.extraBold, color: '#fff', textAlign: 'right' },
+  suggestionMeta: { fontSize: 10.5, fontFamily: Fonts.semiBold, color: 'rgba(255,255,255,0.9)', textAlign: 'right', marginTop: 3 },
   suggestionReason: { fontSize: 11, fontFamily: Fonts.regular, color: 'rgba(255,255,255,0.86)', textAlign: 'right', marginTop: 2 },
 
   thinkingBubble: {
