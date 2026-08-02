@@ -7,8 +7,9 @@ import { onboardingApi } from '@/lib/api/onboarding';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { toast } from '@/lib/toast';
 import { router } from 'expo-router';
+import { KeyRound } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function LoginScreen() {
@@ -83,6 +84,9 @@ export default function LoginScreen() {
           accessibilityRole="button"
           accessibilityLabel="بازیابی رمز عبور"
         >
+          <View style={styles.forgotPasswordIcon}>
+            <KeyRound size={14} color={Colors.accent} strokeWidth={2.2} />
+          </View>
           <Text style={styles.forgotPassword}>رمز عبورت را فراموش کردی؟</Text>
         </Pressable>
 
@@ -106,12 +110,28 @@ const styles = StyleSheet.create({
   sub: { fontSize: 13, fontFamily: Fonts.regular, color: Colors.muted, lineHeight: 22 },
   forgotPasswordLink: {
     alignSelf: 'flex-start',
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    backgroundColor: Colors.accentSoft,
+    borderWidth: 1,
+    borderColor: 'rgba(217,79,112,0.16)',
+  },
+  forgotPasswordIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
   },
   forgotPassword: {
     color: Colors.accent,
     fontSize: 12,
     fontFamily: Fonts.semiBold,
     textAlign: 'right',
-    marginBottom: 4,
   },
 });

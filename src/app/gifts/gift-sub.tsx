@@ -359,7 +359,7 @@ export default function GiftSubScreen() {
                   <Text style={styles.balAmt}>{toPersian(coins ?? 0)} سکه</Text>
                 </View>
                 {(coins ?? 0) < coinAmount && (
-                  <Text style={styles.insuffTxt}>سکه کافی نداری</Text>
+                  <Text style={styles.insuffTxt}>لطفاً اول سکه بخر</Text>
                 )}
               </Card>
             </>

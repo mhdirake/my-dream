@@ -1,4 +1,5 @@
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 import { ApiError } from '../api/client';
 import { authApi, type MeResponse } from '../api/auth';
 import { clearSession, isExpired, loadSession, saveSession, type Session } from './storage';
@@ -25,8 +26,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const sessionRef = useRef<Session | null>(null);
+  const refreshInFlightRef = useRef(false);
 
-  const doRefresh = useCallback(async (s: Session) => {
+  const doRefresh = useCallback(async (s: Session, blocking = false) => {
+    if (refreshInFlightRef.current) return;
+    refreshInFlightRef.current = true;
+    if (blocking) setIsLoading(true);
     try {
       const token = await authApi.refresh(s.refreshToken);
       const next: Session = {
@@ -35,15 +41,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         expiresAt: Date.now() + (token.expires_in ?? 300) * 1000,
       };
       await saveSession(next);
+      sessionRef.current = next;
       setSession(next);
     } catch (error) {
       if (isAuthFailure(error)) {
         await clearSession();
+        sessionRef.current = null;
         setSession(null);
         setUser(null);
       }
+    } finally {
+      refreshInFlightRef.current = false;
+      if (blocking) setIsLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
 
   // Auto-refresh: schedule refresh 60s before token expires
   useEffect(() => {
@@ -56,6 +71,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const timer = setTimeout(() => doRefresh(session), Math.max(msUntilRefresh, 0));
     return () => clearTimeout(timer);
   }, [session, doRefresh]);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', state => {
+      if (state !== 'active') return;
+      const current = sessionRef.current;
+      if (current && isExpired(current)) doRefresh(current, true);
+    });
+    return () => sub.remove();
+  }, [doRefresh]);
 
   useEffect(() => {
     (async () => {

@@ -368,12 +368,13 @@ function SwipeView({
   const [giftTarget, setGiftTarget] = useState<DiscoverProfile | null>(null);
   const [chatTarget, setChatTarget] = useState<DiscoverProfile | null>(null);
   const refilledRef = useRef(false);
+  const profileIdsSignature = profiles.map(profile => profile.id).join(',');
 
   useEffect(() => {
     setIndex(0);
     setLiked(false);
     refilledRef.current = false;
-  }, [profiles]);
+  }, [profileIdsSignature]);
 
   const current = profiles[index];
 

@@ -1,7 +1,7 @@
 {
   "name": "mobile",
   "main": "expo-router/entry",
-  "version": "1.0.13",
+  "version": "1.0.14",
   "dependencies": {
     "@expo/ui": "~56.0.16",
     "centrifuge": "^5.6.0",

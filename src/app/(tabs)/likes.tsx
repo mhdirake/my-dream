@@ -9,12 +9,12 @@ import {
 import { ApiError } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { toast } from '@/lib/toast';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Coins, Eye, Heart, Lock, Sparkles, UserX } from 'lucide-react-native';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
-  ActivityIndicator, Alert, RefreshControl,
-  ScrollView, StyleSheet, Text, TouchableOpacity, View,
+  ActivityIndicator, Modal, Pressable, RefreshControl,
+  Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -42,6 +42,8 @@ export default function LikesScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [purchasing, setPurchasing] = useState(false);
+  const [purchaseModalOpen, setPurchaseModalOpen] = useState(false);
+  const [coinShortageOpen, setCoinShortageOpen] = useState(false);
 
   const load = useCallback(async (showRefresh = false) => {
     if (!session?.accessToken) return;
@@ -67,22 +69,16 @@ export default function LikesScreen() {
     }
   }, [session?.accessToken]);
 
-  useEffect(() => { load(); }, [load]);
+  useFocusEffect(useCallback(() => {
+    load();
+  }, [load]));
 
   const handlePurchaseReveal = () => {
     if (!packages.length) {
       toast.error('بسته‌ای موجود نیست');
       return;
     }
-    const pkg = packages[0];
-    Alert.alert(
-      'خرید دسترسی به علاقه ناشناس',
-      `با ${toPersian(pkg.coin_price)} سکه، ${toPersian(pkg.duration_days)} روز دسترسی داری.`,
-      [
-        { text: 'لغو', style: 'cancel' },
-        { text: 'خرید', onPress: () => doPurchase(pkg) },
-      ],
-    );
+    setPurchaseModalOpen(true);
   };
 
   const doPurchase = async (pkg: RevealPackage) => {
@@ -90,19 +86,13 @@ export default function LikesScreen() {
     setPurchasing(true);
     try {
       await likesApi.purchaseReveal(session.accessToken, pkg.id);
+      setPurchaseModalOpen(false);
       toast.success('دسترسی فعال شد!');
       load();
     } catch (e: any) {
       const rawMessage = e instanceof ApiError ? e.rawMessage : String(e?.message ?? '');
-      if (/insufficient.*coin|not enough.*coin|موجودی سکه کافی نیست/i.test(rawMessage)) {
-        Alert.alert(
-          'موجودی سکه کافی نیست',
-          'برای فعال‌کردن این دسترسی ابتدا سکه تهیه کن. بعد از خرید به همین صفحه برمی‌گردی.',
-          [
-            { text: 'بعداً', style: 'cancel' },
-            { text: 'خرید سکه', onPress: () => router.push('/gifts/buy-coins' as any) },
-          ],
-        );
+      if (/insufficient.*coin|insufficient.*balance|coin.*balance|not enough.*coin|موجودی سکه کافی نیست/i.test(rawMessage)) {
+        setCoinShortageOpen(true);
       } else {
         toast.error(e.message ?? 'خطا در خرید');
       }
@@ -176,7 +166,115 @@ export default function LikesScreen() {
           <SentSection likedItems={sentLikes} anonItems={sent} />
         )}
       </ScrollView>
+      <PurchaseRevealModal
+        visible={purchaseModalOpen}
+        packageItem={packages[0] ?? null}
+        purchasing={purchasing}
+        onClose={() => setPurchaseModalOpen(false)}
+        onConfirm={() => packages[0] && doPurchase(packages[0])}
+      />
+      <CoinShortageModal
+        visible={coinShortageOpen}
+        onClose={() => setCoinShortageOpen(false)}
+        onBuyCoins={() => {
+          setCoinShortageOpen(false);
+          setPurchaseModalOpen(false);
+          router.push('/gifts/buy-coins' as any);
+        }}
+      />
     </SafeAreaView>
+  );
+}
+
+function PurchaseRevealModal({
+  visible,
+  packageItem,
+  purchasing,
+  onClose,
+  onConfirm,
+}: {
+  visible: boolean;
+  packageItem: RevealPackage | null;
+  purchasing: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.modalOverlay} onPress={onClose}>
+        <Pressable style={styles.purchaseDialog}>
+          <View style={styles.purchaseIcon}>
+            <Eye size={22} color={Colors.goldDeep} strokeWidth={2} />
+          </View>
+          <Text style={styles.purchaseTitle}>خرید دسترسی به علاقه ناشناس</Text>
+          <Text style={styles.purchaseBody}>
+            {packageItem
+              ? `با ${toPersian(packageItem.coin_price)} سکه، ${toPersian(packageItem.duration_days)} روز دسترسی داری.`
+              : 'بسته‌ای برای خرید موجود نیست.'}
+          </Text>
+          <View style={styles.purchaseActions}>
+            <TouchableOpacity
+              style={styles.purchaseCancelBtn}
+              onPress={onClose}
+              disabled={purchasing}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.purchaseCancelTxt}>لغو</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.purchaseConfirmBtn, (!packageItem || purchasing) && styles.purchaseConfirmBtnDisabled]}
+              onPress={onConfirm}
+              disabled={!packageItem || purchasing}
+              activeOpacity={0.85}
+            >
+              {purchasing ? (
+                <ActivityIndicator size="small" color="#3A2C0A" />
+              ) : (
+                <>
+                  <Coins size={14} color="#3A2C0A" strokeWidth={2} />
+                  <Text style={styles.purchaseConfirmTxt}>خرید</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+function CoinShortageModal({
+  visible,
+  onClose,
+  onBuyCoins,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onBuyCoins: () => void;
+}) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.modalOverlay} onPress={onClose}>
+        <Pressable style={styles.purchaseDialog}>
+          <View style={styles.purchaseIcon}>
+            <Coins size={22} color={Colors.goldDeep} strokeWidth={2} />
+          </View>
+          <Text style={styles.purchaseTitle}>موجودی سکه کافی نیست</Text>
+          <Text style={styles.purchaseBody}>
+            لطفاً اول سکه بخر. بعد از خرید می‌تونی دسترسی علاقه ناشناس رو فعال کنی.
+          </Text>
+          <View style={styles.purchaseActions}>
+            <TouchableOpacity style={styles.purchaseCancelBtn} onPress={onClose} activeOpacity={0.8}>
+              <Text style={styles.purchaseCancelTxt}>بعداً</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.purchaseConfirmBtn} onPress={onBuyCoins} activeOpacity={0.85}>
+              <Coins size={14} color="#3A2C0A" strokeWidth={2} />
+              <Text style={styles.purchaseConfirmTxt}>رفتن به خرید سکه</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
   );
 }
 
@@ -447,7 +545,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: Fonts.extraBold,
     color: Colors.muted,
-    textAlign: 'right',
+    textAlign: Platform.select({ web: 'right', default: 'left' }),
     marginBottom: 2,
   },
   sentRow: {
@@ -464,6 +562,69 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 5,
   },
   mutualPillTxt: { fontSize: 11, fontFamily: Fonts.bold, color: Colors.accent },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.38)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.xl,
+  },
+  purchaseDialog: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.xl,
+    padding: Spacing.xl,
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: Colors.hair,
+  },
+  purchaseIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 18,
+    backgroundColor: Colors.goldSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  purchaseTitle: {
+    fontSize: 15,
+    fontFamily: Fonts.extraBold,
+    color: Colors.ink,
+    textAlign: 'center',
+  },
+  purchaseBody: {
+    fontSize: 12.5,
+    fontFamily: Fonts.regular,
+    color: Colors.inkSoft,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  purchaseActions: { flexDirection: 'row', gap: 10, alignSelf: 'stretch', marginTop: 4 },
+  purchaseCancelBtn: {
+    flex: 1,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.bg,
+    borderWidth: 1,
+    borderColor: Colors.hair,
+    alignItems: 'center',
+    paddingVertical: 11,
+  },
+  purchaseCancelTxt: { fontSize: 13, fontFamily: Fonts.semiBold, color: Colors.ink },
+  purchaseConfirmBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: 6,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 11,
+  },
+  purchaseConfirmBtnDisabled: { opacity: 0.6 },
+  purchaseConfirmTxt: { fontSize: 13, fontFamily: Fonts.bold, color: '#3A2C0A' },
 
   emptyBox: { paddingVertical: 60, alignItems: 'center', gap: 10 },
   emptyTxt: { fontSize: 15, fontFamily: Fonts.bold, color: Colors.inkSoft },

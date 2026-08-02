@@ -2,9 +2,36 @@ import { api } from './client';
 
 const MEDIA_BASE = process.env.EXPO_PUBLIC_MEDIA_URL ?? process.env.EXPO_PUBLIC_API_URL ?? '';
 
-export function mediaUrl(path: string | null | undefined): string | null {
+type MediaLike =
+  | string
+  | null
+  | undefined
+  | {
+      urls?: {
+        thumbnail?: string | null;
+        small?: string | null;
+        medium?: string | null;
+        large?: string | null;
+        original?: string | null;
+      } | null;
+      url?: string | null;
+      path?: string | null;
+    };
+
+export function mediaUrl(path: MediaLike): string | null {
   if (!path) return null;
-  return path.startsWith('http') ? path : `${MEDIA_BASE}/${path}`;
+  const resolved = typeof path === 'string'
+    ? path
+    : path.urls?.thumbnail
+      ?? path.urls?.small
+      ?? path.urls?.medium
+      ?? path.urls?.large
+      ?? path.urls?.original
+      ?? path.url
+      ?? path.path
+      ?? null;
+  if (!resolved) return null;
+  return resolved.startsWith('http') ? resolved : `${MEDIA_BASE}/${resolved}`;
 }
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -14,7 +41,7 @@ export type AnonUser = {
   username: string;
   first_name: string;
   last_name: string | null;
-  profile_photo: string | null;
+  profile_photo: MediaLike;
 };
 
 export type SentAnonInterest = {

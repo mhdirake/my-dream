@@ -497,6 +497,7 @@ export default function ConversationScreen() {
   const initialHighlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tailScrollTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const initialScrollInProgressRef = useRef(false);
   const pendingScrollRetryRef = useRef<{ index: number; viewPosition: number } | null>(null);
   const conversationKey = publicId ?? String(conversationId);
   const [initialPositionState, setInitialPositionState] = useState<{
@@ -521,6 +522,7 @@ export default function ConversationScreen() {
 
   useEffect(() => {
     initialScrollDoneRef.current = false;
+    initialScrollInProgressRef.current = false;
     lastMsgIdRef.current = null;
     isNearTailRef.current = true;
     queueMicrotask(() => setListReady(false));
@@ -571,16 +573,19 @@ export default function ConversationScreen() {
     listRef.current?.scrollToEnd({ animated });
 
     tailScrollTimersRef.current.forEach(clearTimeout);
-    tailScrollTimersRef.current = [80, 180, 360].map(delay =>
+    tailScrollTimersRef.current = [];
+    if (!animated || Platform.OS === 'android') return;
+
+    tailScrollTimersRef.current = [80, 180].map(delay =>
       setTimeout(() => {
         listRef.current?.scrollToEnd({ animated: false });
       }, delay),
     );
   }, []);
 
-  // onContentSizeChange fires after FlatList has measured content — reliable for initial scroll
-  const handleContentSizeChange = useCallback(() => {
+  const performInitialScroll = useCallback(() => {
     if (initialScrollDoneRef.current) return;
+    if (initialScrollInProgressRef.current) return;
     if (initialPosition.kind === 'resolving') return;
     if (messages.length === 0) {
       // چت خالی: empty state باید دیده بشه — بدون این، لیست برای همیشه opacity:0 می‌مونه
@@ -589,10 +594,14 @@ export default function ConversationScreen() {
       return;
     }
 
+    initialScrollInProgressRef.current = true;
     requestAnimationFrame(() => {
       if (initialPosition.kind === 'message') {
         const index = messages.findIndex(message => message.message_id === initialPosition.id);
-        if (index < 0) return;
+        if (index < 0) {
+          initialScrollInProgressRef.current = false;
+          return;
+        }
         pendingScrollRetryRef.current = { index, viewPosition: initialPosition.viewPosition };
         if (scrollRetryTimerRef.current) clearTimeout(scrollRetryTimerRef.current);
         scrollRetryTimerRef.current = setTimeout(() => {
@@ -606,23 +615,40 @@ export default function ConversationScreen() {
         isNearTailRef.current = index >= messages.length - 2;
         if (initialHighlightTimerRef.current) clearTimeout(initialHighlightTimerRef.current);
         initialHighlightTimerRef.current = setTimeout(clearHighlight, 2000);
+        lastMsgIdRef.current = messages[messages.length - 1]?.message_id ?? null;
+        initialScrollDoneRef.current = true;
+        initialScrollInProgressRef.current = false;
+        setListReady(true);
       } else {
         scrollToTail(false);
+        setTimeout(() => {
+          listRef.current?.scrollToEnd({ animated: false });
+          lastMsgIdRef.current = messages[messages.length - 1]?.message_id ?? null;
+          initialScrollDoneRef.current = true;
+          initialScrollInProgressRef.current = false;
+          setListReady(true);
+        }, 80);
         isNearTailRef.current = true;
       }
-      lastMsgIdRef.current = messages[messages.length - 1]?.message_id ?? null;
-      initialScrollDoneRef.current = true;
-      setListReady(true);
     });
   }, [messages, initialPosition, clearHighlight, scrollToTail]);
+
+  // onContentSizeChange fires after FlatList has measured content — reliable for initial scroll
+  const handleContentSizeChange = useCallback(() => {
+    performInitialScroll();
+  }, [performInitialScroll]);
 
   // The unread lookup can finish after FlatList's first content-size event.
   // Re-attempt positioning when the resolved destination becomes available.
   useEffect(() => {
     if (loading || initialPosition.kind === 'resolving' || initialScrollDoneRef.current) return;
-    const frame = requestAnimationFrame(handleContentSizeChange);
-    return () => cancelAnimationFrame(frame);
-  }, [loading, initialPosition, handleContentSizeChange]);
+    const frame = requestAnimationFrame(performInitialScroll);
+    const timer = setTimeout(performInitialScroll, 120);
+    return () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(timer);
+    };
+  }, [loading, initialPosition, messages.length, performInitialScroll]);
 
   // For subsequent new messages (after initial load)
   useEffect(() => {
@@ -631,7 +657,7 @@ export default function ConversationScreen() {
     if (!last || last.message_id === lastMsgIdRef.current) return;
     lastMsgIdRef.current = last.message_id;
     if (isNearTailRef.current || last.sender_user_id === myId) {
-      requestAnimationFrame(() => scrollToTail(true));
+      requestAnimationFrame(() => scrollToTail(Platform.OS !== 'android'));
       setUnseenMessageCount(0);
     } else {
       setUnseenMessageCount(count => count + 1);
@@ -1136,7 +1162,7 @@ export default function ConversationScreen() {
             </ScrollView>
           )
         ) : (
-          <>
+          <View style={styles.chatListWrap}>
           <FlatList
             ref={listRef}
             data={messages}
@@ -1149,6 +1175,11 @@ export default function ConversationScreen() {
             viewabilityConfig={CHAT_VIEWABILITY_CONFIG}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="interactive"
+            removeClippedSubviews={Platform.OS === 'android'}
+            initialNumToRender={18}
+            maxToRenderPerBatch={8}
+            updateCellsBatchingPeriod={40}
+            windowSize={9}
             style={!listIsReady && { opacity: 0 }}
             renderItem={({ item, index }) => {
               if (item.is_deleted) return null;
@@ -1489,7 +1520,12 @@ export default function ConversationScreen() {
               <Text style={styles.newMessagesChipText}>{toFaDigits(unseenMessageCount)} پیام جدید</Text>
             </TouchableOpacity>
           )}
-          </>
+          {!listIsReady && (
+            <View style={styles.initialScrollLoader} pointerEvents="none">
+              <ActivityIndicator color={Colors.accent} />
+            </View>
+          )}
+          </View>
         )}
 
         {connectionState !== 'connected' && connectionState !== 'disabled' && (
@@ -2066,6 +2102,17 @@ const styles = StyleSheet.create({
   headerSub: { fontSize: 10.5, fontFamily: Fonts.regular, color: Colors.trust, marginTop: 1 },
 
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  chatListWrap: { flex: 1 },
+  initialScrollLoader: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: Colors.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
   listContent: {
     padding: Spacing.md,

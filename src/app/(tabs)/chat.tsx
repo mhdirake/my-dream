@@ -14,8 +14,8 @@ import { Check, Clock, Search, X } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
+  Modal,
   Platform,
   Pressable,
   RefreshControl,
@@ -94,6 +94,7 @@ export default function ChatScreen() {
   const [responding, setResponding] = useState<number | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [lockedGroupModal, setLockedGroupModal] = useState<LockedGroup | null>(null);
   const searchRef = useRef<TextInput>(null);
 
   useEffect(() => {
@@ -174,16 +175,7 @@ export default function ChatScreen() {
   const pendingCount = requestsList.length;
 
   const openLockedGroup = (group: LockedGroup) => {
-    Alert.alert(
-      group.title,
-      group.groupKey === 'gold'
-        ? 'برای ورود به این گروه باید اشتراک طلایی فعال داشته باشی.'
-        : 'برای ورود به این گروه باید اشتراک نقره‌ای یا طلایی فعال داشته باشی.',
-      [
-        { text: 'بعداً', style: 'cancel' },
-        { text: 'مشاهده اشتراک‌ها', onPress: () => router.push('/subscription' as never) },
-      ],
-    );
+    setLockedGroupModal(group);
   };
 
   return (
@@ -317,6 +309,14 @@ export default function ChatScreen() {
         />
       )}
       </KeyboardAvoider>
+      <LockedGroupModal
+        group={lockedGroupModal}
+        onClose={() => setLockedGroupModal(null)}
+        onSubscribe={() => {
+          setLockedGroupModal(null);
+          router.push('/subscription' as never);
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -338,6 +338,49 @@ const MSG_TYPE_FALLBACK: Record<string, string> = {
   sticker: '😊 استیکر',
   gif: '🎞 گیف',
 };
+
+function LockedGroupModal({
+  group,
+  onClose,
+  onSubscribe,
+}: {
+  group: LockedGroup | null;
+  onClose: () => void;
+  onSubscribe: () => void;
+}) {
+  const isGold = group?.groupKey === 'gold';
+
+  return (
+    <Modal visible={!!group} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.modalOverlay} onPress={onClose}>
+        <Pressable style={styles.lockedDialog}>
+          <LinearGradient
+            colors={isGold ? ['#FEF3DD', '#FFF9ED'] : ['#EEF7FF', '#F6FBFF']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.lockedDialogIcon}
+          >
+            <Text style={styles.lockedDialogIconTxt}>{isGold ? 'ط' : 'ن'}</Text>
+          </LinearGradient>
+          <Text style={styles.lockedDialogTitle}>{group?.title ?? ''}</Text>
+          <Text style={styles.lockedDialogBody}>
+            {isGold
+              ? 'برای ورود به این گروه باید اشتراک طلایی فعال داشته باشی.'
+              : 'برای ورود به این گروه باید اشتراک نقره‌ای یا طلایی فعال داشته باشی.'}
+          </Text>
+          <View style={styles.lockedDialogActions}>
+            <TouchableOpacity style={styles.lockedDialogCancel} onPress={onClose} activeOpacity={0.8}>
+              <Text style={styles.lockedDialogCancelTxt}>بعداً</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.lockedDialogCta} onPress={onSubscribe} activeOpacity={0.85}>
+              <Text style={styles.lockedDialogCtaTxt}>مشاهده اشتراک‌ها</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
 
 function LockedGroupRow({ group, onPress }: { group: LockedGroup; onPress: () => void }) {
   const isGold = group.groupKey === 'gold';
@@ -626,6 +669,66 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   lockPillTxt: { fontSize: 10, fontFamily: Fonts.bold, color: Colors.accent },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.38)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.xl,
+  },
+  lockedDialog: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    borderColor: Colors.hair,
+    padding: Spacing.xl,
+    alignItems: 'center',
+    gap: 12,
+  },
+  lockedDialogIcon: {
+    width: 54,
+    height: 54,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  lockedDialogIconTxt: { fontSize: 18, fontFamily: Fonts.extraBold, color: Colors.ink },
+  lockedDialogTitle: {
+    fontSize: 15.5,
+    fontFamily: Fonts.extraBold,
+    color: Colors.ink,
+    textAlign: 'center',
+  },
+  lockedDialogBody: {
+    fontSize: 12.5,
+    fontFamily: Fonts.regular,
+    color: Colors.inkSoft,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  lockedDialogActions: { flexDirection: 'row', gap: 10, alignSelf: 'stretch', marginTop: 4 },
+  lockedDialogCancel: {
+    flex: 1,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.bg,
+    borderWidth: 1,
+    borderColor: Colors.hair,
+    alignItems: 'center',
+    paddingVertical: 11,
+  },
+  lockedDialogCancelTxt: { fontSize: 13, fontFamily: Fonts.semiBold, color: Colors.ink },
+  lockedDialogCta: {
+    flex: 1.25,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 11,
+  },
+  lockedDialogCtaTxt: { fontSize: 13, fontFamily: Fonts.bold, color: '#fff' },
 
   // Active row
   chatRow: {
