@@ -13,11 +13,11 @@ interface CardProps {
 }
 
 const tintStyles: Record<CardTint, ViewStyle> = {
-  rose:   { backgroundColor: '#FCE8ED', borderColor: Colors.accent + '22' },
-  purple: { backgroundColor: '#EDE7F8', borderColor: Colors.purple + '22' },
-  trust:  { backgroundColor: '#E6F0FD', borderColor: Colors.trust + '22'  },
-  ok:     { backgroundColor: '#E2F7F1', borderColor: Colors.ok + '22'     },
-  gold:   { backgroundColor: '#FEF3DD', borderColor: Colors.gold + '33'   },
+  rose:   { backgroundColor: Colors.accentSoft, borderColor: Colors.accent + '38' },
+  purple: { backgroundColor: Colors.purpleSoft, borderColor: Colors.purple + '38' },
+  trust:  { backgroundColor: Colors.trustSoft, borderColor: Colors.trust + '38'  },
+  ok:     { backgroundColor: Colors.okSoft, borderColor: Colors.ok + '38'     },
+  gold:   { backgroundColor: Colors.goldSoft, borderColor: Colors.gold + '42'   },
 };
 
 export function Card({ children, style, soft, dashed, tint, dark }: CardProps) {

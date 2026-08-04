@@ -1380,7 +1380,7 @@ const styles = StyleSheet.create({
   lockedList: { gap: 8 },
   lockedRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: 'rgba(255,255,255,0.6)', borderRadius: 12, padding: 12,
+    backgroundColor: Colors.surface2, borderRadius: 12, padding: 12,
     borderWidth: 1, borderColor: Colors.lineSoft,
   },
   lockedLabel: { flex: 1, fontSize: 12.5, fontFamily: Fonts.semiBold, color: Colors.muted },
@@ -1428,7 +1428,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 8,
     writingDirection: 'ltr',
     paddingHorizontal: 18, paddingTop: 9,
-    backgroundColor: 'rgba(255,255,255,0.96)',
+    backgroundColor: 'rgba(16,19,26,0.96)',
     borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Colors.lineSoft,
   },
   passBtn: {

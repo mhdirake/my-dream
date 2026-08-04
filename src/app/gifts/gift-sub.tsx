@@ -551,7 +551,7 @@ const styles = StyleSheet.create({
   radioDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.accent },
 
   noteCard: {},
-  noteCardTxt: { fontSize: 12, color: '#2C5C8F', fontFamily: Fonts.regular, lineHeight: 19 },
+  noteCardTxt: { fontSize: 12, color: Colors.trust, fontFamily: Fonts.regular, lineHeight: 19 },
 
   amountGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   amountChip: {

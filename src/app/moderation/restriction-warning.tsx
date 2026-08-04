@@ -28,7 +28,7 @@ export default function RestrictionWarningScreen() {
     <SafeAreaView style={styles.root}>
       <View style={styles.content}>
         <View style={styles.iconWrap}>
-          <AlertTriangle size={32} color="#E67E22" strokeWidth={2} />
+          <AlertTriangle size={32} color={Colors.warn} strokeWidth={2} />
         </View>
 
         <Text style={styles.title}>هشدار رفتاری</Text>
@@ -101,21 +101,21 @@ const styles = StyleSheet.create({
 
   iconWrap: {
     width: 64, height: 64, borderRadius: 32,
-    borderWidth: 2, borderColor: '#E67E2255',
-    backgroundColor: '#E67E2218',
+    borderWidth: 2, borderColor: Colors.warn + '55',
+    backgroundColor: Colors.warnSoft,
     alignItems: 'center', justifyContent: 'center',
     marginBottom: 4,
   },
-  title: { fontSize: 20, fontFamily: Fonts.extraBold, color: '#E67E22' },
+  title: { fontSize: 20, fontFamily: Fonts.extraBold, color: Colors.warn },
   body: {
     fontSize: 13.5, fontFamily: Fonts.regular, color: Colors.inkSoft,
     textAlign: 'center', lineHeight: 22,
   },
 
   detailCard: {
-    width: '100%', backgroundColor: '#FFF3E0',
+    width: '100%', backgroundColor: Colors.warnSoft,
     borderRadius: Radius.lg, padding: Spacing.md,
-    borderWidth: 1, borderColor: '#E67E2233', alignItems: 'center',
+    borderWidth: 1, borderColor: Colors.warn + '33', alignItems: 'center',
   },
   detailLabel: { fontSize: 14, fontFamily: Fonts.bold, color: Colors.ink },
   detailSub: { fontSize: 12, fontFamily: Fonts.regular, color: Colors.muted, marginTop: 4 },
@@ -129,8 +129,8 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     backgroundColor: Colors.surface,
   },
-  ladderBoxPast: { backgroundColor: '#E67E2233', borderColor: '#E67E2255' },
-  ladderBoxCurrent: { backgroundColor: '#E67E22', borderColor: '#E67E22' },
+  ladderBoxPast: { backgroundColor: Colors.warnSoft, borderColor: Colors.warn + '55' },
+  ladderBoxCurrent: { backgroundColor: Colors.warn, borderColor: Colors.warn },
   ladderBoxBan: { backgroundColor: Colors.dangerSoft, borderColor: Colors.dangerSoft },
   ladderTxt: { fontSize: 10, fontFamily: Fonts.semiBold, color: Colors.muted },
   ladderTxtCurrent: { color: '#fff' },

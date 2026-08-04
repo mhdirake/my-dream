@@ -41,7 +41,7 @@ export default function SilverDetailScreen() {
         {/* Hero */}
         <View style={styles.hero}>
           <LinearGradient
-            colors={['#3A8FE8', '#4E9AF1']}
+            colors={[Colors.trust, Colors.ok]}
             style={StyleSheet.absoluteFill}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
           />

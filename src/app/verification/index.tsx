@@ -103,7 +103,7 @@ export default function VerificationScreen() {
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
           {/* Header */}
-          <LinearGradient colors={['#E6F0FD', '#EDE7F8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
+          <LinearGradient colors={[Colors.trustSoft, Colors.purpleSoft]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
             <Shield size={30} color={Colors.trust} strokeWidth={1.8} />
             <Text style={styles.heroTitle}>سیستم تأیید My Dream</Text>
             <Text style={styles.heroSub}>

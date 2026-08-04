@@ -13,6 +13,7 @@ import Toast from 'react-native-toast-message';
 import { toastConfig } from '@/components/ui/ToastConfig';
 import { PrivacyGuard } from '@/components/privacy/PrivacyGuard';
 import { KeyboardViewport } from '@/components/ui/KeyboardViewport';
+import { Colors } from '@/constants/colors';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -40,10 +41,10 @@ export default function RootLayout() {
   if (!fontsLoaded) return null;
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: Colors.bg }}>
       <PrivacyGuard>
         <SafeAreaProvider initialMetrics={Platform.OS === 'web' ? WEB_INITIAL_SAFE_AREA_METRICS : undefined}>
-          <StatusBar style="dark" />
+          <StatusBar style="light" />
           <AuthProvider>
             <ModerationProvider>
               <CentrifugoProvider>

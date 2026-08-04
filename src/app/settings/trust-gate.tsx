@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
 
   infoCard: { marginTop: 4 },
   infoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  infoTxt: { flex: 1, fontSize: 12, fontFamily: Fonts.regular, color: '#2C5C8F', lineHeight: 19 },
+  infoTxt: { flex: 1, fontSize: 12, fontFamily: Fonts.regular, color: Colors.trust, lineHeight: 19 },
 
   bottomBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,

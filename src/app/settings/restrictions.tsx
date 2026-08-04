@@ -213,9 +213,9 @@ const styles = StyleSheet.create({
     borderRadius: Radius.xl, padding: Spacing.xl,
     borderWidth: 1.5,
   },
-  statusClean: { backgroundColor: Colors.okSoft + '80', borderColor: Colors.ok + '60' },
+  statusClean: { backgroundColor: Colors.okSoft,        borderColor: Colors.ok + '60' },
   statusWarn:  { backgroundColor: Colors.goldSoft,      borderColor: Colors.gold + '80' },
-  statusBan:   { backgroundColor: '#FFF1F0',             borderColor: Colors.danger + '60' },
+  statusBan:   { backgroundColor: Colors.dangerSoft,     borderColor: Colors.danger + '60' },
 
   statusText: { flex: 1 },
   statusTitle: { fontSize: 15, fontFamily: Fonts.extraBold, color: Colors.ink },

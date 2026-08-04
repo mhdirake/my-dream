@@ -110,10 +110,10 @@ function TabsNav() {
             right: 16,
             height: 68,
             borderRadius: 30,
-            backgroundColor: 'rgba(255,251,249,0.96)',
+            backgroundColor: 'rgba(16,19,26,0.96)',
             borderTopWidth: 0,
             elevation: 20,
-            shadowColor: '#6C4AB6',
+            shadowColor: Colors.purple,
             shadowOffset: { width: 0, height: 8 },
             shadowOpacity: 0.15,
             shadowRadius: 20,
@@ -200,7 +200,7 @@ function TabIcon({ icon: Icon, focused, fill = false }: { icon: LucideIcon; focu
   if (focused) {
     return (
       <LinearGradient
-        colors={['#D94F70', '#6C4AB6']}
+        colors={Colors.gradColors}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={{
@@ -213,8 +213,8 @@ function TabIcon({ icon: Icon, focused, fill = false }: { icon: LucideIcon; focu
       >
         <Icon
           size={18}
-          color="#fff"
-          fill={fill ? '#fff' : 'transparent'}
+          color={Colors.onAccent}
+          fill={fill ? Colors.onAccent : 'transparent'}
           strokeWidth={2}
         />
       </LinearGradient>

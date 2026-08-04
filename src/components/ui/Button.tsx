@@ -15,13 +15,13 @@ interface ButtonProps {
 }
 
 const variantStyles: Record<Variant, { bg: string; color: string; border?: string }> = {
-  accent:  { bg: Colors.accent,   color: '#fff' },
-  primary: { bg: Colors.ink,      color: '#fff' },
+  accent:  { bg: Colors.accent,   color: Colors.onAccent },
+  primary: { bg: Colors.surface3, color: Colors.ink, border: Colors.lineSoft },
   outline: { bg: 'transparent',   color: Colors.ink, border: Colors.lineSoft },
-  ghost:   { bg: 'rgba(36,33,42,0.04)', color: Colors.ink },
+  ghost:   { bg: 'rgba(255,255,255,0.04)', color: Colors.ink },
   soft:    { bg: Colors.accentSoft, color: Colors.accent },
-  trust:   { bg: Colors.trust,    color: '#fff' },
-  gold:    { bg: Colors.gold,     color: '#3A2C0A' },
+  trust:   { bg: Colors.trust,    color: Colors.onAqua },
+  gold:    { bg: Colors.gold,     color: Colors.onChampagne },
   danger:  { bg: 'transparent',   color: Colors.danger, border: Colors.danger },
 };
 

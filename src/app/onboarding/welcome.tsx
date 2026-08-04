@@ -82,7 +82,7 @@ function Hero() {
     <View style={styles.hero}>
       {/* Base */}
       <LinearGradient
-        colors={['#080314', '#0F0520', '#090218']}
+        colors={[Colors.bg, Colors.bgSoft, Colors.surface]}
         start={{ x: 0.2, y: 0 }}
         end={{ x: 0.8, y: 1 }}
         style={StyleSheet.absoluteFill}

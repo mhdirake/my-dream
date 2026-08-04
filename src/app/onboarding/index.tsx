@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Dimensions, Image, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+import { Colors } from '@/constants/colors';
 
 const { width } = Dimensions.get('window');
 const GLOW_SIZE = width * 0.84;
@@ -13,7 +14,7 @@ export default function SplashScreen() {
   }, []);
 
   return (
-    <LinearGradient colors={['#181522', '#221E30', '#2A1B3D']} style={styles.root}>
+    <LinearGradient colors={[Colors.bg, Colors.surface, Colors.surface2]} style={styles.root}>
       <Image
         source={require('../../../assets/images/logo-glow.png')}
         style={styles.glow}

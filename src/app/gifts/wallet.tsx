@@ -81,7 +81,7 @@ export default function WalletScreen() {
           {/* Balance card */}
           <View style={styles.balanceCard}>
             <LinearGradient
-              colors={['#1A1528', '#2A2040']}
+              colors={[Colors.surface, Colors.surface2]}
               style={StyleSheet.absoluteFill}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
             />

@@ -145,7 +145,7 @@ export default function PlansScreen() {
               </View>
               <View style={[styles.planCard, styles.silverCard]}>
                 <LinearGradient
-                  colors={['#3A8FE8', '#4E9AF1']}
+                  colors={[Colors.trust, Colors.ok]}
                   style={StyleSheet.absoluteFill}
                   start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                 />
@@ -223,7 +223,7 @@ export default function PlansScreen() {
                   style={styles.goldBtn}
                   onPress={() => router.push('/subscription/gold' as any)}
                 >
-                  <LinearGradient colors={['#F5B84B', '#D9982E']} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+                  <LinearGradient colors={[Colors.gold, Colors.goldDeep]} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
                   <Star size={14} color="#3A2C0A" strokeWidth={2} />
                   <Text style={styles.goldBtnTxt}>بیشتر بدونم</Text>
                 </Pressable>
@@ -239,7 +239,7 @@ export default function PlansScreen() {
 }
 
 function LimitRow({ label, val, light, gold }: { label: string; val: string; light?: boolean; gold?: boolean }) {
-  const color = light ? 'rgba(255,255,255,0.85)' : gold ? Colors.goldSoft : Colors.inkSoft;
+  const color = light ? 'rgba(255,255,255,0.85)' : gold ? Colors.gold : Colors.inkSoft;
   const valColor = light ? '#fff' : gold ? Colors.gold : Colors.ink;
   return (
     <View style={limitStyles.row}>
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
   silverBtnTxt: { fontSize: 14, fontFamily: Fonts.bold, color: '#fff' },
 
   goldCard: {
-    backgroundColor: '#1A1528', borderColor: Colors.gold + '55',
+    backgroundColor: Colors.surface2, borderColor: Colors.gold + '55',
   },
   goldHeader: {
     flexDirection: 'row', justifyContent: 'space-between',

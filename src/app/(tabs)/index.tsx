@@ -191,7 +191,7 @@ function SwipeCard({
         />
       ) : (
         <LinearGradient
-          colors={['#6C4AB6', '#D94F70']}
+          colors={Colors.gradColors}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFill}
@@ -652,7 +652,7 @@ function AiView({ plan, profiles, loading, token }: { plan: string; profiles: Da
           onPress={() => router.push('/subscription' as never)}
         >
           <LinearGradient
-            colors={['#6C4AB6', '#D94F70']}
+            colors={Colors.gradColors}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.goldBtnInner}
@@ -992,7 +992,7 @@ const styles = StyleSheet.create({
   headerActions: { flexDirection: 'row', gap: 8 },
   iconBtn: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.85)',
+    backgroundColor: 'rgba(16,19,26,0.88)',
     alignItems: 'center', justifyContent: 'center',
   },
   iconBtnSafe: { backgroundColor: Colors.okSoft },
@@ -1063,9 +1063,9 @@ const styles = StyleSheet.create({
   compatPill: {
     position: 'absolute', top: 14, left: 14,
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: 'rgba(255,255,255,0.55)',
+    backgroundColor: 'rgba(16,19,26,0.76)',
     borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.8)',
+    borderWidth: 1, borderColor: Colors.line,
   },
   compatTxt: { fontSize: 13, fontFamily: Fonts.extraBold, color: Colors.purple },
 
@@ -1078,10 +1078,10 @@ const styles = StyleSheet.create({
   glassCard: {
     position: 'absolute',
     bottom: 12, left: 12, right: 12,
-    backgroundColor: 'rgba(255,255,255,0.46)',
+    backgroundColor: 'rgba(16,19,26,0.78)',
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.7)',
+    borderColor: Colors.line,
     padding: 14,
   },
   cardNameRow: {
@@ -1207,7 +1207,7 @@ const styles = StyleSheet.create({
   emptyEmoji: { fontSize: 44 },
   emptyIconWrap: {
     width: 68, height: 68, borderRadius: 34,
-    backgroundColor: 'rgba(255,255,255,0.55)',
+    backgroundColor: Colors.surface2,
     alignItems: 'center', justifyContent: 'center',
     marginBottom: 4,
   },
@@ -1225,7 +1225,7 @@ const styles = StyleSheet.create({
   },
   dailyCompat: {
     position: 'absolute', bottom: 5, alignSelf: 'center',
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    backgroundColor: 'rgba(16,19,26,0.9)',
     borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2,
     flexDirection: 'row', alignItems: 'center', gap: 3,
   },

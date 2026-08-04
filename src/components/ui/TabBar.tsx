@@ -27,9 +27,9 @@ export function TabBar({ active, onPress }: TabBarProps) {
             <View style={[styles.pill, on && styles.pillActive]}>
               <t.icon
                 size={19}
-                color={on ? '#fff' : Colors.muted}
+                color={on ? Colors.onAccent : Colors.muted}
                 strokeWidth={on ? 2.2 : 1.7}
-                fill={on && t.id === 'likes' ? '#fff' : 'none'}
+                fill={on && t.id === 'likes' ? Colors.onAccent : 'none'}
               />
             </View>
             <Text style={[styles.label, on && styles.labelActive]}>{t.label}</Text>
@@ -48,9 +48,9 @@ const styles = StyleSheet.create({
     right: 14,
     height: 64,
     borderRadius: 26,
-    backgroundColor: 'rgba(255,255,255,0.88)',
+    backgroundColor: 'rgba(16,19,26,0.94)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.85)',
+    borderColor: Colors.line,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',

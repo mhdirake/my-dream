@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
   toggleText: { fontSize: 12, fontFamily: Fonts.semiBold, color: Colors.muted },
   toggleTextOn: { color: '#fff' },
   noteCard: { marginBottom: 12 },
-  noteText: { fontSize: 11.5, color: '#2C5C8F', fontFamily: Fonts.regular, lineHeight: 18 },
+  noteText: { fontSize: 11.5, color: Colors.trust, fontFamily: Fonts.regular, lineHeight: 18 },
   bottomBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     padding: Spacing.lg, gap: 8,

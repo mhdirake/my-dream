@@ -65,7 +65,7 @@ function LockedView({
     <View style={styles.lockedWrap}>
       <View style={styles.upsellCard}>
         <LinearGradient
-          colors={['#FEF3DD', '#FCE8ED']}
+          colors={[Colors.goldSoft, Colors.accentSoft]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFill}

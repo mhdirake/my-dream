@@ -32,10 +32,10 @@ const TYPE_META: Record<string, NotifMeta> = {
   conversation_request_accepted: { icon: MessageCircle, color: Colors.trust, bg: Colors.trustSoft },
   match_created:             { icon: Heart,          color: Colors.accent, bg: Colors.accentSoft },
   payment_succeeded:         { icon: Star,           color: Colors.goldDeep, bg: Colors.goldSoft },
-  security_alert:            { icon: AlertTriangle,  color: Colors.danger, bg: '#FFF1F0' },
+  security_alert:            { icon: AlertTriangle,  color: Colors.danger, bg: Colors.dangerSoft },
   profile_viewed:            { icon: Eye,            color: Colors.purple, bg: Colors.purpleSoft },
   badge_earned:              { icon: Star,           color: Colors.goldDeep, bg: Colors.goldSoft },
-  restriction_applied:       { icon: AlertTriangle,  color: Colors.danger, bg: '#FFF1F0' },
+  restriction_applied:       { icon: AlertTriangle,  color: Colors.danger, bg: Colors.dangerSoft },
   subscription_expired:      { icon: Clock,          color: Colors.gold, bg: Colors.goldSoft },
   ai_insight:                { icon: Sparkles,       color: Colors.purple, bg: Colors.purpleSoft },
 };
@@ -427,7 +427,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: Colors.hair,
     position: 'relative',
   },
-  rowUnread: { backgroundColor: Colors.accentSoft + '60' },
+  rowUnread: { backgroundColor: Colors.accentSoft },
 
   unreadDot: {
     position: 'absolute', top: 20, right: 10,

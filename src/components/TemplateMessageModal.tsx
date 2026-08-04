@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 20, marginBottom: 12,
     backgroundColor: Colors.trustSoft, borderRadius: Radius.md, padding: 12,
   },
-  trustTxt: { fontSize: 12, fontFamily: Fonts.regular, color: '#2C5C8F', lineHeight: 18, flex: 1 },
+  trustTxt: { fontSize: 12, fontFamily: Fonts.regular, color: Colors.trust, lineHeight: 18, flex: 1 },
 
   loadingBox: { height: 100, alignItems: 'center', justifyContent: 'center' },
 

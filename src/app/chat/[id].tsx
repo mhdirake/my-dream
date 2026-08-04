@@ -1214,7 +1214,7 @@ export default function ConversationScreen() {
               const isGift = item.message_type === 'gift';
               const BubbleContainer = isGift || !isMine ? LinearGradient : View;
               const gradProps = isGift ? {
-                colors: ['#FEF3DD', '#FCE8ED'] as [string, string],
+                colors: [Colors.goldSoft, Colors.accentSoft] as [string, string],
                 start: { x: 0, y: 0 },
                 end: { x: 1, y: 1 },
               } : isMine ? {} : {
@@ -1979,7 +1979,7 @@ export default function ConversationScreen() {
                 <Text style={styles.giftSheetTitle}>ارسال {selectedGift.title}</Text>
                 <View style={styles.giftPreviewCard}>
                   <LinearGradient
-                    colors={['#FEF3DD', '#FCE8ED']}
+                    colors={[Colors.goldSoft, Colors.accentSoft]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={StyleSheet.absoluteFill}
@@ -2205,13 +2205,13 @@ const styles = StyleSheet.create({
   giftMsgRibbonTxt: { fontFamily: Fonts.bold, fontSize: 10.5, color: Colors.goldDeep },
   giftMsgAssetWrap: {
     width: 92, height: 92, borderRadius: 46, marginTop: 4,
-    backgroundColor: 'rgba(255,255,255,0.75)',
+    backgroundColor: 'rgba(16,19,26,0.75)',
     alignItems: 'center', justifyContent: 'center',
     shadowColor: Colors.goldDeep, shadowOpacity: 0.25, shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 }, elevation: 3,
   },
   giftMsgNotePill: {
-    backgroundColor: 'rgba(255,255,255,0.8)', borderRadius: Radius.md,
+    backgroundColor: 'rgba(16,19,26,0.8)', borderRadius: Radius.md,
     paddingHorizontal: 12, paddingVertical: 7, marginTop: 2, maxWidth: 220,
   },
   bubbleTimeGift: { color: Colors.goldDeep, opacity: 0.75 },
@@ -2473,7 +2473,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 9,
     paddingVertical: 7,
     marginBottom: 7,
-    backgroundColor: '#FFF7FA',
+    backgroundColor: Colors.surface2,
     borderWidth: 1,
     borderColor: Colors.accent + '55',
     overflow: 'hidden',
@@ -2575,7 +2575,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.trustSoft, borderRadius: Radius.lg, padding: 10,
   },
   pendingTxt: {
-    fontSize: 12, fontFamily: Fonts.regular, color: '#2C5C8F',
+    fontSize: 12, fontFamily: Fonts.regular, color: Colors.trust,
     flex: 1, lineHeight: 18,
   },
   reqActions: {

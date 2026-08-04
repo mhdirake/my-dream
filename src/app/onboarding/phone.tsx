@@ -110,5 +110,5 @@ const styles = StyleSheet.create({
     writingDirection: 'ltr',
   },
   note: { marginVertical: 4, flexDirection: "row", textAlign: "right" },
-  noteText: { writingDirection: 'rtl', textAlign: 'right', fontSize: 11.5, color: '#2C5C8F', fontFamily: Fonts.regular, lineHeight: 18 },
+  noteText: { writingDirection: 'rtl', textAlign: 'right', fontSize: 11.5, color: Colors.trust, fontFamily: Fonts.regular, lineHeight: 18 },
 });

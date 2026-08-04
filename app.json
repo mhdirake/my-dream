@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/images/logo.png",
     "scheme": "mobile",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
     "ios": {
       "icon": "./assets/images/logo.png",
       "bundleIdentifier": "mydream.app"
@@ -18,7 +18,7 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "monochromeImage": "./assets/images/monochrome-icon.png",
-        "backgroundColor": "#020109"
+        "backgroundColor": "#080A0E"
       },
       "predictiveBackGestureEnabled": false
     },
@@ -29,8 +29,8 @@
       "shortName": "My Dream",
       "lang": "fa",
       "description": "اپلیکیشن آشنایی و دوستیابی",
-      "themeColor": "#D94F70",
-      "backgroundColor": "#0D0A1E"
+      "themeColor": "#FF6F9F",
+      "backgroundColor": "#080A0E"
     },
     "plugins": [
       [
@@ -42,12 +42,12 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#0D0A1E",
+          "backgroundColor": "#080A0E",
           "image": "./assets/images/logo.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "android": {
-            "backgroundColor": "#0D0A1E"
+            "backgroundColor": "#080A0E"
           }
         }
       ],
@@ -57,7 +57,7 @@
         "expo-notifications",
         {
           "icon": "./assets/images/notification-icon.png",
-          "color": "#D94F70"
+          "color": "#FF6F9F"
         }
       ],
       [

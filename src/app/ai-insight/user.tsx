@@ -87,7 +87,7 @@ export default function UserInsightScreen() {
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
           {/* Hero */}
-          <LinearGradient colors={['#EDE7F8', '#FCE8ED']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
+          <LinearGradient colors={Colors.gradSoftColors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
             <View style={styles.heroIcon}>
               <Sparkles size={28} color={Colors.purple} strokeWidth={1.8} />
             </View>
@@ -132,7 +132,7 @@ export default function UserInsightScreen() {
                 disabled={purchasing}
               >
                 <LinearGradient
-                  colors={['#6C4AB6', '#D94F70']}
+                  colors={Colors.gradColors}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.btnGrad}

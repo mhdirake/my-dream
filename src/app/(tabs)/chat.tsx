@@ -355,7 +355,7 @@ function LockedGroupModal({
       <Pressable style={styles.modalOverlay} onPress={onClose}>
         <Pressable style={styles.lockedDialog}>
           <LinearGradient
-            colors={isGold ? ['#FEF3DD', '#FFF9ED'] : ['#EEF7FF', '#F6FBFF']}
+            colors={isGold ? [Colors.goldSoft, Colors.surface2] : [Colors.trustSoft, Colors.surface2]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.lockedDialogIcon}
@@ -391,7 +391,7 @@ function LockedGroupRow({ group, onPress }: { group: LockedGroup; onPress: () =>
       onPress={onPress}
     >
       <LinearGradient
-        colors={isGold ? ['#FEF3DD', '#FFF9ED'] : ['#EEF7FF', '#F6FBFF']}
+        colors={isGold ? [Colors.goldSoft, Colors.surface2] : [Colors.trustSoft, Colors.surface2]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.lockedGroupIcon}
