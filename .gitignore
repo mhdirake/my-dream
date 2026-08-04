@@ -51,3 +51,7 @@ example
 
 artifacts-local
 .ci-cache/
+
+# Local Codex / RTK profile
+/AGENTS.md
+/RTK.md
