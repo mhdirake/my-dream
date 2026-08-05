@@ -1,5 +1,4 @@
 import Constants from 'expo-constants';
-import * as ExpoNotifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { api } from '../api/client';
 
@@ -8,23 +7,38 @@ export type PushPreferences = {
   active_devices: number;
 };
 
-// Remote push is unavailable in Expo Go on Android, so keep the module idle
-// there while retaining one typed implementation for native builds.
-const isExpoGo = Constants.appOwnership === 'expo';
-const Notifications = isExpoGo ? null : ExpoNotifications;
+type NotificationsModule = typeof import('expo-notifications');
+type NotificationResponse = Awaited<
+  ReturnType<NotificationsModule['getLastNotificationResponseAsync']>
+>;
 
-if (Notifications) {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowBanner: true,
-      shouldShowList: true,
-      shouldPlaySound: false,
-      shouldSetBadge: false,
-    }),
-  });
+// Remote push is unavailable in Expo Go on Android. Import expo-notifications
+// lazily so Expo Go never evaluates the native module.
+const isExpoGo = Constants.appOwnership === 'expo';
+let notificationsPromise: Promise<NotificationsModule | null> | null = null;
+
+async function getNotifications(): Promise<NotificationsModule | null> {
+  if (isExpoGo || Platform.OS === 'web') return null;
+
+  notificationsPromise ??= import('expo-notifications')
+    .then(Notifications => {
+      Notifications.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowBanner: true,
+          shouldShowList: true,
+          shouldPlaySound: false,
+          shouldSetBadge: false,
+        }),
+      });
+      return Notifications;
+    })
+    .catch(() => null);
+
+  return notificationsPromise;
 }
 
 async function ensureAndroidChannel() {
+  const Notifications = await getNotifications();
   if (Platform.OS !== 'android' || !Notifications) return;
   await Notifications.setNotificationChannelAsync('default', {
     name: 'اعلان‌های My Dream',
@@ -34,6 +48,7 @@ async function ensureAndroidChannel() {
 }
 
 export async function registerForPushNotificationsAsync(): Promise<string | null> {
+  const Notifications = await getNotifications();
   if (!Notifications || Platform.OS === 'web') return null;
   try {
     await ensureAndroidChannel();
@@ -55,6 +70,29 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
   } catch {
     return null;
   }
+}
+
+export async function showLocalNotificationFromRealtime(notification: {
+  id: number;
+  type: string;
+  title: string | null;
+  body: string | null;
+}): Promise<void> {
+  const Notifications = await getNotifications();
+  if (!Notifications || Platform.OS === 'web') return;
+
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: notification.title ?? 'My Dream',
+      body: notification.body ?? '',
+      data: {
+        notification_id: notification.id,
+        type: notification.type,
+        url: `/notifications?open=${notification.id}`,
+      },
+    },
+    trigger: null,
+  });
 }
 
 export async function getPushPreferences(authToken: string): Promise<PushPreferences> {
@@ -80,24 +118,34 @@ export async function registerAndSyncPushToken(authToken: string): Promise<void>
   await api.post('/api/client/push-tokens', { token, platform: Platform.OS }, authToken);
 }
 
-function notificationIdFromResponse(response: import('expo-notifications').NotificationResponse): number | null {
+function notificationIdFromResponse(response: NonNullable<NotificationResponse>): number | null {
   const value = response.notification.request.content.data?.notification_id;
   const id = Number(value);
   return Number.isInteger(id) && id > 0 ? id : null;
 }
 
 export function subscribeToPushResponses(onOpen: (notificationId: number) => void): () => void {
-  if (!Notifications) return () => undefined;
+  if (isExpoGo || Platform.OS === 'web') return () => undefined;
 
-  const subscription = Notifications.addNotificationResponseReceivedListener(response => {
-    const notificationId = notificationIdFromResponse(response);
-    if (notificationId) onOpen(notificationId);
+  let subscription: { remove: () => void } | null = null;
+  let cancelled = false;
+
+  getNotifications().then(Notifications => {
+    if (!Notifications || cancelled) return;
+    subscription = Notifications.addNotificationResponseReceivedListener(response => {
+      const notificationId = notificationIdFromResponse(response);
+      if (notificationId) onOpen(notificationId);
+    });
   });
 
-  return () => subscription.remove();
+  return () => {
+    cancelled = true;
+    subscription?.remove();
+  };
 }
 
 export async function consumeLastPushResponse(onOpen: (notificationId: number) => void): Promise<void> {
+  const Notifications = await getNotifications();
   if (!Notifications) return;
 
   const response = await Notifications.getLastNotificationResponseAsync();

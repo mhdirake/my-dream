@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
   benefit: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
   benefitText: { fontSize: 12.5, fontFamily: Fonts.regular, color: Colors.ink, flex: 1 },
   noteCard: { width: '100%' },
-  noteText: { fontSize: 11.5, color: '#2C5C8F', fontFamily: Fonts.regular, lineHeight: 18 },
+  noteText: { fontSize: 11.5, color: Colors.trust, fontFamily: Fonts.regular, lineHeight: 18 },
   bottomBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     padding: Spacing.lg, gap: 8,

@@ -90,7 +90,7 @@ function ProgressRing({ value }: { value: number }) {
     String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
   return (
     <LinearGradient
-      colors={['#FCE8ED', '#EDE7F8']}
+      colors={Colors.gradSoftColors}
       style={styles.ring}
     >
       <View style={styles.ringInner}>

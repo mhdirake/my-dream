@@ -115,7 +115,9 @@ export function useConversations(
 
         // Patch only the affected row. Versioned server events contain an
         // absolute unread count, so duplicates and reconnects cannot inflate it.
+        let foundConversation = false;
         setConversations(prev => {
+          foundConversation = prev.some(c => c.public_id === convPublicId);
           const updated = prev.map(c =>
             c.public_id === convPublicId
               ? {
@@ -130,6 +132,11 @@ export function useConversations(
           );
           return sortByLastMessage(updated);
         });
+
+        if (!foundConversation) {
+          fetchConversations();
+          return;
+        }
 
         if (!p.is_sender) {
           queueMicrotask(() => {

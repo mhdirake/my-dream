@@ -39,7 +39,7 @@ export function RestrictionBanner() {
 const styles = StyleSheet.create({
   banner: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: '#E67E22',
+    backgroundColor: Colors.warn,
     paddingHorizontal: 14, paddingVertical: 8,
   },
   txt: { flex: 1, fontSize: 12, fontFamily: Fonts.semiBold, color: '#fff' },

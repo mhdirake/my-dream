@@ -5,6 +5,7 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { Conversation, ConversationUser, chatApi, conversationPeer } from '@/lib/api/chat';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useConversations } from '@/lib/chat/useConversations';
+import { formatPersianTime } from '@/lib/date/persian';
 import { toFaDigits } from '@/lib/localization';
 import { toast } from '@/lib/toast';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -14,6 +15,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Modal,
   Platform,
   Pressable,
   RefreshControl,
@@ -35,11 +37,42 @@ function timeAgo(iso: string | null | undefined) {
   const diff = (Date.now() - d.getTime()) / 1000;
   if (diff < 60) return 'همین الان';
   if (diff < 3600) return `${Math.floor(diff / 60)} دقیقه`;
-  if (diff < 86400) return d.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
+  if (diff < 86400) return formatPersianTime(iso);
   return 'دیروز';
 }
 
 type Tab = 'all' | 'requests';
+
+type LockedGroup = {
+  kind: 'locked_group';
+  id: string;
+  groupKey: 'silver' | 'gold';
+  title: string;
+  subtitle: string;
+};
+
+type ChatListItem = Conversation | LockedGroup;
+
+const LOCKED_GROUPS: LockedGroup[] = [
+  {
+    kind: 'locked_group',
+    id: 'locked-silver',
+    groupKey: 'silver',
+    title: 'گفتگوی گروهی نقره‌ای',
+    subtitle: 'برای اعضای اشتراک نقره‌ای و طلایی',
+  },
+  {
+    kind: 'locked_group',
+    id: 'locked-gold',
+    groupKey: 'gold',
+    title: 'گفتگوی گروهی طلایی',
+    subtitle: 'فضای اختصاصی کاربران طلایی',
+  },
+];
+
+function isLockedGroup(item: ChatListItem): item is LockedGroup {
+  return 'kind' in item && item.kind === 'locked_group';
+}
 
 export default function ChatScreen() {
   const { session, user } = useAuth();
@@ -61,6 +94,7 @@ export default function ChatScreen() {
   const [responding, setResponding] = useState<number | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [lockedGroupModal, setLockedGroupModal] = useState<LockedGroup | null>(null);
   const searchRef = useRef<TextInput>(null);
 
   useEffect(() => {
@@ -120,17 +154,29 @@ export default function ChatScreen() {
   const activeConversations = conversations.filter(
     c => c.status === 'accepted' || c.status === 'locked',
   );
+  const activeGroupKeys = new Set(activeConversations.filter(c => c.type === 'group').map(c => c.group_key));
+  const lockedGroupPreviews = LOCKED_GROUPS.filter(group => !activeGroupKeys.has(group.groupKey));
 
   const q = query.trim().toLowerCase();
-  const filtered = (tab === 'all' ? activeConversations : requestsList).filter(c => {
+  const allItems: ChatListItem[] = tab === 'all'
+    ? [...lockedGroupPreviews, ...activeConversations]
+    : requestsList;
+  const filtered = allItems.filter(item => {
     if (!q) return true;
-    const other = otherUser(c);
+    if (isLockedGroup(item)) {
+      return item.title.toLowerCase().includes(q) || item.subtitle.toLowerCase().includes(q);
+    }
+    const other = otherUser(item);
     return (other.first_name ?? '').toLowerCase().includes(q) ||
            (other.last_name ?? '').toLowerCase().includes(q) ||
            (other.username ?? '').toLowerCase().includes(q);
   });
   const displayed = filtered;
   const pendingCount = requestsList.length;
+
+  const openLockedGroup = (group: LockedGroup) => {
+    setLockedGroupModal(group);
+  };
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -226,14 +272,16 @@ export default function ChatScreen() {
       ) : (
         <FlatList
           data={displayed}
-          keyExtractor={item => String(item.id)}
+          keyExtractor={item => isLockedGroup(item) ? item.id : String(item.id)}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[styles.list, { paddingBottom: bottom + 92 }]}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={Colors.accent} />
           }
           renderItem={({ item: c }) =>
-            tab === 'all' ? (
+            isLockedGroup(c) ? (
+              <LockedGroupRow group={c} onPress={() => openLockedGroup(c)} />
+            ) : tab === 'all' ? (
                 <ActiveRow
                   conversation={c}
                   myId={myId}
@@ -261,6 +309,14 @@ export default function ChatScreen() {
         />
       )}
       </KeyboardAvoider>
+      <LockedGroupModal
+        group={lockedGroupModal}
+        onClose={() => setLockedGroupModal(null)}
+        onSubscribe={() => {
+          setLockedGroupModal(null);
+          router.push('/subscription' as never);
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -282,6 +338,78 @@ const MSG_TYPE_FALLBACK: Record<string, string> = {
   sticker: '😊 استیکر',
   gif: '🎞 گیف',
 };
+
+function LockedGroupModal({
+  group,
+  onClose,
+  onSubscribe,
+}: {
+  group: LockedGroup | null;
+  onClose: () => void;
+  onSubscribe: () => void;
+}) {
+  const isGold = group?.groupKey === 'gold';
+
+  return (
+    <Modal visible={!!group} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.modalOverlay} onPress={onClose}>
+        <Pressable style={styles.lockedDialog}>
+          <LinearGradient
+            colors={isGold ? [Colors.goldSoft, Colors.surface2] : [Colors.trustSoft, Colors.surface2]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.lockedDialogIcon}
+          >
+            <Text style={styles.lockedDialogIconTxt}>{isGold ? 'ط' : 'ن'}</Text>
+          </LinearGradient>
+          <Text style={styles.lockedDialogTitle}>{group?.title ?? ''}</Text>
+          <Text style={styles.lockedDialogBody}>
+            {isGold
+              ? 'برای ورود به این گروه باید اشتراک طلایی فعال داشته باشی.'
+              : 'برای ورود به این گروه باید اشتراک نقره‌ای یا طلایی فعال داشته باشی.'}
+          </Text>
+          <View style={styles.lockedDialogActions}>
+            <TouchableOpacity style={styles.lockedDialogCancel} onPress={onClose} activeOpacity={0.8}>
+              <Text style={styles.lockedDialogCancelTxt}>بعداً</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.lockedDialogCta} onPress={onSubscribe} activeOpacity={0.85}>
+              <Text style={styles.lockedDialogCtaTxt}>مشاهده اشتراک‌ها</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+function LockedGroupRow({ group, onPress }: { group: LockedGroup; onPress: () => void }) {
+  const isGold = group.groupKey === 'gold';
+
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.lockedGroupRow, pressed && { backgroundColor: Colors.ph2 }]}
+      onPress={onPress}
+    >
+      <LinearGradient
+        colors={isGold ? [Colors.goldSoft, Colors.surface2] : [Colors.trustSoft, Colors.surface2]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.lockedGroupIcon}
+      >
+        <Text style={styles.lockedGroupIconTxt}>{isGold ? 'ط' : 'ن'}</Text>
+      </LinearGradient>
+      <View style={styles.chatInfo}>
+        <View style={styles.chatTop}>
+          <Text style={styles.chatName}>{group.title}</Text>
+          <View style={styles.lockPill}>
+            <Text style={styles.lockPillTxt}>اشتراک</Text>
+          </View>
+        </View>
+        <Text style={styles.chatLast} numberOfLines={1}>{group.subtitle}</Text>
+      </View>
+    </Pressable>
+  );
+}
 
 // ── Active conversation row ───────────────────────────────────────
 
@@ -508,6 +636,99 @@ const styles = StyleSheet.create({
   },
 
   list: { paddingHorizontal: Spacing.lg, paddingBottom: 100 },
+
+  // Locked groups
+  lockedGroupRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+    padding: 11,
+    borderRadius: Radius.lg,
+    marginBottom: 6,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.hair,
+  },
+  lockedGroupIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  lockedGroupIconTxt: {
+    fontSize: 17,
+    fontFamily: Fonts.extraBold,
+    color: Colors.ink,
+  },
+  lockPill: {
+    backgroundColor: Colors.accentSoft,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  lockPillTxt: { fontSize: 10, fontFamily: Fonts.bold, color: Colors.accent },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.38)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.xl,
+  },
+  lockedDialog: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    borderColor: Colors.hair,
+    padding: Spacing.xl,
+    alignItems: 'center',
+    gap: 12,
+  },
+  lockedDialogIcon: {
+    width: 54,
+    height: 54,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  lockedDialogIconTxt: { fontSize: 18, fontFamily: Fonts.extraBold, color: Colors.ink },
+  lockedDialogTitle: {
+    fontSize: 15.5,
+    fontFamily: Fonts.extraBold,
+    color: Colors.ink,
+    textAlign: 'center',
+  },
+  lockedDialogBody: {
+    fontSize: 12.5,
+    fontFamily: Fonts.regular,
+    color: Colors.inkSoft,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  lockedDialogActions: { flexDirection: 'row', gap: 10, alignSelf: 'stretch', marginTop: 4 },
+  lockedDialogCancel: {
+    flex: 1,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.bg,
+    borderWidth: 1,
+    borderColor: Colors.hair,
+    alignItems: 'center',
+    paddingVertical: 11,
+  },
+  lockedDialogCancelTxt: { fontSize: 13, fontFamily: Fonts.semiBold, color: Colors.ink },
+  lockedDialogCta: {
+    flex: 1.25,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 11,
+  },
+  lockedDialogCtaTxt: { fontSize: 13, fontFamily: Fonts.bold, color: '#fff' },
 
   // Active row
   chatRow: {

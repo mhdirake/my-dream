@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderRadius: Radius.lg,
     overflow: 'hidden',
-    shadowColor: '#6C4AB6',
+    shadowColor: Colors.purple,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.14,
     shadowRadius: 20,

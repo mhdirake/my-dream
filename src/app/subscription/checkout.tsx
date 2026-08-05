@@ -20,10 +20,12 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 type Plan = { id: number; name: string; slug: string; price_amount: number };
 
 const PERIODS = [
-  { key: 'quarterly',label: '۳ ماهه', mult: 2.7, discount: '۱۰٪' },
   { key: 'monthly',  label: 'ماهانه',  mult: 1,   discount: null },
+  { key: 'quarterly',label: '۳ ماهه', mult: 2.7, discount: '۱۰٪' },
   { key: 'yearly',   label: 'سالانه', mult: 9,   discount: '۲۵٪' },
 ] as const;
+
+const PLAN_PRIORITY: Record<string, number> = { basic: 0, silver: 1, gold: 2 };
 
 const METHODS = [
   { key: 'card',    label: 'پرداخت آنلاین (درگاه بانکی)', icon: CreditCard },
@@ -51,8 +53,18 @@ export default function CheckoutScreen() {
 
   useEffect(() => {
     if (!session?.accessToken) return;
-    api.get<{ data: Plan[] }>('/api/lookups/subscription-plans', session.accessToken)
-      .then(res => {
+    Promise.all([
+      api.get<{ data: Plan[] }>('/api/lookups/subscription-plans', session.accessToken),
+      api.get<{ data: { active_subscription: { plan: { slug: string } } | null } }>('/api/client/profile', session.accessToken),
+    ])
+      .then(([res, profileRes]) => {
+        const currentSlug = profileRes.data?.active_subscription?.plan?.slug ?? 'basic';
+        if ((PLAN_PRIORITY[planSlug] ?? 0) < (PLAN_PRIORITY[currentSlug] ?? 0)) {
+          toast.error('تا پایان اشتراک فعلی امکان خرید پلن پایین‌تر وجود ندارد');
+          router.replace('/subscription' as any);
+          return;
+        }
+
         const found = res.data.find((p: Plan) => p.slug === planSlug);
         if (found) setPlan(found);
       })

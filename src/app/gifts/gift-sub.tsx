@@ -101,7 +101,7 @@ export default function GiftSubScreen() {
     let active = true;
     const timeout = setTimeout(() => {
       setSearching(true);
-      searchApi.search(token, cleaned, 8)
+      searchApi.search(token, cleaned, 8, 1, 'gift')
         .then(result => {
           if (active) setSuggestions(result.data);
         })
@@ -194,7 +194,7 @@ export default function GiftSubScreen() {
     if (hasUserId) return Number(params.userId);
     const cleaned = username.trim().replace(/^@/, '');
     if (selectedReceiverId) return selectedReceiverId;
-    const result = await searchApi.search(session!.accessToken, cleaned, 20);
+    const result = await searchApi.search(session!.accessToken, cleaned, 20, 1, 'gift');
     const match = result.data.find(u => u.username.toLowerCase() === cleaned.toLowerCase());
     return match?.id ?? null;
   };
@@ -371,7 +371,7 @@ export default function GiftSubScreen() {
                   <Text style={styles.balAmt}>{toPersian(coins ?? 0)} سکه</Text>
                 </View>
                 {(coins ?? 0) < coinAmount && (
-                  <Text style={styles.insuffTxt}>سکه کافی نداری</Text>
+                  <Text style={styles.insuffTxt}>لطفاً اول سکه بخر</Text>
                 )}
               </Card>
             </>
@@ -581,7 +581,7 @@ const styles = StyleSheet.create({
   radioDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.accent },
 
   noteCard: {},
-  noteCardTxt: { fontSize: 12, color: '#2C5C8F', fontFamily: Fonts.regular, lineHeight: 19 },
+  noteCardTxt: { fontSize: 12, color: Colors.trust, fontFamily: Fonts.regular, lineHeight: 19 },
 
   amountGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   amountChip: {

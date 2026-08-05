@@ -15,7 +15,7 @@ export default function Root({ children }: PropsWithChildren) {
         />
 
         {/* PWA */}
-        <meta name="theme-color" content="#D94F70" />
+        <meta name="theme-color" content="#FF6F9F" />
         <meta name="application-name" content="My Dream" />
         <meta name="description" content="اپلیکیشن آشنایی و دوستیابی" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -38,7 +38,7 @@ export default function Root({ children }: PropsWithChildren) {
             overflow: hidden;
             overscroll-behavior: none;
           }
-          body { direction: rtl; background: #0D0A1E; }
+          body { direction: rtl; background: #080A0E; }
           #root {
             max-width: 600px;
             width: 100%;
@@ -50,8 +50,19 @@ export default function Root({ children }: PropsWithChildren) {
             box-shadow: 0 0 60px rgba(0,0,0,0.5);
           }
           input, textarea, [contenteditable="true"] {
+            -webkit-tap-highlight-color: transparent;
+            -webkit-text-size-adjust: 100%;
+            font-size: 16px;
+            outline: none !important;
+            box-shadow: none !important;
+            -webkit-appearance: none;
+            appearance: none;
             scroll-margin-top: 20px;
             scroll-margin-bottom: calc(var(--keyboard-inset) + 20px);
+          }
+          input:focus, textarea:focus, [contenteditable="true"]:focus {
+            outline: none !important;
+            box-shadow: none !important;
           }
         ` }} />
         {headNodes}

@@ -28,6 +28,8 @@ RUN npx tsc --noEmit
 RUN npx eslint \
   src/lib/api/auth.ts \
   src/lib/api/client.ts \
+  src/lib/passwordResetStore.ts \
+  src/lib/passwordResetStore.test.ts \
   src/lib/api/chat.ts \
   src/lib/chat/CentrifugoContext.tsx \
   src/lib/chat/useChatMessages.ts \
@@ -41,7 +43,12 @@ RUN npx eslint \
   src/app/chat/\[id\].tsx \
   src/app/\(tabs\)/chat.tsx \
   src/lib/notifications/push.ts \
-  src/app/notifications.tsx
+  src/app/notifications.tsx \
+  src/app/onboarding/forgot-password.tsx \
+  src/app/onboarding/forgot-password-otp.tsx \
+  src/app/onboarding/reset-password.tsx \
+  src/app/onboarding/login.tsx \
+  src/app/onboarding/welcome.tsx
 RUN ! grep -R -E "EXPO_PUBLIC_KC_SECRET|process\.env\.KC_SECRET|grant_type.*password" src eas.json app.json
 
 FROM deps AS web-build

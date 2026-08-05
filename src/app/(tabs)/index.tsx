@@ -11,6 +11,7 @@ import { aiCoachApi } from '@/lib/api/ai-coach';
 import { profileApi } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { profileCache } from '@/lib/cache/profileCache';
+import { formatPersianDate, formatPersianTime } from '@/lib/date/persian';
 import { toast } from '@/lib/toast';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -65,12 +66,10 @@ function formatUnlockLabel(iso: string): string {
   const now = new Date();
   const startOfDay = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
   const diffDays = Math.round((startOfDay(d) - startOfDay(now)) / 86400000);
-  const time = d.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
+  const time = formatPersianTime(iso);
   if (diffDays <= 0) return `امروز ساعت ${time}`;
   if (diffDays === 1) return `فردا ساعت ${time}`;
-  const opts: Intl.DateTimeFormatOptions = { month: 'long', day: 'numeric' };
-  if (d.getFullYear() !== now.getFullYear()) opts.year = 'numeric';
-  return `${d.toLocaleDateString('fa-IR', opts)} ساعت ${time}`;
+  return `${formatPersianDate(iso, { year: d.getFullYear() !== now.getFullYear() })} ساعت ${time}`;
 }
 
 function badgeKind(slug: string): 'ai' | 'community' | 'gold' | 'complete' | 'personality' | 'check' {
@@ -192,7 +191,7 @@ function SwipeCard({
         />
       ) : (
         <LinearGradient
-          colors={['#6C4AB6', '#D94F70']}
+          colors={Colors.gradColors}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFill}
@@ -351,6 +350,7 @@ function SwipeView({
   swipeMeta,
   onInteract,
   onExhausted,
+  onProfileUpdate,
 }: {
   profiles: DiscoverProfile[];
   loading: boolean;
@@ -358,6 +358,7 @@ function SwipeView({
   swipeMeta: SwipePoolMeta | null;
   onInteract: (userId: number, type: 'like' | 'pass' | 'swipe_like' | 'swipe_pass') => Promise<boolean>;
   onExhausted: () => void;
+  onProfileUpdate: (userId: number, patch: Partial<DiscoverProfile>) => void;
 }) {
   const { bottom } = useSafeAreaInsets();
   // tab bar: height 68 + bottom: insets.bottom + 8 (from _layout.tsx)
@@ -367,12 +368,13 @@ function SwipeView({
   const [giftTarget, setGiftTarget] = useState<DiscoverProfile | null>(null);
   const [chatTarget, setChatTarget] = useState<DiscoverProfile | null>(null);
   const refilledRef = useRef(false);
+  const profileIdsSignature = profiles.map(profile => profile.id).join(',');
 
   useEffect(() => {
     setIndex(0);
     setLiked(false);
     refilledRef.current = false;
-  }, [profiles]);
+  }, [profileIdsSignature]);
 
   const current = profiles[index];
 
@@ -397,12 +399,20 @@ function SwipeView({
   const handleSwiped = () => setIndex(i => i + 1);
 
   const handleLike = async () => {
-    if (!current || liked) {
-      setLiked(l => !l);
-      return;
-    }
+    if (!current) return;
+    const previousLiked = liked;
+    const previousCount = current.likes_count ?? 0;
+    const optimisticLiked = !previousLiked;
+    const optimisticCount = Math.max(0, previousCount + (optimisticLiked ? 1 : -1));
+
+    setLiked(optimisticLiked);
+    onProfileUpdate(current.id, { liked_by_me: optimisticLiked, likes_count: optimisticCount });
+
     const ok = await onInteract(current.id, 'like');
-    if (ok) setLiked(true);
+    if (!ok) {
+      setLiked(previousLiked);
+      onProfileUpdate(current.id, { liked_by_me: previousLiked, likes_count: previousCount });
+    }
   };
 
   if (loading) {
@@ -642,7 +652,7 @@ function AiView({ plan, profiles, loading, token }: { plan: string; profiles: Da
           onPress={() => router.push('/subscription' as never)}
         >
           <LinearGradient
-            colors={['#6C4AB6', '#D94F70']}
+            colors={Colors.gradColors}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.goldBtnInner}
@@ -867,6 +877,12 @@ export default function DiscoverScreen() {
     fetchProfiles(safeMode);
   }, [fetchProfiles, safeMode]);
 
+  const updateProfile = useCallback((userId: number, patch: Partial<DiscoverProfile>) => {
+    profileCache.patch(userId, patch);
+    setProfiles(prev => prev.map(profile => profile.id === userId ? { ...profile, ...patch } : profile));
+    setDaily(prev => prev.map(profile => profile.id === userId ? { ...profile, ...patch } : profile));
+  }, []);
+
   useEffect(() => {
     if (!session?.accessToken) return;
     profileApi.getProfile(session.accessToken)
@@ -901,6 +917,12 @@ export default function DiscoverScreen() {
     if (!session) return false;
     try {
       const res = await discoverApi.interact(session.accessToken, userId, type);
+      if (type === 'like') {
+        updateProfile(userId, {
+          liked_by_me: !!res.data?.liked_by_me,
+          likes_count: res.data?.likes_count ?? 0,
+        });
+      }
       if (res.data?.mutual && res.data.mutual_user) {
         setMatchInfo({ user: res.data.mutual_user, message: res.data.mutual_message });
       }
@@ -935,10 +957,11 @@ export default function DiscoverScreen() {
             profiles={profiles}
             loading={loading}
             token={session?.accessToken ?? ''}
-            swipeMeta={swipeMeta}
-            onInteract={handleInteract}
-            onExhausted={handleExhausted}
-          />
+          swipeMeta={swipeMeta}
+          onInteract={handleInteract}
+          onExhausted={handleExhausted}
+          onProfileUpdate={updateProfile}
+        />
         )}
         {mode === 'daily' && <DailyView profiles={daily} loading={dailyLoading} meta={dailyMeta} />}
         {mode === 'ai' && <AiView plan={planSlug} profiles={daily} loading={dailyLoading} token={session?.accessToken ?? ''} />}
@@ -978,7 +1001,7 @@ const styles = StyleSheet.create({
   headerActions: { flexDirection: 'row', gap: 8 },
   iconBtn: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.85)',
+    backgroundColor: 'rgba(16,19,26,0.88)',
     alignItems: 'center', justifyContent: 'center',
   },
   iconBtnSafe: { backgroundColor: Colors.okSoft },
@@ -1049,9 +1072,9 @@ const styles = StyleSheet.create({
   compatPill: {
     position: 'absolute', top: 14, left: 14,
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: 'rgba(255,255,255,0.55)',
+    backgroundColor: 'rgba(16,19,26,0.76)',
     borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.8)',
+    borderWidth: 1, borderColor: Colors.line,
   },
   compatTxt: { fontSize: 13, fontFamily: Fonts.extraBold, color: Colors.purple },
 
@@ -1064,10 +1087,10 @@ const styles = StyleSheet.create({
   glassCard: {
     position: 'absolute',
     bottom: 12, left: 12, right: 12,
-    backgroundColor: 'rgba(255,255,255,0.46)',
+    backgroundColor: 'rgba(16,19,26,0.78)',
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.7)',
+    borderColor: Colors.line,
     padding: 14,
   },
   cardNameRow: {
@@ -1193,7 +1216,7 @@ const styles = StyleSheet.create({
   emptyEmoji: { fontSize: 44 },
   emptyIconWrap: {
     width: 68, height: 68, borderRadius: 34,
-    backgroundColor: 'rgba(255,255,255,0.55)',
+    backgroundColor: Colors.surface2,
     alignItems: 'center', justifyContent: 'center',
     marginBottom: 4,
   },
@@ -1211,7 +1234,7 @@ const styles = StyleSheet.create({
   },
   dailyCompat: {
     position: 'absolute', bottom: 5, alignSelf: 'center',
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    backgroundColor: 'rgba(16,19,26,0.9)',
     borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2,
     flexDirection: 'row', alignItems: 'center', gap: 3,
   },

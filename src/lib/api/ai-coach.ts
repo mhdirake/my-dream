@@ -14,7 +14,15 @@ export type CoachMessage = {
   role: 'user' | 'assistant';
   body: string;
   metadata?: {
-    suggestions?: { user_id: number; reason: string }[];
+    suggestions?: {
+      user_id: number;
+      display_name?: string | null;
+      age?: number | null;
+      province?: string | null;
+      relationship_goal?: string | null;
+      compatibility_score?: number | null;
+      reason: string;
+    }[];
   } | null;
   created_at: string;
 };

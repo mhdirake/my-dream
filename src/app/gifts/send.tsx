@@ -88,7 +88,7 @@ export default function SendGiftScreen() {
   }, [query, session?.accessToken, hasParamUser]);
 
   const afterBalance = coins !== null ? coins - coinPrice : null;
-  const canSend = recipientId !== null && (coins ?? 0) >= coinPrice && !sending;
+  const hasInsufficientCoins = (coins ?? 0) < coinPrice;
 
   const handleSend = async () => {
     if (!session?.accessToken || !params.giftId || recipientId === null) return;
@@ -192,7 +192,10 @@ export default function SendGiftScreen() {
               </View>
             )}
             {query.trim().length >= 2 && !searching && results.length === 0 && (
-              <Text style={styles.searchEmpty}>کاربری پیدا نشد</Text>
+              <View style={styles.searchEmptyWrap}>
+                <Text style={styles.searchEmpty}>کاربری پیدا نشد</Text>
+                <Text style={styles.searchEmptySub}>امکان داره کاربر مورد نظر تایید نشده باشد</Text>
+              </View>
             )}
           </View>
         )}
@@ -241,7 +244,7 @@ export default function SendGiftScreen() {
                 </Text>
               </View>
               {(afterBalance ?? 0) < 0 && (
-                <Text style={styles.insuffNote}>سکه کافی نداری — لطفاً اول سکه بخر.</Text>
+                <Text style={styles.insuffNote}>لطفاً اول سکه بخر</Text>
               )}
             </>
           )}
@@ -254,10 +257,10 @@ export default function SendGiftScreen() {
       <KeyboardStickyBar style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <Button
           variant="accent"
-          disabled={!canSend}
-          onPress={handleSend}
+          disabled={sending || (recipientId === null && !hasInsufficientCoins)}
+          onPress={hasInsufficientCoins ? () => router.push('/gifts/buy-coins' as any) : handleSend}
         >
-          {sending ? 'در حال ارسال…' : 'تأیید و ارسال'}
+          {sending ? 'در حال ارسال…' : hasInsufficientCoins ? 'رفتن به خرید سکه' : 'تأیید و ارسال'}
         </Button>
         {recipientId === null && (
           <Text style={styles.bottomNote}>گیرنده مشخص نشده</Text>
@@ -307,10 +310,12 @@ const styles = StyleSheet.create({
   },
   resultName: { fontSize: 13, fontFamily: Fonts.semiBold, color: Colors.ink },
   resultUsername: { fontSize: 11, fontFamily: Fonts.regular, color: Colors.muted, marginTop: 2 },
+  searchEmptyWrap: { alignItems: 'center', marginTop: 10, gap: 3 },
   searchEmpty: {
     fontSize: 12, fontFamily: Fonts.regular, color: Colors.muted,
-    textAlign: 'center', marginTop: 10,
+    textAlign: 'center',
   },
+  searchEmptySub: { fontSize: 10.5, fontFamily: Fonts.regular, color: Colors.muted, textAlign: 'center' },
 
   noteWrap: {
     backgroundColor: Colors.surface, borderRadius: Radius.lg,

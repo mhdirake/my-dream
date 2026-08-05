@@ -1,5 +1,5 @@
 import { Colors, Fonts } from '@/constants/colors';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { Platform, StyleSheet, Text, TextInput, View, type TextStyle } from 'react-native';
 
 interface FieldProps {
   label?: string;
@@ -14,15 +14,26 @@ interface FieldProps {
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   autoCorrect?: boolean;
   maxLength?: number;
+  textDirection?: 'rtl' | 'ltr';
+  keepCursorAtEnd?: boolean;
 }
 
-export function Field({ label, value, placeholder, hint, error, suffix, secureTextEntry, onChangeText, keyboardType, autoCapitalize, autoCorrect, maxLength }: FieldProps) {
+export function Field({ label, value, placeholder, hint, error, suffix, secureTextEntry, onChangeText, keyboardType, autoCapitalize, autoCorrect, maxLength, textDirection, keepCursorAtEnd }: FieldProps) {
+  const directionStyle: TextStyle | null = textDirection === 'ltr'
+    ? styles.inputLtr
+    : textDirection === 'rtl'
+      ? styles.inputRtl
+      : null;
+  const cursorAtEnd = keepCursorAtEnd && Platform.OS !== 'web' && value != null
+    ? { start: value.length, end: value.length }
+    : undefined;
+
   return (
     <View style={styles.wrap}>
       {label && <Text style={styles.label}>{label}</Text>}
       <View style={[styles.box, error && styles.boxError]}>
         <TextInput
-          style={styles.input}
+          style={[styles.input, directionStyle]}
           value={value}
           placeholder={placeholder}
           placeholderTextColor={Colors.muted}
@@ -32,6 +43,7 @@ export function Field({ label, value, placeholder, hint, error, suffix, secureTe
           autoCapitalize={autoCapitalize}
           autoCorrect={autoCorrect}
           maxLength={maxLength}
+          selection={cursorAtEnd}
         />
         {suffix && <Text style={styles.suffix}>{suffix}</Text>}
       </View>
@@ -68,8 +80,12 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.regular,
     color: Colors.ink,
     backgroundColor: Colors.surface,
-    flexDirection: "row"
   },
+  inputLtr: {
+    textAlign: 'left',
+    writingDirection: 'ltr',
+  } as TextStyle,
+  inputRtl: { textAlign: 'right', writingDirection: 'rtl' },
   suffix: { fontSize: 13, color: Colors.muted, fontFamily: Fonts.regular },
   hint: { fontSize: 10.5, color: Colors.muted, marginTop: 5, fontFamily: Fonts.regular },
   hintError: { color: Colors.danger },

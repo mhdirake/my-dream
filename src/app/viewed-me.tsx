@@ -2,6 +2,7 @@ import { Avatar } from '@/components/ui/Avatar';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import {
   ProfileViewSummary,
+  ProfileViewTimelineResponse,
   ProfileViewTimelineItem,
   ViewPackage,
   discoverApi,
@@ -10,7 +11,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { toast } from '@/lib/toast';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { ArrowLeft, Eye, Lock, Sparkles } from 'lucide-react-native';
+import { ArrowRight, Eye, Lock, Sparkles } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -43,6 +44,11 @@ function toPersianDigits(n: number) {
   return String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
 }
 
+function timelineItems(response: ProfileViewTimelineResponse): ProfileViewTimelineItem[] {
+  if (Array.isArray(response.data)) return response.data;
+  return response.data?.data ?? [];
+}
+
 function LockedView({
   count,
   packages,
@@ -59,7 +65,7 @@ function LockedView({
     <View style={styles.lockedWrap}>
       <View style={styles.upsellCard}>
         <LinearGradient
-          colors={['#FEF3DD', '#FCE8ED']}
+          colors={[Colors.goldSoft, Colors.accentSoft]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFill}
@@ -121,7 +127,7 @@ function LockedView({
           style={[StyleSheet.absoluteFill, { borderRadius: Radius.pill }]}
         />
         <Sparkles size={16} color="#fff" strokeWidth={2} />
-        <Text style={styles.upgradeBtnTxt}>ارتقا به اشتراک نقره‌ای</Text>
+        <Text style={styles.upgradeBtnTxt}>فعال‌سازی دسترسی</Text>
       </TouchableOpacity>
     </View>
   );
@@ -169,6 +175,7 @@ export default function ViewedMeScreen() {
   const [purchasing, setPurchasing] = useState(false);
 
   const isUnlocked = summary?.has_active_access === true;
+  const totalViewers = summary?.total_count ?? 0;
 
   const load = useCallback(async () => {
     if (!session) return;
@@ -177,9 +184,16 @@ export default function ViewedMeScreen() {
       const s = await discoverApi.getProfileViewSummary(session.accessToken);
       setSummary(s);
       if (s.has_active_access) {
-        const timeline = await discoverApi.getProfileViewTimeline(session.accessToken);
-        setViews(timeline.data?.data ?? []);
+        try {
+          const timeline = await discoverApi.getProfileViewTimeline(session.accessToken);
+          setSummary(timeline.summary ?? s);
+          setViews(timelineItems(timeline));
+        } catch {
+          setViews([]);
+        }
+        setPackages([]);
       } else {
+        setViews([]);
         const pkgs = await discoverApi.getViewPackages(session.accessToken);
         setPackages(pkgs);
       }
@@ -203,6 +217,7 @@ export default function ViewedMeScreen() {
       await discoverApi.purchaseViewAccess(session.accessToken, pkg.id);
       toast.success('دسترسی فعال شد');
       setLoading(true);
+      setSummary(prev => prev ? { ...prev, has_active_access: true, locked: false } : prev);
       await load();
     } catch (e) {
       const msg = e instanceof Error && e.message.includes('coin') ? 'سکه کافی نداری' : 'خرید انجام نشد';
@@ -219,12 +234,12 @@ export default function ViewedMeScreen() {
           style={styles.backBtn}
           onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/me' as never)}
         >
-          <ArrowLeft size={20} color={Colors.ink} strokeWidth={2.5} />
+          <ArrowRight size={20} color={Colors.ink} strokeWidth={2.5} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>کی منو دید؟</Text>
-        {isUnlocked && views.length > 0 ? (
+        {isUnlocked && totalViewers > 0 ? (
           <View style={styles.countBadge}>
-            <Text style={styles.countTxt}>{toPersianDigits(views.length)}</Text>
+            <Text style={styles.countTxt}>{toPersianDigits(totalViewers)}</Text>
           </View>
         ) : (
           <View style={{ width: 36 }} />
@@ -256,8 +271,16 @@ export default function ViewedMeScreen() {
           ListEmptyComponent={
             <View style={styles.center}>
               <Eye size={44} color={Colors.ph} strokeWidth={1.4} />
-              <Text style={styles.emptyTxt}>هنوز کسی پروفایلت رو ندیده</Text>
-              <Text style={styles.emptySub}>بازدیدها اینجا نشون داده میشن</Text>
+              <Text style={styles.emptyTxt}>
+                {totalViewers > 0
+                  ? `${toPersianDigits(totalViewers)} نفر پروفایلت رو دیدن`
+                  : 'هنوز کسی پروفایلت رو ندیده'}
+              </Text>
+              <Text style={styles.emptySub}>
+                {totalViewers > 0
+                  ? 'جزئیات بازدیدها در حال آماده‌سازی است؛ کمی بعد دوباره تازه‌سازی کن'
+                  : 'بازدیدها اینجا نشون داده میشن'}
+              </Text>
             </View>
           }
         />

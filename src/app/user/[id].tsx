@@ -18,7 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
   AlertTriangle,
-  ArrowLeft,
+  ArrowRight,
   Brain,
   Briefcase,
   Eye,
@@ -42,13 +42,13 @@ import {
   UserX,
   X,
 } from 'lucide-react-native';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Animated,
-  Easing,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -75,8 +75,9 @@ function badgeKind(slug: string): 'ai' | 'community' | 'gold' | 'complete' | 'pe
 }
 
 function formatVoiceDuration(totalSeconds: number) {
-  const m = Math.floor(totalSeconds / 60);
-  const s = totalSeconds % 60;
+  const safeSeconds = Number.isFinite(totalSeconds) ? Math.max(0, Math.floor(totalSeconds)) : 0;
+  const m = Math.floor(safeSeconds / 60);
+  const s = safeSeconds % 60;
   return toFaDigits(`${m}:${String(s).padStart(2, '0')}`);
 }
 
@@ -92,9 +93,10 @@ function VoiceIntroPlayer({ uri, durationSeconds }: { uri: string; durationSecon
     }
   };
 
+  const resolvedDuration = Number.isFinite(status.duration) && status.duration > 0 ? status.duration : durationSeconds;
   const remaining = status.playing || status.currentTime > 0
-    ? Math.max(0, Math.ceil((status.duration || durationSeconds) - status.currentTime))
-    : durationSeconds;
+    ? Math.max(0, Math.ceil(resolvedDuration - status.currentTime))
+    : resolvedDuration;
 
   return (
     <TouchableOpacity style={styles.voiceIntroRow} onPress={toggle} activeOpacity={0.8}>
@@ -118,10 +120,32 @@ const RELIGIOSITY: Record<number, string> = {
   5: 'بسیار مذهبی',
 };
 
-const TRAIT_LABELS: Record<string, string> = {
-  warmth: 'صمیمیت',
-  energy: 'انرژی',
+type PersonalityDimensionScore = {
+  label?: string;
+  positive_score?: number;
+  negative_score?: number;
+  leaning_label?: string;
 };
+
+function buildPersonalityTraits(scores: unknown): { key: string; label: string; value: number }[] {
+  if (!scores || typeof scores !== 'object') return [];
+  const dimensions = (scores as { dimensions?: unknown }).dimensions;
+  if (!dimensions || typeof dimensions !== 'object') return [];
+
+  return Object.entries(dimensions as Record<string, PersonalityDimensionScore>)
+    .map(([key, dim]) => {
+      const positive = Number(dim?.positive_score);
+      const negative = Number(dim?.negative_score);
+      const total = positive + negative;
+      const value = Number.isFinite(total) && total > 0 ? Math.round((positive / total) * 100) : 50;
+      return {
+        key,
+        label: dim?.leaning_label || dim?.label || key,
+        value,
+      };
+    })
+    .filter(trait => Number.isFinite(trait.value));
+}
 
 function computeLifestyleMatch(mine: { id: number }[], theirs: { id: number }[]) {
   if (!mine.length || !theirs.length) return null;
@@ -150,7 +174,8 @@ function ProgressRing({
 }) {
   const r = (size - stroke) / 2;
   const circ = 2 * Math.PI * r;
-  const fill = circ * (1 - value / 100);
+  const safeValue = Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : 0;
+  const fill = circ * (1 - safeValue / 100);
   return (
     <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
       <Svg width={size} height={size} style={{ position: 'absolute' }}>
@@ -169,55 +194,12 @@ function ProgressRing({
   );
 }
 
-// ── AnimatedBanner ────────────────────────────────────────────────────────────
-// Abstract gradient banner with slow-floating blobs — decorative, not tied to the
-// viewed user's photo (the photo already shows prominently in the avatar circle).
-
-function AnimatedBanner() {
-  const float1 = useRef(new Animated.Value(0)).current;
-  const float2 = useRef(new Animated.Value(0)).current;
-  const float3 = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const loop = (val: Animated.Value, duration: number, delay: number) =>
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(val, { toValue: 1, duration, delay, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-          Animated.timing(val, { toValue: 0, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        ]),
-      ).start();
-    loop(float1, 5200, 0);
-    loop(float2, 6400, 400);
-    loop(float3, 4600, 900);
-  }, [float1, float2, float3]);
-
-  const t1 = float1.interpolate({ inputRange: [0, 1], outputRange: [0, -16] });
-  const t2 = float2.interpolate({ inputRange: [0, 1], outputRange: [0, 14] });
-  const t3 = float3.interpolate({ inputRange: [0, 1], outputRange: [0, -10] });
-  const s3 = float3.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] });
-
-  return (
-    <LinearGradient
-      colors={Colors.gradColors}
-      start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }}
-      style={StyleSheet.absoluteFill}
-    >
-      <Animated.View style={[styles.blobA, { transform: [{ translateY: t1 }] }]} />
-      <Animated.View style={[styles.blobB, { transform: [{ translateY: t2 }] }]} />
-      <Animated.View style={[styles.blobC, { transform: [{ translateY: t3 }, { scale: s3 }] }]} />
-    </LinearGradient>
-  );
-}
-
 function TraitBar({ label, value }: { label: string; value: number }) {
-  const pct = Math.max(0, Math.min(100, value));
+  const pct = Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : 0;
   return (
-    <View style={styles.traitRow}>
+    <View style={styles.traitChip}>
       <Text style={styles.traitLabel}>{label}</Text>
-      <View style={styles.traitTrack}>
-        <View style={[styles.traitFill, { width: `${pct}%` }]} />
-      </View>
-      <Text style={styles.traitValue}>{pct}</Text>
+      <Text style={styles.traitValue}>{toFaDigits(pct)}</Text>
     </View>
   );
 }
@@ -474,6 +456,10 @@ export default function ProfileViewScreen() {
   const [matchInfo, setMatchInfo] = useState<{ user: MutualUser; message?: string | null } | null>(null);
   const [existingConversation, setExistingConversation] = useState<Conversation | null>(null);
   const [avatarViewerOpen, setAvatarViewerOpen] = useState(false);
+  const [liked, setLiked] = useState(false);
+  const [passed, setPassed] = useState(false);
+  const [reactionSubmitting, setReactionSubmitting] = useState<'like' | 'pass' | null>(null);
+  const ignorePassUntilRef = useRef(0);
 
   const goBack = () => {
     if (router.canGoBack()) router.back();
@@ -496,6 +482,7 @@ export default function ProfileViewScreen() {
         ...data,
         compatibility_score: prev?.compatibility_score ?? data.compatibility_score,
       }));
+      setLiked(!!data.liked_by_me);
       setMyProfile(me);
       setBlockStatus(bStatus);
       setUserGifts(gifts);
@@ -520,7 +507,7 @@ export default function ProfileViewScreen() {
       <SafeAreaView style={styles.root}>
         <View style={styles.loadingHeader}>
           <TouchableOpacity style={styles.backBtnDark} onPress={goBack}>
-            <ArrowLeft size={20} color={Colors.ink} strokeWidth={2.5} />
+            <ArrowRight size={20} color={Colors.ink} strokeWidth={2.5} />
           </TouchableOpacity>
         </View>
         <View style={styles.center}>
@@ -535,7 +522,7 @@ export default function ProfileViewScreen() {
       <SafeAreaView style={styles.root}>
         <View style={styles.loadingHeader}>
           <TouchableOpacity style={styles.backBtnDark} onPress={goBack}>
-            <ArrowLeft size={20} color={Colors.ink} strokeWidth={2.5} />
+            <ArrowRight size={20} color={Colors.ink} strokeWidth={2.5} />
           </TouchableOpacity>
         </View>
         <View style={styles.center}>
@@ -583,26 +570,72 @@ export default function ProfileViewScreen() {
     a => a.answer?.trim() && a.moderation_status === 'approved',
   );
   const dealbreakers = (profile.dealbreakers ?? []).filter(d => d.moderation_status === 'approved');
-  const traitScores = Object.entries(profile.latest_personality_test?.scores ?? {});
+  const traitScores = buildPersonalityTraits(profile.latest_personality_test?.scores);
+  const traitMasonryColumns = [
+    traitScores.filter((_, index) => index % 2 === 0),
+    traitScores.filter((_, index) => index % 2 === 1),
+  ];
   const showAiSummary =
     profile.latest_personality_test?.assistant_analysis_status === 'completed' &&
     !!profile.latest_personality_test?.assistant_analysis?.summary;
 
-  const handleLike = () => {
+  const handleLike = async () => {
     if (!session) return;
-    discoverApi.interact(session.accessToken, profile.id, 'like')
-      .then(res => {
-        if (res.data?.mutual && res.data.mutual_user) {
-          setMatchInfo({ user: res.data.mutual_user, message: res.data.mutual_message });
-        } else {
-          goBack();
-        }
-      })
-      .catch(() => goBack());
+    if (reactionSubmitting) return;
+    ignorePassUntilRef.current = Date.now() + 1500;
+    setReactionSubmitting('like');
+    const previousLiked = liked;
+    const previousCount = profile.likes_count ?? 0;
+    const optimisticLiked = !previousLiked;
+    const optimisticCount = Math.max(0, previousCount + (optimisticLiked ? 1 : -1));
+    setLiked(optimisticLiked);
+    setProfile(current => current ? {
+      ...current,
+      liked_by_me: optimisticLiked,
+      likes_count: optimisticCount,
+    } : current);
+    profileCache.patch(profile.id, {
+      liked_by_me: optimisticLiked,
+      likes_count: optimisticCount,
+    });
+    try {
+      const res = await discoverApi.interact(session.accessToken, profile.id, 'like');
+      const nextLiked = !!res.data?.liked_by_me;
+      const nextCount = res.data?.likes_count ?? optimisticCount;
+      setLiked(nextLiked);
+      setProfile(current => current ? {
+        ...current,
+        liked_by_me: nextLiked,
+        likes_count: nextCount,
+      } : current);
+      profileCache.patch(profile.id, { liked_by_me: nextLiked, likes_count: nextCount });
+      if (nextLiked && res.data?.mutual && res.data.mutual_user) {
+        setMatchInfo({ user: res.data.mutual_user, message: res.data.mutual_message });
+      } else if (nextLiked) {
+        toast.success('لایک شد');
+      } else {
+        toast.info('لایک برداشته شد');
+      }
+    } catch (e: any) {
+      setLiked(previousLiked);
+      setProfile(current => current ? {
+        ...current,
+        liked_by_me: previousLiked,
+        likes_count: previousCount,
+      } : current);
+      profileCache.patch(profile.id, { liked_by_me: previousLiked, likes_count: previousCount });
+      toast.error(e.message ?? 'خطا در ثبت لایک');
+    } finally {
+      setReactionSubmitting(null);
+    }
   };
-  const handlePass = () => {
+  const handlePass = async () => {
     if (!session) return;
-    discoverApi.interact(session.accessToken, profile.id, 'pass').catch(() => {});
+    if (Date.now() < ignorePassUntilRef.current) return;
+    if (reactionSubmitting) return;
+    setPassed(true);
+    setReactionSubmitting('pass');
+    await discoverApi.interact(session.accessToken, profile.id, 'pass').catch(() => {});
     goBack();
   };
   const handleAnon = () => {
@@ -697,10 +730,19 @@ export default function ProfileViewScreen() {
     }
   };
 
-  const stats: { label: string; value: string; accent?: boolean; onPress?: () => void }[] = [
-    { label: 'سن', value: toFaDigits(age) },
+  const stats: { label: string; value: string; accent?: boolean; icon?: ReactNode; onPress?: () => void }[] = [
+    {
+      label: 'سن',
+      value: toFaDigits(age),
+    },
+    {
+      label: 'لایک',
+      value: toFaDigits(profile.likes_count ?? 0),
+      accent: liked,
+      icon: <Heart size={12} color={liked ? Colors.accent : Colors.muted} fill={liked ? Colors.accent : 'none'} strokeWidth={2} />,
+    },
   ];
-  if (profile.height_cm != null) stats.push({ label: 'قد', value: `${profile.height_cm}` });
+  if (profile.height_cm != null) stats.push({ label: 'قد', value: toFaDigits(profile.height_cm) });
   if (profile.compatibility_score != null) {
     stats.push({
       label: 'تطابق', value: `${toFaDigits(profile.compatibility_score)}٪`, accent: true,
@@ -711,86 +753,83 @@ export default function ProfileViewScreen() {
   return (
     <View style={styles.root}>
       <View style={styles.heroWrap}>
-        {/* ── Banner ──────────────────────────────────────────────────────── */}
-        <View style={styles.banner}>
-          <AnimatedBanner />
-
-          <SafeAreaView style={styles.heroTop} edges={['top']}>
-            <TouchableOpacity style={styles.backBtnLight} onPress={goBack}>
-              <ArrowLeft size={20} color="#fff" strokeWidth={2.5} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.moreBtn} onPress={() => setActionsOpen(true)}>
-              <MoreVertical size={20} color="#fff" strokeWidth={2} />
-            </TouchableOpacity>
-          </SafeAreaView>
-        </View>
+        <SafeAreaView style={styles.profileHeader} edges={['top']}>
+          <TouchableOpacity style={styles.profileHeaderBtn} onPress={goBack}>
+            <ArrowRight size={20} color={Colors.ink} strokeWidth={2.5} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.profileHeaderBtn} onPress={() => setActionsOpen(true)}>
+            <MoreVertical size={20} color={Colors.ink} strokeWidth={2} />
+          </TouchableOpacity>
+        </SafeAreaView>
 
         {/* ── Profile card ────────────────────────────────────────────────── */}
         <View style={styles.profileCard}>
-          {profile.badges.length > 0 && (
-            <View style={styles.badgeRow}>
-              {profile.badges.map(b => (
-                <Badge key={b.id} kind={badgeKind(b.slug)} label="" />
-              ))}
+          <View style={styles.profileInfoSide}>
+            {profile.badges.length > 0 && (
+              <View style={styles.badgeRow}>
+                {profile.badges.map(b => (
+                  <Badge key={b.id} kind={badgeKind(b.slug)} label="" />
+                ))}
+              </View>
+            )}
+            <View style={styles.metaRow}>
+              {(profile.city || profile.province) && (
+                <View style={styles.metaChip}>
+                  <MapPin size={11.5} color={Colors.muted} strokeWidth={2} />
+                  <Text style={styles.metaTxt}>{profile.city ?? profile.province}</Text>
+                </View>
+              )}
+              {profile.job && (
+                <View style={styles.metaChip}>
+                  <Briefcase size={11.5} color={Colors.muted} strokeWidth={2} />
+                  <Text style={styles.metaTxt}>{profile.job}</Text>
+                </View>
+              )}
+              {profile.education && (
+                <View style={styles.metaChip}>
+                  <GraduationCap size={11.5} color={Colors.muted} strokeWidth={2} />
+                  <Text style={styles.metaTxt}>{profile.education}</Text>
+                </View>
+              )}
             </View>
-          )}
-          <View style={styles.heroNameRow}>
-            <Text style={styles.heroName}>{profile.first_name}، {toFaDigits(age)}</Text>
-            {profile.username && <Text style={styles.usernameTxt}>@{profile.username}</Text>}
-          </View>
-          <View style={styles.metaRow}>
-            {(profile.city || profile.province) && (
-              <View style={styles.metaChip}>
-                <MapPin size={11.5} color={Colors.muted} strokeWidth={2} />
-                <Text style={styles.metaTxt}>{profile.city ?? profile.province}</Text>
-              </View>
-            )}
-            {profile.job && (
-              <View style={styles.metaChip}>
-                <Briefcase size={11.5} color={Colors.muted} strokeWidth={2} />
-                <Text style={styles.metaTxt}>{profile.job}</Text>
-              </View>
-            )}
-            {profile.education && (
-              <View style={styles.metaChip}>
-                <GraduationCap size={11.5} color={Colors.muted} strokeWidth={2} />
-                <Text style={styles.metaTxt}>{profile.education}</Text>
-              </View>
-            )}
+
+            <View style={styles.statsRow}>
+              {stats.map(s => {
+                const Wrap = s.onPress ? TouchableOpacity : View;
+                return (
+                  <Wrap
+                    key={s.label}
+                    style={[styles.statBox, s.accent && styles.statBoxAccent]}
+                    onPress={s.onPress}
+                    activeOpacity={0.75}
+                  >
+                    {s.icon}
+                    <Text style={[styles.statValue, s.accent && styles.statValueAccent]}>{s.value}</Text>
+                    <Text style={styles.statLabel}>{s.label}</Text>
+                  </Wrap>
+                );
+              })}
+            </View>
           </View>
 
-          <View style={styles.statsRow}>
-            {stats.map(s => {
-              const Wrap = s.onPress ? TouchableOpacity : View;
-              return (
-                <Wrap
-                  key={s.label}
-                  style={[styles.statBox, s.accent && styles.statBoxAccent]}
-                  onPress={s.onPress}
-                  activeOpacity={0.75}
-                >
-                  <Text style={[styles.statValue, s.accent && styles.statValueAccent]}>{s.value}</Text>
-                  <Text style={styles.statLabel}>{s.label}</Text>
-                </Wrap>
-              );
-            })}
+          <View style={styles.profileIdentitySide}>
+            <TouchableOpacity
+              style={styles.avatarRing}
+              activeOpacity={photoUrl ? 0.85 : 1}
+              disabled={!photoUrl}
+              onPress={() => setAvatarViewerOpen(true)}
+            >
+              {photoUrl ? (
+                <Image source={{ uri: photoUrl }} style={styles.avatarImg} contentFit="cover" />
+              ) : (
+                <View style={[styles.avatarImg, styles.heroPh]} />
+              )}
+            </TouchableOpacity>
+            <View style={styles.heroNameRow}>
+              <Text style={styles.heroName}>{profile.first_name}</Text>
+              {profile.username && <Text style={styles.usernameTxt}>@{profile.username}</Text>}
+            </View>
           </View>
-        </View>
-
-        {/* Avatar overlapping the banner/card boundary — painted last so it sits on top */}
-        <View style={styles.avatarOverlap} pointerEvents="box-none">
-          <TouchableOpacity
-            style={styles.avatarRing}
-            activeOpacity={photoUrl ? 0.85 : 1}
-            disabled={!photoUrl}
-            onPress={() => setAvatarViewerOpen(true)}
-          >
-            {photoUrl ? (
-              <Image source={{ uri: photoUrl }} style={styles.avatarImg} contentFit="cover" />
-            ) : (
-              <View style={[styles.avatarImg, styles.heroPh]} />
-            )}
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -932,7 +971,7 @@ export default function ProfileViewScreen() {
               <View style={styles.noCompatCard}>
                 <Sparkles size={16} color={Colors.purple} strokeWidth={2} />
                 <Text style={styles.noCompatTxt}>
-                  Compatibility Score در پیشنهادهای روزانه نمایش داده می‌شود
+                  امتیاز سازگاری در پیشنهادهای روزانه نمایش داده می‌شود
                 </Text>
               </View>
             )}
@@ -959,8 +998,12 @@ export default function ProfileViewScreen() {
                 </View>
                 {traitScores.length > 0 && (
                   <View style={styles.traitList}>
-                    {traitScores.map(([key, value]) => (
-                      <TraitBar key={key} label={TRAIT_LABELS[key] ?? key} value={value} />
+                    {traitMasonryColumns.map((column, index) => (
+                      <View key={index} style={styles.traitColumn}>
+                        {column.map(trait => (
+                          <TraitBar key={trait.key} label={trait.label} value={trait.value} />
+                        ))}
+                      </View>
                     ))}
                   </View>
                 )}
@@ -1021,12 +1064,20 @@ export default function ProfileViewScreen() {
       </ScrollView>
 
       {/* ── Action Bar ───────────────────────────────────────────────────── */}
-      <View style={[styles.actions, { paddingBottom: insets.bottom + 12 }]}>
-        <TouchableOpacity style={styles.passBtn} onPress={handlePass}>
-          <X size={22} color={Colors.danger} strokeWidth={2.5} />
+      <View style={[styles.actions, { paddingBottom: insets.bottom + 8 }]}>
+        <TouchableOpacity
+          style={[styles.passBtn, passed && styles.passBtnActive]}
+          onPress={handlePass}
+          disabled={!!reactionSubmitting}
+          activeOpacity={0.82}
+        >
+          {reactionSubmitting === 'pass'
+            ? <ActivityIndicator size="small" color={passed ? '#fff' : Colors.danger} />
+            : <X size={19} color={passed ? '#fff' : Colors.danger} strokeWidth={2.5} />
+          }
         </TouchableOpacity>
         <TouchableOpacity style={styles.giftBtn} onPress={() => setGiftOpen(true)}>
-          <Gift size={20} color={Colors.goldDeep} strokeWidth={2} />
+          <Gift size={18} color={Colors.goldDeep} strokeWidth={2} />
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.chatGradBtn}
@@ -1038,12 +1089,20 @@ export default function ProfileViewScreen() {
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
             style={styles.chatGradInner}
           >
-            <MessageCircle size={16} color="#fff" strokeWidth={2} />
+            <MessageCircle size={15} color="#fff" strokeWidth={2} />
             <Text style={styles.chatGradTxt}>{existingConversation ? 'برو به چت' : 'پیام بفرست'}</Text>
           </LinearGradient>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.likeBtn} onPress={handleLike}>
-          <Heart size={26} color="#fff" fill="#fff" strokeWidth={2} />
+        <TouchableOpacity
+          style={[styles.likeBtn, reactionSubmitting === 'like' && styles.reactionBtnLoading]}
+          onPress={handleLike}
+          disabled={!!reactionSubmitting}
+          activeOpacity={0.82}
+        >
+          {reactionSubmitting === 'like'
+            ? <ActivityIndicator size="small" color="#fff" />
+            : <Heart size={22} color="#fff" fill={liked ? '#fff' : 'none'} strokeWidth={liked ? 0 : 2.3} />
+          }
         </TouchableOpacity>
       </View>
 
@@ -1081,7 +1140,7 @@ export default function ProfileViewScreen() {
         otherName={matchInfo?.user.first_name ?? ''}
         otherAvatarUrl={matchInfo?.user.profile_photo?.urls?.medium ?? null}
         message={matchInfo?.message}
-        onClose={() => { setMatchInfo(null); goBack(); }}
+        onClose={() => setMatchInfo(null)}
         onStartChat={() => { setMatchInfo(null); setTemplateOpen(true); }}
       />
 
@@ -1120,61 +1179,47 @@ const styles = StyleSheet.create({
 
   // ── Banner + Profile card ────────────────────────────────────────────────
   heroWrap: { position: 'relative' },
-  banner: { height: 132, backgroundColor: Colors.purpleSoft, overflow: 'hidden' },
   heroPh: { backgroundColor: Colors.purpleSoft },
-  heroTop: {
-    position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10,
-    flexDirection: 'row', justifyContent: 'space-between',
-  },
-  backBtnLight: {
-    margin: 12, width: 40, height: 40, borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.28)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  moreBtn: {
-    margin: 12, width: 40, height: 40, borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.28)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  blobA: {
-    position: 'absolute', top: -30, right: -30,
-    width: 160, height: 160, borderRadius: 80,
-    backgroundColor: 'rgba(255,255,255,0.16)',
-  },
-  blobB: {
-    position: 'absolute', bottom: -50, left: -40,
-    width: 190, height: 190, borderRadius: 95,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-  },
-  blobC: {
-    position: 'absolute', top: 20, left: '38%',
-    width: 90, height: 90, borderRadius: 45,
-    backgroundColor: 'rgba(255,255,255,0.14)',
-  },
-  avatarOverlap: {
-    position: 'absolute', top: 78, left: 0, right: 0, zIndex: 20,
+  profileHeader: {
+    minHeight: 54,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingBottom: 6,
+    backgroundColor: Colors.surface,
+  },
+  profileHeaderBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   avatarRing: {
-    width: 108, height: 108, borderRadius: 54, padding: 4,
+    width: 78, height: 78, borderRadius: 39, padding: 3,
     backgroundColor: Colors.bg,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15, shadowRadius: 10, elevation: 6,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12, shadowRadius: 8, elevation: 4,
   },
-  avatarImg: { width: 100, height: 100, borderRadius: 50 },
+  avatarImg: { width: 72, height: 72, borderRadius: 36 },
   profileCard: {
     backgroundColor: Colors.surface,
-    alignItems: 'center',
-    paddingTop: 58, paddingBottom: 18, paddingHorizontal: 20,
+    flexDirection: 'row-reverse',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 14,
+    minHeight: 116,
+    paddingTop: 14, paddingBottom: 14, paddingHorizontal: 18,
     borderBottomLeftRadius: 28, borderBottomRightRadius: 28,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06, shadowRadius: 12, elevation: 3,
   },
-  badgeRow: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginBottom: 8 },
-  heroNameRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', gap: 8 },
-  heroName: { fontSize: 21, fontFamily: Fonts.extraBold, color: Colors.ink, letterSpacing: -0.5, textAlign: 'center' },
-  usernameTxt: { fontSize: 12.5, fontFamily: Fonts.regular, color: Colors.inkSoft },
-  metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 8, flexWrap: 'wrap' },
+  profileInfoSide: { flex: 1, alignItems: 'flex-start', minWidth: 0 },
+  profileIdentitySide: { width: 96, alignItems: 'center', gap: 6 },
+  badgeRow: { flexDirection: 'row-reverse', justifyContent: 'flex-start', gap: 6, marginBottom: 6 },
+  heroNameRow: { alignItems: 'center', gap: 1 },
+  heroName: { fontSize: 13.5, fontFamily: Fonts.extraBold, color: Colors.ink, textAlign: 'center' },
+  usernameTxt: { fontSize: 10.5, fontFamily: Fonts.regular, color: Colors.inkSoft, textAlign: 'center' },
+  metaRow: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'flex-start', gap: 6, marginTop: 7, flexWrap: 'wrap' },
   metaChip: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: Colors.bg, borderRadius: 999,
@@ -1182,17 +1227,24 @@ const styles = StyleSheet.create({
   },
   metaTxt: { fontSize: 11.5, color: Colors.inkSoft, fontFamily: Fonts.semiBold },
 
-  statsRow: { flexDirection: 'row', gap: 10, marginTop: 16, alignSelf: 'stretch' },
+  statsRow: { flexDirection: 'row-reverse', gap: 7, marginTop: 10, alignSelf: 'stretch', flexWrap: 'wrap', justifyContent: 'flex-end' },
   statBox: {
-    flex: 1, alignItems: 'center',
-    backgroundColor: Colors.bg, borderRadius: 14,
-    paddingVertical: 12, paddingHorizontal: 8,
-    borderWidth: 1, borderColor: Colors.lineSoft,
+    minWidth: 68,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    backgroundColor: Colors.bg,
+    borderRadius: 999,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: Colors.lineSoft,
   },
-  statBoxAccent: { backgroundColor: Colors.purpleSoft, borderColor: Colors.purple + '33' },
-  statValue: { fontSize: 16, fontFamily: Fonts.extraBold, color: Colors.ink },
-  statValueAccent: { color: Colors.purple },
-  statLabel: { fontSize: 10.5, fontFamily: Fonts.regular, color: Colors.muted, marginTop: 2 },
+  statBoxAccent: { backgroundColor: Colors.accentSoft, borderColor: Colors.accent + '30' },
+  statValue: { fontSize: 12.5, fontFamily: Fonts.extraBold, color: Colors.ink },
+  statValueAccent: { color: Colors.accent },
+  statLabel: { fontSize: 10.5, fontFamily: Fonts.regular, color: Colors.muted },
 
   // ── Red Flag ──────────────────────────────────────────────────────────────
   redFlagBanner: {
@@ -1285,12 +1337,48 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 6,
   },
   personalityTxt: { fontSize: 12, fontFamily: Fonts.semiBold, color: Colors.purple },
-  traitList: { gap: 8, marginTop: 10 },
-  traitRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  traitLabel: { width: 56, fontSize: 11.5, fontFamily: Fonts.semiBold, color: Colors.inkSoft },
-  traitTrack: { flex: 1, height: 6, borderRadius: 3, backgroundColor: Colors.lineSoft, overflow: 'hidden' },
-  traitFill: { height: '100%', borderRadius: 3, backgroundColor: Colors.purple },
-  traitValue: { width: 22, fontSize: 11, fontFamily: Fonts.bold, color: Colors.purple, textAlign: 'left' },
+  traitList: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 9,
+    marginTop: 10,
+  },
+  traitColumn: { flex: 1, gap: 9 },
+  traitChip: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 8,
+    backgroundColor: Colors.purpleSoft,
+    borderWidth: 1,
+    borderColor: Colors.purple + '18',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    minHeight: 30,
+  },
+  traitLabel: {
+    flex: 1,
+    flexShrink: 1,
+    fontSize: 11.5,
+    fontFamily: Fonts.bold,
+    color: Colors.purple,
+    textAlign: Platform.select({ web: 'right', default: 'left' }),
+    writingDirection: 'rtl',
+    lineHeight: 18,
+  },
+  traitValue: {
+    minWidth: 26,
+    fontSize: 10.5,
+    fontFamily: Fonts.extraBold,
+    color: Colors.purple,
+    textAlign: 'center',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 999,
+    backgroundColor: Colors.surface,
+    overflow: 'hidden',
+  },
   aiSummaryCard: {
     flexDirection: 'row', gap: 8, alignItems: 'flex-start',
     backgroundColor: Colors.purpleSoft, borderRadius: 14, padding: 12, marginTop: 10,
@@ -1317,7 +1405,7 @@ const styles = StyleSheet.create({
   lockedList: { gap: 8 },
   lockedRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: 'rgba(255,255,255,0.6)', borderRadius: 12, padding: 12,
+    backgroundColor: Colors.surface2, borderRadius: 12, padding: 12,
     borderWidth: 1, borderColor: Colors.lineSoft,
   },
   lockedLabel: { flex: 1, fontSize: 12.5, fontFamily: Fonts.semiBold, color: Colors.muted },
@@ -1353,45 +1441,44 @@ const styles = StyleSheet.create({
   compatTitle: { fontSize: 13.5, fontFamily: Fonts.extraBold, color: Colors.purple },
   compatSubTxt: { fontSize: 11, color: Colors.inkSoft, fontFamily: Fonts.regular, lineHeight: 17 },
   noCompatCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
+    flexDirection: 'row-reverse', alignItems: 'center', gap: 8,
     backgroundColor: Colors.purpleSoft, borderRadius: 14, padding: 14,
     borderWidth: 1, borderColor: Colors.purple + '22',
   },
-  noCompatTxt: { flex: 1, fontSize: 12, color: Colors.inkSoft, fontFamily: Fonts.regular, lineHeight: 18 },
+  noCompatTxt: { flex: 1, fontSize: 12, color: Colors.inkSoft, fontFamily: Fonts.regular, lineHeight: 18, textAlign: 'right', writingDirection: 'rtl' },
 
   // ── Action Bar ────────────────────────────────────────────────────────────
   actions: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    paddingHorizontal: 16, paddingTop: 12,
-    backgroundColor: Colors.bg,
-    borderTopWidth: 1, borderTopColor: Colors.lineSoft,
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    writingDirection: 'ltr',
+    paddingHorizontal: 18, paddingTop: 9,
+    backgroundColor: 'rgba(16,19,26,0.96)',
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Colors.lineSoft,
   },
   passBtn: {
-    width: 50, height: 50, borderRadius: 25,
+    width: 42, height: 42, borderRadius: 21,
     backgroundColor: Colors.dangerSoft, alignItems: 'center', justifyContent: 'center',
-    shadowColor: Colors.danger, shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1, shadowRadius: 6, elevation: 2,
+  },
+  passBtnActive: {
+    backgroundColor: Colors.danger,
   },
   giftBtn: {
-    width: 50, height: 50, borderRadius: 25,
+    width: 42, height: 42, borderRadius: 21,
     backgroundColor: Colors.goldSoft, alignItems: 'center', justifyContent: 'center',
   },
   chatGradBtn: {
-    flex: 1, height: 50, borderRadius: 25, overflow: 'hidden',
-    shadowColor: Colors.accent, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.28, shadowRadius: 10, elevation: 5,
+    flex: 1, height: 42, borderRadius: 21, overflow: 'hidden',
   },
   chatGradInner: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
   },
-  chatGradTxt: { fontSize: 14, fontFamily: Fonts.bold, color: '#fff' },
+  chatGradTxt: { fontSize: 12.5, fontFamily: Fonts.bold, color: '#fff' },
   likeBtn: {
-    width: 58, height: 58, borderRadius: 29,
+    width: 46, height: 46, borderRadius: 23,
     backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center',
-    shadowColor: Colors.accent, shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.35, shadowRadius: 12, elevation: 7,
   },
+  reactionBtnLoading: { opacity: 0.82 },
 
   // ── Profile Actions Sheet ─────────────────────────────────────────────────
   sheetContainer: {

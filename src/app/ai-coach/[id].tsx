@@ -2,12 +2,13 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { aiCoachApi, type CoachMessage } from '@/lib/api/ai-coach';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Bot, ChevronLeft, Send } from 'lucide-react-native';
+import { Bot, ChevronRight, Send } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -22,6 +23,24 @@ const QUICK_CHIPS = [
   { label: 'شروع گفتگو', prompt: 'چطور با یه نفر جدید گفتگو رو شروع کنم؟' },
   { label: 'اول قرار', prompt: 'برای اولین قرار ملاقات چه پیشنهادی داری؟' },
 ];
+
+type ProfileSuggestion = NonNullable<NonNullable<CoachMessage['metadata']>['suggestions']>[number];
+
+const toPersian = (value: number | string) =>
+  String(value).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
+
+function suggestionTitle(suggestion: ProfileSuggestion) {
+  return suggestion.display_name?.trim() || `پروفایل ${toPersian(suggestion.user_id)}`;
+}
+
+function suggestionMeta(suggestion: ProfileSuggestion) {
+  return [
+    suggestion.age ? `${toPersian(suggestion.age)} سال` : null,
+    suggestion.province,
+    suggestion.relationship_goal,
+    suggestion.compatibility_score != null ? `سازگاری ${toPersian(suggestion.compatibility_score)}٪` : null,
+  ].filter(Boolean).join(' · ');
+}
 
 function ThinkingDots() {
   return (
@@ -97,29 +116,41 @@ export default function AiCoachChat() {
 
   const renderMessage = ({ item }: { item: CoachMessage }) => {
     const isUser = item.role === 'user';
-    return (
-      <View style={[styles.row, isUser ? styles.rowUser : styles.rowAi]}>
-        {!isUser && (
-          <View style={styles.aiAvatar}>
-            <Bot size={14} color={Colors.purple} strokeWidth={2} />
-          </View>
-        )}
-        <View style={[styles.bubble, isUser ? styles.bubbleUser : styles.bubbleAi]}>
-          <Text style={[styles.bubbleTxt, isUser ? styles.bubbleTxtUser : styles.bubbleTxtAi]}>
-            {item.body}
-          </Text>
-          {item.role === 'assistant' && item.metadata?.suggestions?.map(suggestion => (
+    const botAvatar = !isUser ? (
+      <View style={styles.aiAvatar}>
+        <Bot size={14} color={Colors.purple} strokeWidth={2} />
+      </View>
+    ) : null;
+    const bubble = (
+      <View style={[styles.bubble, isUser ? styles.bubbleUser : styles.bubbleAi]}>
+        <Text style={[styles.bubbleTxt, isUser ? styles.bubbleTxtUser : styles.bubbleTxtAi]}>
+          {item.body}
+        </Text>
+        {item.role === 'assistant' && item.metadata?.suggestions?.map(suggestion => {
+          const meta = suggestionMeta(suggestion);
+
+          return (
             <TouchableOpacity
               key={suggestion.user_id}
               style={styles.suggestion}
               onPress={() => router.push(`/user/${suggestion.user_id}` as never)}
               activeOpacity={0.8}
             >
-              <Text style={styles.suggestionTitle}>مشاهده پروفایل پیشنهادی</Text>
-              <Text style={styles.suggestionReason}>{suggestion.reason}</Text>
+              <View style={styles.suggestionContent}>
+                <Text style={styles.suggestionTitle}>{suggestionTitle(suggestion)}</Text>
+                {meta ? <Text style={styles.suggestionMeta}>{meta}</Text> : null}
+                <Text style={styles.suggestionReason}>{suggestion.reason}</Text>
+              </View>
             </TouchableOpacity>
-          ))}
-        </View>
+          );
+        })}
+      </View>
+    );
+
+    return (
+      <View style={[styles.row, isUser ? styles.rowUser : styles.rowAi]}>
+        {!isUser ? bubble : botAvatar}
+        {!isUser ? botAvatar : bubble}
       </View>
     );
   };
@@ -129,7 +160,7 @@ export default function AiCoachChat() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
-          <ChevronLeft size={22} color={Colors.ink} strokeWidth={2.5} />
+          <ChevronRight size={22} color={Colors.ink} strokeWidth={2.5} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <View style={styles.aiAvatarLg}>
@@ -274,21 +305,26 @@ const styles = StyleSheet.create({
   bubbleUser: {
     backgroundColor: Colors.surface,
     borderWidth: 1, borderColor: Colors.hair,
-    borderBottomLeftRadius: 4,
+    borderBottomLeftRadius: Platform.select({ web: 18, default: 4 }),
+    borderBottomRightRadius: Platform.select({ web: 4, default: 18 }),
   },
   bubbleAi: {
     backgroundColor: Colors.purple,
-    borderBottomRightRadius: 4,
+    borderBottomRightRadius: Platform.select({ web: 18, default: 4 }),
+    borderBottomLeftRadius: Platform.select({ web: 4, default: 18 }),
   },
   bubbleTxt: { fontSize: 14, lineHeight: 21 },
   bubbleTxtUser: { fontFamily: Fonts.regular, color: Colors.ink, textAlign: 'right' },
-  bubbleTxtAi: { fontFamily: Fonts.regular, color: '#fff' },
+  bubbleTxtAi: { fontFamily: Fonts.regular, color: '#fff', textAlign: 'right', writingDirection: 'rtl' },
   suggestion: {
     backgroundColor: 'rgba(255,255,255,0.16)', borderRadius: Radius.md,
     paddingHorizontal: 10, paddingVertical: 8, marginTop: 8,
+    alignItems: Platform.select({ web: 'flex-end', default: 'flex-start' }),
   },
-  suggestionTitle: { fontSize: 12, fontFamily: Fonts.bold, color: '#fff', textAlign: 'right' },
-  suggestionReason: { fontSize: 11, fontFamily: Fonts.regular, color: 'rgba(255,255,255,0.86)', textAlign: 'right', marginTop: 2 },
+  suggestionContent: { alignSelf: 'stretch', alignItems: Platform.select({ web: 'flex-end', default: 'flex-start' }) },
+  suggestionTitle: { alignSelf: 'stretch', fontSize: 13, fontFamily: Fonts.extraBold, color: '#fff', textAlign: Platform.select({ web: 'right', default: 'left' }), writingDirection: Platform.select({ web: 'rtl', default: 'ltr' }) },
+  suggestionMeta: { alignSelf: 'stretch', fontSize: 10.5, fontFamily: Fonts.semiBold, color: 'rgba(255,255,255,0.9)', textAlign: Platform.select({ web: 'right', default: 'left' }), writingDirection: Platform.select({ web: 'rtl', default: 'ltr' }), marginTop: 3 },
+  suggestionReason: { alignSelf: 'stretch', fontSize: 11, fontFamily: Fonts.regular, color: 'rgba(255,255,255,0.86)', textAlign: Platform.select({ web: 'right', default: 'left' }), writingDirection: Platform.select({ web: 'rtl', default: 'ltr' }), marginTop: 2 },
 
   thinkingBubble: {
     flexDirection: 'row', justifyContent: 'flex-end',

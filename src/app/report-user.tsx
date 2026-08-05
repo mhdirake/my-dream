@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface, borderRadius: Radius.lg,
     borderWidth: 1.5, borderColor: Colors.hair, padding: Spacing.lg,
   },
-  catRowActive: { borderColor: Colors.danger + 'AA', backgroundColor: '#FFF1F0' },
+  catRowActive: { borderColor: Colors.danger + 'AA', backgroundColor: Colors.dangerSoft },
 
   radio: {
     width: 20, height: 20, borderRadius: 10, marginTop: 1,
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
     fontSize: 13, fontFamily: Fonts.regular, color: Colors.ink, minHeight: 70,
   },
 
-  noteTxt: { fontSize: 12, color: '#2C5C8F', fontFamily: Fonts.regular, lineHeight: 19 },
+  noteTxt: { fontSize: 12, color: Colors.trust, fontFamily: Fonts.regular, lineHeight: 19 },
 
   bottomBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,

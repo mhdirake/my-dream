@@ -23,6 +23,14 @@ export type ConversationUser = {
   profile_photo: ConversationUserPhoto | null;
 };
 
+export type MessageSender = {
+  id: number;
+  username: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  profile_photo: ConversationUserPhoto | null;
+};
+
 export type MessageType =
   | 'text'
   | 'voice'
@@ -40,7 +48,7 @@ export type Message = {
   conversation_id: string;
   conversation_type: 'direct' | 'group';
   sender_user_id: number;
-  sender?: ConversationUser | null;
+  sender?: MessageSender | null;
   message_type: MessageType;
   body_text: string;
   caption: string;

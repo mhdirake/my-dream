@@ -1,45 +1,71 @@
+// Canonical palette shared with my-dream-landing.
+export const BrandPalette = {
+  bg: '#080A0E',
+  bgSoft: '#0C0F14',
+  surface: '#10131A',
+  surface2: '#171B23',
+  surface3: '#1D222B',
+  text: '#F4F1EC',
+  muted: '#A5A9B2',
+  mutedStrong: '#C3C6CC',
+  rose: '#D18498',
+  roseSoft: '#E5ADBB',
+  roseHot: '#FF6F9F',
+  violet: '#9F82FF',
+  aqua: '#7CE2D1',
+  champagne: '#D6BE91',
+  trust: '#769D96',
+} as const;
+
 export const Colors = {
   // ── Brand palette ──────────────────────────────────────────────
-  accent: '#D94F70',       // Deep Rose — primary CTA, likes
-  accentSoft: '#FCE8ED',
-  purple: '#6C4AB6',       // Royal Purple — AI features
-  purpleSoft: '#EDE7F8',
-  trust: '#4E9AF1',        // Soft Blue — verification
-  trustSoft: '#E6F0FD',
-  ok: '#37C6A3',           // Mint Green — online, success
-  okSoft: '#E2F7F1',
-  gold: '#F5B84B',         // Soft Gold — coin, premium
-  goldDeep: '#D9982E',
-  goldSoft: '#FEF3DD',
-  danger: '#E0556B',
-  dangerSoft: '#FBE7EA',
-  warn: '#F5B84B',
-  warnSoft: '#FEF3DD',
+  accent: BrandPalette.roseHot,
+  accentMuted: BrandPalette.rose,
+  accentSoft: 'rgba(255,111,159,0.14)',
+  purple: BrandPalette.violet,
+  purpleSoft: 'rgba(159,130,255,0.14)',
+  trust: BrandPalette.aqua,
+  trustSoft: 'rgba(124,226,209,0.14)',
+  ok: BrandPalette.trust,
+  okSoft: 'rgba(118,157,150,0.16)',
+  gold: BrandPalette.champagne,
+  goldDeep: '#B89A66',
+  goldSoft: 'rgba(214,190,145,0.15)',
+  danger: '#F07A8C',
+  dangerSoft: 'rgba(240,122,140,0.14)',
+  warn: BrandPalette.champagne,
+  warnSoft: 'rgba(214,190,145,0.15)',
 
   // ── Surfaces ────────────────────────────────────────────────────
-  bg: '#FFF7F3',           // Warm Ivory — app background
-  surface: '#FFFFFF',
-  ph: '#F0E6E1',           // placeholder
-  ph2: '#FBF3EF',
+  bg: BrandPalette.bg,
+  bgSoft: BrandPalette.bgSoft,
+  surface: BrandPalette.surface,
+  surface2: BrandPalette.surface2,
+  surface3: BrandPalette.surface3,
+  ph: BrandPalette.surface2,
+  ph2: BrandPalette.bgSoft,
 
   // ── Text ────────────────────────────────────────────────────────
-  ink: '#24212A',          // Charcoal
-  inkSoft: '#56525E',
-  muted: '#9A95A2',
+  ink: BrandPalette.text,
+  inkSoft: BrandPalette.mutedStrong,
+  muted: BrandPalette.muted,
+  onAccent: '#180F13',
+  onAqua: '#0A1714',
+  onChampagne: '#17120C',
 
-  // ── Lines ───────────────────────────────────────────────────────
-  line: '#C8BAB3',
-  lineSoft: '#ECE2DC',
-  hair: 'rgba(36,33,42,0.08)',
+  // ── Lines ────────────────────────────────────────────────────────
+  line: 'rgba(255,255,255,0.14)',
+  lineSoft: 'rgba(255,255,255,0.08)',
+  hair: 'rgba(255,255,255,0.08)',
 
-  // ── Dark mode ───────────────────────────────────────────────────
-  dark: '#181522',
-  dark2: '#221E30',
+  // ── Dark surfaces ────────────────────────────────────────────────
+  dark: BrandPalette.bg,
+  dark2: BrandPalette.surface,
   darkCard: 'rgba(255,255,255,0.06)',
 
   // ── Gradients (as arrays for LinearGradient) ────────────────────
-  gradColors: ['#D94F70', '#6C4AB6'] as [string, string],
-  gradSoftColors: ['#FCE8ED', '#EDE7F8'] as [string, string],
+  gradColors: [BrandPalette.roseHot, BrandPalette.violet] as [string, string],
+  gradSoftColors: ['rgba(255,111,159,0.14)', 'rgba(159,130,255,0.14)'] as [string, string],
 } as const;
 
 export const Fonts = {

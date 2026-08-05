@@ -114,5 +114,5 @@ const styles = StyleSheet.create({
   content: { padding: 20, gap: 4 },
   headline: { fontSize: 17, fontFamily: Fonts.bold, color: Colors.ink, marginBottom: 2 },
   sub: { fontSize: 12, color: Colors.muted, fontFamily: Fonts.regular, marginBottom: 14 },
-  noteText: { fontSize: 11.5, color: '#2C5C8F', fontFamily: Fonts.regular, lineHeight: 18 },
+  noteText: { fontSize: 11.5, color: Colors.trust, fontFamily: Fonts.regular, lineHeight: 18 },
 });

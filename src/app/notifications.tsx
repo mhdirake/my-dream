@@ -8,6 +8,7 @@ import {
 } from '@/lib/api/notifications';
 import { chatApi, conversationPeer } from '@/lib/api/chat';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { useCentrifugoCtx } from '@/lib/chat/CentrifugoContext';
 import { toast } from '@/lib/toast';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
@@ -36,10 +37,10 @@ const TYPE_META: Record<string, NotifMeta> = {
   conversation_request_accepted: { icon: MessageCircle, color: Colors.trust, bg: Colors.trustSoft },
   match_created:             { icon: Heart,          color: Colors.accent, bg: Colors.accentSoft },
   payment_succeeded:         { icon: Star,           color: Colors.goldDeep, bg: Colors.goldSoft },
-  security_alert:            { icon: AlertTriangle,  color: Colors.danger, bg: '#FFF1F0' },
+  security_alert:            { icon: AlertTriangle,  color: Colors.danger, bg: Colors.dangerSoft },
   profile_viewed:            { icon: Eye,            color: Colors.purple, bg: Colors.purpleSoft },
   badge_earned:              { icon: Star,           color: Colors.goldDeep, bg: Colors.goldSoft },
-  restriction_applied:       { icon: AlertTriangle,  color: Colors.danger, bg: '#FFF1F0' },
+  restriction_applied:       { icon: AlertTriangle,  color: Colors.danger, bg: Colors.dangerSoft },
   subscription_expired:      { icon: Clock,          color: Colors.gold, bg: Colors.goldSoft },
   ai_insight:                { icon: Sparkles,       color: Colors.purple, bg: Colors.purpleSoft },
 };
@@ -48,6 +49,28 @@ const DEFAULT_META: NotifMeta = { icon: Bell, color: Colors.inkSoft, bg: Colors.
 
 function getMeta(type: string): NotifMeta {
   return TYPE_META[type] ?? DEFAULT_META;
+}
+
+function userDisplayName(user: AppNotification['related_user']): string {
+  if (!user) return '';
+  return [user.first_name, user.last_name].filter(Boolean).join(' ') || user.username;
+}
+
+function notificationTitle(n: AppNotification): string {
+  const name = userDisplayName(n.related_user);
+  if (name && ['new_message', 'message_received', 'chat_message_created'].includes(n.type)) {
+    return `پیام جدید از ${name}`;
+  }
+  return n.title ?? n.type;
+}
+
+function metadataNumber(metadata: Record<string, unknown>, keys: string[]): number | null {
+  for (const key of keys) {
+    const value = metadata[key];
+    const numberValue = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN;
+    if (Number.isFinite(numberValue) && numberValue > 0) return numberValue;
+  }
+  return null;
 }
 
 function relativeTime(iso: string): string {
@@ -164,6 +187,13 @@ async function handleNavigation(n: AppNotification, token: string, myId: number)
       break;
     }
     case 'payment_succeeded':
+      {
+        const paymentId = metadataNumber(m, ['payment_transaction_id', 'payment_id', 'transaction_id']);
+        if (paymentId) {
+          router.push({ pathname: '/payments/[id]' as any, params: { id: String(paymentId) } });
+          break;
+        }
+      }
       if (m.purchase_type === 'subscription') {
         router.push('/subscription' as any);
       } else if (m.purchase_type === 'gold_badge') {
@@ -199,6 +229,7 @@ export default function NotificationsScreen() {
   const accessToken = session?.accessToken;
   const userId = user?.id ?? -1;
   const { open } = useLocalSearchParams<{ open?: string }>();
+  const { addUserEventHandler, onConnect } = useCentrifugoCtx();
   const openedNotification = useRef<number | null>(null);
   const [items, setItems] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -243,6 +274,37 @@ export default function NotificationsScreen() {
     const timer = setTimeout(() => { void load(1, true); }, 0);
     return () => clearTimeout(timer);
   }, [load]);
+
+  useEffect(() => {
+    return onConnect(() => {
+      void load(1, true);
+    });
+  }, [load, onConnect]);
+
+  useEffect(() => {
+    return addUserEventHandler(data => {
+      if (data.event !== 'notification.created') return;
+
+      const payload = data.payload as {
+        notification?: AppNotification;
+        unread_count?: number;
+      } | undefined;
+      if (!payload?.notification?.id) {
+        void load(1, true);
+        return;
+      }
+
+      setItems(prev => {
+        if (prev.some(item => item.id === payload.notification!.id)) return prev;
+        return [payload.notification!, ...prev];
+      });
+      if (typeof payload.unread_count === 'number') {
+        setUnreadCount(payload.unread_count);
+      } else {
+        setUnreadCount(count => count + 1);
+      }
+    });
+  }, [addUserEventHandler, load]);
 
   const markAllRead = async () => {
     if (!session?.accessToken || markingAll || unreadCount === 0) return;
@@ -314,7 +376,7 @@ export default function NotificationsScreen() {
         <View style={styles.rowContent}>
           <View style={styles.rowTop}>
             <Text style={[styles.rowTitle, isUnread && styles.rowTitleBold]} numberOfLines={1}>
-              {n.title ?? n.type}
+              {notificationTitle(n)}
             </Text>
             <Text style={styles.rowTime}>{relativeTime(n.created_at)}</Text>
           </View>
@@ -324,7 +386,7 @@ export default function NotificationsScreen() {
           {giftDetail ? <Text style={styles.giftDetail}>{giftDetail}</Text> : null}
           {n.related_user && (
             <Text style={styles.rowUser}>
-              {n.related_user.first_name ?? n.related_user.username}
+              {userDisplayName(n.related_user)}
             </Text>
           )}
         </View>
@@ -398,7 +460,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: Colors.hair,
     position: 'relative',
   },
-  rowUnread: { backgroundColor: Colors.accentSoft + '60' },
+  rowUnread: { backgroundColor: Colors.accentSoft },
 
   unreadDot: {
     position: 'absolute', top: 20, right: 10,

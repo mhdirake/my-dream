@@ -6,7 +6,7 @@ import { searchApi, type SearchUser } from '@/lib/api/search';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { toFaDigits } from '@/lib/localization';
 import { router } from 'expo-router';
-import { ArrowLeft, Search, X } from 'lucide-react-native';
+import { ArrowRight, Search, X } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -119,7 +119,7 @@ export default function SearchScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
-          <ArrowLeft size={20} color={Colors.ink} strokeWidth={2.5} />
+          <ArrowRight size={20} color={Colors.ink} strokeWidth={2.5} />
         </TouchableOpacity>
         <View style={styles.inputWrap}>
           <Search size={15} color={Colors.muted} strokeWidth={2} style={styles.searchIcon} />
@@ -156,7 +156,7 @@ export default function SearchScreen() {
       ) : showEmpty ? (
         <View style={styles.center}>
           <Text style={styles.hintTxt}>نتیجه‌ای پیدا نشد</Text>
-          <Text style={styles.hintSub}>«{query}» در هیچ پروفایلی نیست</Text>
+          <Text style={styles.hintSub}>ممکنه کاربر موردنظر هنوز تایید نشده باشه</Text>
         </View>
       ) : (
         <FlatList
