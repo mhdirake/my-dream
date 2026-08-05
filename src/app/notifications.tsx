@@ -294,6 +294,11 @@ export default function NotificationsScreen() {
         return;
       }
 
+      // Keep realtime events consistent with the paginated notification list.
+      // The backend normally suppresses group-message notifications, but older
+      // workers or stale events must not reintroduce them through this path.
+      if (isGroupMessageNotification(payload.notification)) return;
+
       setItems(prev => {
         if (prev.some(item => item.id === payload.notification!.id)) return prev;
         return [payload.notification!, ...prev];
