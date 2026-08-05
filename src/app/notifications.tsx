@@ -1,6 +1,10 @@
 import { AppBar } from '@/components/ui/AppBar';
 import { Colors, Fonts, Spacing } from '@/constants/colors';
-import { type AppNotification, notificationsApi } from '@/lib/api/notifications';
+import {
+  type AppNotification,
+  isGroupMessageNotification,
+  notificationsApi,
+} from '@/lib/api/notifications';
 import { chatApi, conversationPeer } from '@/lib/api/chat';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { toast } from '@/lib/toast';
@@ -179,6 +183,8 @@ export default function NotificationsScreen() {
   const userId = user?.id ?? -1;
   const { open } = useLocalSearchParams<{ open?: string }>();
   const openedNotification = useRef<number | null>(null);
+  const groupConversationIds = useRef<Set<number>>(new Set());
+  const hiddenUnreadIds = useRef<Set<number>>(new Set());
   const [items, setItems] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -195,11 +201,51 @@ export default function NotificationsScreen() {
       setLoadingMore(true);
     }
     try {
-      const res = await notificationsApi.list(accessToken, p);
-      setItems(prev => replace ? res.data : [...prev, ...res.data]);
-      setUnreadCount(res.unread_count);
+      let currentPage = p;
+      let res: Awaited<ReturnType<typeof notificationsApi.list>>;
+
+      if (replace) {
+        hiddenUnreadIds.current.clear();
+        const [notificationsResult, conversationsResult] = await Promise.all([
+          notificationsApi.list(accessToken, currentPage),
+          chatApi.listConversations(accessToken).catch(() => null),
+        ]);
+        res = notificationsResult;
+        if (conversationsResult) {
+          groupConversationIds.current = new Set(
+            conversationsResult.data
+              .filter(conversation => conversation.type === 'group')
+              .map(conversation => conversation.id),
+          );
+        }
+      } else {
+        res = await notificationsApi.list(accessToken, currentPage);
+      }
+
+      const visible: AppNotification[] = [];
+      while (true) {
+        for (const notification of res.data) {
+          if (isGroupMessageNotification(notification, groupConversationIds.current)) {
+            if (!notification.read_at) hiddenUnreadIds.current.add(notification.id);
+          } else {
+            visible.push(notification);
+          }
+        }
+
+        if (visible.length > 0 || currentPage >= res.meta.last_page) break;
+        currentPage += 1;
+        res = await notificationsApi.list(accessToken, currentPage);
+      }
+
+      setItems(previous => {
+        if (replace) return visible;
+        const byId = new Map(previous.map(notification => [notification.id, notification]));
+        for (const notification of visible) byId.set(notification.id, notification);
+        return [...byId.values()];
+      });
+      setUnreadCount(Math.max(0, res.unread_count - hiddenUnreadIds.current.size));
       setLastPage(res.meta.last_page);
-      setPage(p);
+      setPage(currentPage);
     } catch (e: any) {
       toast.error(e.message ?? 'خطا در بارگذاری');
     } finally {
