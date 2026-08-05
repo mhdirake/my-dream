@@ -12,7 +12,7 @@ import { searchApi, type SearchUser } from '@/lib/api/search';
 import { payAndWait } from '@/lib/payments/payAndWait';
 import { toast } from '@/lib/toast';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { Coins, Gift, Star } from 'lucide-react-native';
+import { ChevronLeft, Coins, Gift, Star } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -61,6 +61,11 @@ export default function GiftSubScreen() {
     params.userId ? Number(params.userId) : null,
   );
   const [searching, setSearching] = useState(false);
+
+  const openHistoryUser = (userId?: number) => {
+    if (!userId) return;
+    router.push({ pathname: '/user/[id]', params: { id: String(userId) } } as never);
+  };
 
   useFocusEffect(useCallback(() => {
     const token = session?.accessToken;
@@ -407,7 +412,13 @@ export default function GiftSubScreen() {
                 <Text style={styles.historyEmpty}>موردی ثبت نشده</Text>
               ) : (
                 (subHistory?.[historyDir] ?? []).slice(0, 10).map(r => (
-                  <View key={r.id} style={styles.historyRow}>
+                  <TouchableOpacity
+                    key={r.id}
+                    style={styles.historyRow}
+                    onPress={() => openHistoryUser((historyDir === 'sent' ? r.receiver : r.sender)?.id)}
+                    disabled={!(historyDir === 'sent' ? r.receiver : r.sender)}
+                    activeOpacity={0.75}
+                  >
                     <Gift size={15} color={Colors.purple} strokeWidth={1.8} />
                     <View style={{ flex: 1 }}>
                       <Text style={styles.historyRowTitle}>
@@ -422,7 +433,10 @@ export default function GiftSubScreen() {
                     <Text style={[styles.historyStatus, r.status === 'granted' && styles.historyStatusOk]}>
                       {r.status === 'granted' ? 'فعال شد' : r.status === 'pending_payment' ? 'در انتظار پرداخت' : r.status === 'cancelled' ? 'لغو شده' : r.status === 'failed' ? 'ناموفق' : r.status}
                     </Text>
-                  </View>
+                    {(historyDir === 'sent' ? r.receiver : r.sender) && (
+                      <ChevronLeft size={16} color={Colors.muted} strokeWidth={2} />
+                    )}
+                  </TouchableOpacity>
                 ))
               )
             ) : (
@@ -430,7 +444,13 @@ export default function GiftSubScreen() {
                 <Text style={styles.historyEmpty}>موردی ثبت نشده</Text>
               ) : (
                 (coinHistory?.[historyDir] ?? []).slice(0, 10).map(r => (
-                  <View key={r.id} style={styles.historyRow}>
+                  <TouchableOpacity
+                    key={r.id}
+                    style={styles.historyRow}
+                    onPress={() => openHistoryUser((historyDir === 'sent' ? r.receiver : r.sender)?.id)}
+                    disabled={!(historyDir === 'sent' ? r.receiver : r.sender)}
+                    activeOpacity={0.75}
+                  >
                     <Coins size={15} color={Colors.goldDeep} strokeWidth={1.8} />
                     <View style={{ flex: 1 }}>
                       <Text style={styles.historyRowTitle}>{toPersian(r.amount)} سکه</Text>
@@ -440,7 +460,10 @@ export default function GiftSubScreen() {
                           : `از ${r.sender?.first_name ?? ''}`}
                       </Text>
                     </View>
-                  </View>
+                    {(historyDir === 'sent' ? r.receiver : r.sender) && (
+                      <ChevronLeft size={16} color={Colors.muted} strokeWidth={2} />
+                    )}
+                  </TouchableOpacity>
                 ))
               )
             )}

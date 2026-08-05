@@ -1,14 +1,15 @@
 import { AppBar } from '@/components/ui/AppBar';
+import { Avatar } from '@/components/ui/Avatar';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { giftsApi, CoinGiftRecord } from '@/lib/api/gifts';
+import { giftUserPhotoUrl, giftsApi, CoinGiftRecord } from '@/lib/api/gifts';
 import { paymentsApi } from '@/lib/api/payments';
 import { profileApi, ClientProfile } from '@/lib/api/profile';
 import { toast } from '@/lib/toast';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
 import { toJalaali } from 'jalaali-js';
-import { Coins, Gift, ShoppingBag } from 'lucide-react-native';
+import { ChevronLeft, Coins, Gift, ShoppingBag } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -138,10 +139,22 @@ export default function WalletScreen() {
             </View>
           ) : (
             received.map(item => (
-              <View key={item.id} style={styles.txRow}>
-                <View style={styles.txIcon}>
-                  <Coins size={14} color={Colors.goldDeep} strokeWidth={2} />
-                </View>
+              <TouchableOpacity
+                key={item.id}
+                style={styles.txRow}
+                onPress={() => item.sender && router.push({
+                  pathname: '/user/[id]' as any,
+                  params: { id: String(item.sender.id) },
+                })}
+                disabled={!item.sender}
+                activeOpacity={0.75}
+                accessibilityRole={item.sender ? 'button' : undefined}
+              >
+                <Avatar
+                  size={40}
+                  name={item.sender?.first_name ?? item.sender?.username}
+                  photoUrl={giftUserPhotoUrl(item.sender)}
+                />
                 <View style={styles.txInfo}>
                   <Text style={styles.txTitle}>
                     {item.sender?.first_name ?? item.sender?.username ?? 'کاربر ناشناس'} سکه فرستاد
@@ -149,8 +162,11 @@ export default function WalletScreen() {
                   {item.note && <Text style={styles.txNote}>{item.note}</Text>}
                   <Text style={styles.txDate}>{formatDate(item.sent_at)}</Text>
                 </View>
-                <Text style={styles.txAmt}>+{toPersian(item.amount)}</Text>
-              </View>
+                <View style={styles.txEnd}>
+                  <Text style={styles.txAmt}>+{toPersian(item.amount)}</Text>
+                  {item.sender && <ChevronLeft size={16} color={Colors.muted} strokeWidth={2} />}
+                </View>
+              </TouchableOpacity>
             ))
           )}
 
@@ -210,13 +226,10 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface, borderRadius: Radius.lg,
     padding: Spacing.md, borderWidth: 1, borderColor: Colors.hair,
   },
-  txIcon: {
-    width: 36, height: 36, borderRadius: 10,
-    backgroundColor: Colors.goldSoft, alignItems: 'center', justifyContent: 'center',
-  },
   txInfo: { flex: 1, gap: 2 },
   txTitle: { fontSize: 12.5, fontFamily: Fonts.semiBold, color: Colors.ink },
   txNote: { fontSize: 11, color: Colors.muted, fontFamily: Fonts.regular },
   txDate: { fontSize: 10.5, color: Colors.muted, fontFamily: Fonts.regular },
+  txEnd: { alignItems: 'center', gap: 4 },
   txAmt: { fontSize: 14, fontFamily: Fonts.extraBold, color: Colors.ok },
 });

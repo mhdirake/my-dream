@@ -1,12 +1,13 @@
 import { Card } from '@/components/ui/Card';
+import { Avatar } from '@/components/ui/Avatar';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
-import { giftsApi, SentGift } from '@/lib/api/gifts';
+import { giftUserPhotoUrl, giftsApi, SentGift } from '@/lib/api/gifts';
 import { BackendGift } from '@/lib/api/discover';
 import { paymentsApi } from '@/lib/api/payments';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { toast } from '@/lib/toast';
 import { router } from 'expo-router';
-import { Coins, Gift, Package, Star, Wallet } from 'lucide-react-native';
+import { ChevronLeft, Coins, Gift, Package, Star, Wallet } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator, ScrollView, StyleSheet, Text,
@@ -224,8 +225,22 @@ export default function GiftsScreen() {
               received.map(sg => {
                 const meta = TYPE_META[sg.gift_type] ?? { label: sg.gift_type, color: Colors.muted, bg: Colors.ph2 };
                 return (
-                  <View key={sg.sent_gift_id} style={styles.receivedCard}>
-                    <Text style={styles.receivedEmoji}>🎁</Text>
+                  <TouchableOpacity
+                    key={sg.sent_gift_id}
+                    style={styles.receivedCard}
+                    onPress={() => sg.sender && router.push({
+                      pathname: '/user/[id]' as any,
+                      params: { id: String(sg.sender.id) },
+                    })}
+                    disabled={!sg.sender}
+                    activeOpacity={0.75}
+                    accessibilityRole={sg.sender ? 'button' : undefined}
+                  >
+                    <Avatar
+                      size={44}
+                      name={sg.sender?.first_name ?? sg.sender?.username}
+                      photoUrl={giftUserPhotoUrl(sg.sender)}
+                    />
                     <View style={styles.receivedInfo}>
                       <Text style={styles.receivedTitle}>{sg.gift_title}</Text>
                       <View style={[styles.receivedType, { backgroundColor: meta.bg }]}>
@@ -238,12 +253,15 @@ export default function GiftsScreen() {
                       )}
                       {sg.note && <Text style={styles.receivedNote}>«{sg.note}»</Text>}
                     </View>
-                    {sg.is_pinned && (
-                      <View style={styles.pinnedBadge}>
-                        <Text style={styles.pinnedTxt}>📌</Text>
-                      </View>
-                    )}
-                  </View>
+                    <View style={styles.receivedActions}>
+                      {sg.is_pinned && (
+                        <View style={styles.pinnedBadge}>
+                          <Text style={styles.pinnedTxt}>📌</Text>
+                        </View>
+                      )}
+                      {sg.sender && <ChevronLeft size={18} color={Colors.muted} strokeWidth={2} />}
+                    </View>
+                  </TouchableOpacity>
                 );
               })
             )}
@@ -339,13 +357,13 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.hair, padding: Spacing.md,
     marginBottom: 10,
   },
-  receivedEmoji: { fontSize: 32, marginTop: 2 },
   receivedInfo: { flex: 1, gap: 4 },
   receivedTitle: { fontSize: 13, fontFamily: Fonts.bold, color: Colors.ink },
   receivedType: { alignSelf: 'flex-start', borderRadius: Radius.pill, paddingHorizontal: 8, paddingVertical: 2 },
   receivedTypeTxt: { fontSize: 9.5, fontFamily: Fonts.semiBold },
   receivedFrom: { fontSize: 11.5, color: Colors.muted, fontFamily: Fonts.regular },
   receivedNote: { fontSize: 11.5, color: Colors.inkSoft, fontFamily: Fonts.regular, fontStyle: 'italic' },
+  receivedActions: { alignItems: 'center', gap: 6 },
   pinnedBadge: { padding: 4 },
   pinnedTxt: { fontSize: 16 },
 });

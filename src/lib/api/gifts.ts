@@ -3,6 +3,22 @@ import { BackendGift } from './discover';
 import type { PaymentTransaction } from './payments';
 import { Platform } from 'react-native';
 
+const MEDIA_BASE = process.env.EXPO_PUBLIC_MEDIA_URL ?? process.env.EXPO_PUBLIC_API_URL ?? '';
+
+export type GiftUser = {
+  id: number;
+  username: string;
+  first_name: string;
+  last_name: string | null;
+  profile_photo_path: string | null;
+};
+
+export function giftUserPhotoUrl(user: GiftUser | null | undefined): string | null {
+  const path = user?.profile_photo_path;
+  if (!path) return null;
+  return path.startsWith('http') ? path : `${MEDIA_BASE}/${path.replace(/^\//, '')}`;
+}
+
 export type SentGift = {
   sent_gift_id: number;
   gift_title: string;
@@ -10,7 +26,7 @@ export type SentGift = {
   coin_price_paid: number;
   asset_url: string | null;
   asset_type: string;
-  sender: { id: number; username: string; first_name: string; last_name: string | null; profile_photo_path: string | null } | null;
+  sender: GiftUser | null;
   note: string | null;
   sent_at: string;
   is_pinned: boolean;
@@ -30,8 +46,8 @@ export type CoinGiftRecord = {
   note: string | null;
   status: string;
   sent_at: string;
-  sender: { id: number; username: string; first_name: string } | null;
-  receiver: { id: number; username: string; first_name: string } | null;
+  sender: GiftUser | null;
+  receiver: GiftUser | null;
 };
 
 export const giftsApi = {
@@ -113,7 +129,7 @@ export type SubscriptionGiftRecord = {
   note: string | null;
   granted_at: string | null;
   created_at: string;
-  sender: { id: number; username: string; first_name: string } | null;
-  receiver: { id: number; username: string; first_name: string } | null;
+  sender: GiftUser | null;
+  receiver: GiftUser | null;
   subscription_plan: { id: number; name: string; slug: string } | null;
 };
