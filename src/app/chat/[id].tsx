@@ -95,7 +95,7 @@ function VoiceBubblePlayer({
 
   return (
     <View style={styles.voicePlayerRow}>
-      <TouchableOpacity style={[styles.voicePlayBtn, { backgroundColor: isMine ? 'rgba(255,255,255,0.84)' : '#D8E3EE' }]} onPress={toggle} activeOpacity={0.8}>
+      <TouchableOpacity style={[styles.voicePlayBtn, { backgroundColor: isMine ? 'rgba(255,255,255,0.84)' : Colors.surface3 }]} onPress={toggle} activeOpacity={0.8}>
         {status.playing
           ? <Pause size={18} color={isMine ? Colors.accent : Colors.ink} strokeWidth={2.6} />
           : <Play size={18} color={isMine ? Colors.accent : Colors.ink} fill={isMine ? Colors.accent : Colors.ink} strokeWidth={0} />
