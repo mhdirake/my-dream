@@ -40,6 +40,7 @@ export type Message = {
   conversation_id: string;
   conversation_type: 'direct' | 'group';
   sender_user_id: number;
+  sender?: ConversationUser | null;
   message_type: MessageType;
   body_text: string;
   caption: string;

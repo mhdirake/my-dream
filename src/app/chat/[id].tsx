@@ -904,6 +904,11 @@ export default function ConversationScreen() {
 
   const handleMore = () => setMenuOpen(true);
 
+  const openGroupMemberProfile = useCallback((senderId: number) => {
+    if (!isGroup || senderId <= 0 || senderId === myId) return;
+    router.push({ pathname: '/user/[id]', params: { id: String(senderId) } } as never);
+  }, [isGroup, myId]);
+
   const handleMessageLongPress = useCallback((messageId: string, senderId: number, bodyText: string, myReaction?: string | null, messageType?: string) => {
     setMsgMenu({ id: messageId, sender: senderId, body: bodyText, type: messageType, myReaction });
   }, []);
@@ -1048,6 +1053,7 @@ export default function ConversationScreen() {
               const isSending = item.status === 'sending';
               const isFailed = item.status === 'failed';
               const isHighlighted = item.message_id === highlightId;
+              const showGroupMember = isGroup && !isMine;
 
               // Tick icon: clock=sending, single check=sent, double grey=delivered, double accent=read
               const TickIcon = isFailed ? X : isSending ? Clock : item.read_at ? CheckCheck : item.delivered_at ? CheckCheck : item.status === 'sent' ? Check : CheckCheck;
@@ -1078,6 +1084,9 @@ export default function ConversationScreen() {
                 url.startsWith('http') || url.startsWith('file:')
                   ? url
                   : `${process.env.EXPO_PUBLIC_API_URL}/${url.replace(/^\//, '')}`;
+              const senderName = item.sender?.first_name?.trim() || `کاربر ${toFaDigits(item.sender_user_id)}`;
+              const senderPhotoUrl = item.sender?.profile_photo?.urls?.thumbnail;
+              const senderAvatarUri = senderPhotoUrl ? resolveMediaUrl(senderPhotoUrl) : null;
 
               const imageUri = item.message_type === 'image' && item.media_url
                 ? resolveMediaUrl(item.media_url)
@@ -1093,8 +1102,8 @@ export default function ConversationScreen() {
 
               const bubbleContent = (
                 <>
-                  {isGroup && !isMine ? (
-                    <Text style={[styles.groupSender, { color: isMine ? '#fff' : Colors.purple }]}>کاربر {toFaDigits(item.sender_user_id)}</Text>
+                  {showGroupMember ? (
+                    <Text style={styles.groupSender}>{senderName}</Text>
                   ) : null}
                   {item.reply_to_message_id && (
                     <TouchableOpacity
@@ -1238,7 +1247,7 @@ export default function ConversationScreen() {
               );
 
               return (
-                <View style={[styles.msgWrap, isHighlighted && styles.msgHighlight]}>
+                <View style={[styles.msgWrap, showGroupMember && styles.groupMsgWrap, isHighlighted && styles.msgHighlight]}>
                   {showDaySep && (
                     <View style={styles.daySepWrap}>
                       <View style={styles.daySepPill}>
@@ -1258,6 +1267,26 @@ export default function ConversationScreen() {
                       {bubbleContent}
                     </BubbleContainer>
                   </Pressable>
+                  {showGroupMember && (
+                    <TouchableOpacity
+                      style={styles.groupAvatarButton}
+                      onPress={() => openGroupMemberProfile(item.sender_user_id)}
+                      activeOpacity={0.72}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel={`مشاهده پروفایل ${senderName}`}
+                    >
+                      {senderAvatarUri ? (
+                        <Image
+                          source={{ uri: senderAvatarUri }}
+                          style={StyleSheet.absoluteFill}
+                          contentFit="cover"
+                        />
+                      ) : (
+                        <User size={17} color={Colors.purple} strokeWidth={1.8} />
+                      )}
+                    </TouchableOpacity>
+                  )}
                 </View>
               );
             }}
@@ -1920,8 +1949,16 @@ const styles = StyleSheet.create({
   emptySub: { fontSize: 12, fontFamily: Fonts.regular, color: Colors.muted },
 
   // Message rows
-  msgWrap: { marginVertical: 3 },
-  groupSender: { fontSize: 10.5, fontFamily: Fonts.semiBold, marginBottom: 3 },
+  msgWrap: { marginVertical: 3, position: 'relative' },
+  groupMsgWrap: { paddingLeft: 40 },
+  groupAvatarButton: {
+    position: 'absolute', left: 0, bottom: 0, zIndex: 1,
+    width: 34, height: 34, borderRadius: 17,
+    overflow: 'hidden', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: Colors.accentSoft,
+    borderWidth: 1, borderColor: Colors.hair,
+  },
+  groupSender: { fontSize: 10.5, fontFamily: Fonts.semiBold, marginBottom: 3, color: Colors.purple },
   msgImage: {
     width: 220,
     height: 220,

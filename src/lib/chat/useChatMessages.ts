@@ -14,6 +14,40 @@ function normalizeMessage(raw: Record<string, unknown>): Message {
     Number(a ?? b ?? 0);
   const bool = (a: unknown, b: unknown) =>
     Boolean(a ?? b ?? false);
+  const senderRaw = raw.sender ?? raw.Sender ?? raw.sender_user ?? raw.SenderUser;
+  const sender = senderRaw && typeof senderRaw === 'object'
+    ? senderRaw as Record<string, unknown>
+    : null;
+  const senderPhotoRaw = sender?.profile_photo ?? sender?.ProfilePhoto;
+  let senderPhoto: NonNullable<Message['sender']>['profile_photo'] = null;
+  if (typeof senderPhotoRaw === 'string' && senderPhotoRaw) {
+    senderPhoto = {
+      urls: {
+        original: senderPhotoRaw,
+        thumbnail: senderPhotoRaw,
+        small: senderPhotoRaw,
+        medium: senderPhotoRaw,
+        large: senderPhotoRaw,
+      },
+    };
+  } else if (senderPhotoRaw && typeof senderPhotoRaw === 'object') {
+    const photo = senderPhotoRaw as Record<string, unknown>;
+    const urlsRaw = photo.urls ?? photo.URLs;
+    if (urlsRaw && typeof urlsRaw === 'object') {
+      const urls = urlsRaw as Record<string, unknown>;
+      const original = str(urls.original, urls.Original);
+      const thumbnail = str(urls.thumbnail, urls.Thumbnail, original);
+      senderPhoto = {
+        urls: {
+          original: original || thumbnail,
+          thumbnail,
+          small: str(urls.small, urls.Small, thumbnail),
+          medium: str(urls.medium, urls.Medium, original || thumbnail),
+          large: str(urls.large, urls.Large, original || thumbnail),
+        },
+      };
+    }
+  }
 
   return {
     message_id:          str(raw.message_id,          raw.MessageID),
@@ -21,6 +55,13 @@ function normalizeMessage(raw: Record<string, unknown>): Message {
     conversation_id:     str(raw.conversation_id,      raw.ConversationID),
     conversation_type:   str(raw.conversation_type,    raw.ConversationType) as 'direct' | 'group',
     sender_user_id:      num(raw.sender_user_id,       raw.SenderUserID),
+    sender: sender ? {
+      id:                  num(sender.id,               sender.ID),
+      username:            str(sender.username,         sender.Username),
+      first_name:          str(sender.first_name,       sender.FirstName),
+      last_name:           (sender.last_name ?? sender.LastName ?? null) as string | null,
+      profile_photo:       senderPhoto,
+    } : null,
     message_type:        str(raw.message_type,         raw.MessageType) as Message['message_type'],
     body_text:           str(raw.body_text,            raw.BodyText),
     caption:             str(raw.caption,              raw.Caption),
@@ -96,7 +137,9 @@ export function useChatMessages(
     if (!token || !conversationId) return;
     try {
       const data = await chatApi.getMessages(token, conversationId);
-      const chronological = [...data].reverse();
+      const chronological = data
+        .map(message => normalizeMessage(message as unknown as Record<string, unknown>))
+        .reverse();
       setMessages(previous => replace ? chronological : mergeMessages(previous, chronological));
       setHasMore(data.length >= 100);
       setLoadError(false);
@@ -148,7 +191,10 @@ export function useChatMessages(
     try {
       const older = await chatApi.getMessages(token, conversationId, oldest);
       if (older.length === 0) { setHasMore(false); return; }
-      setMessages(prev => mergeMessages(prev, [...older].reverse()));
+      const normalizedOlder = older
+        .map(message => normalizeMessage(message as unknown as Record<string, unknown>))
+        .reverse();
+      setMessages(prev => mergeMessages(prev, normalizedOlder));
       setHasMore(older.length >= 100);
     } catch {
       // silent
@@ -493,7 +539,10 @@ export function useChatMessages(
       const res = await chatApi.getMessageContext(token, conversationId, messageId);
       if (res.items?.length) {
         // context API returns ascending (oldest first) — no reverse needed
-        setMessages(previous => mergeMessages(previous, res.items));
+        const normalizedContext = res.items.map(message =>
+          normalizeMessage(message as unknown as Record<string, unknown>),
+        );
+        setMessages(previous => mergeMessages(previous, normalizedContext));
         setHasMore(true);
         setHighlightId(messageId);
         return messageId;
