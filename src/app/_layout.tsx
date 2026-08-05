@@ -8,13 +8,18 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { I18nManager, Platform } from 'react-native';
+import { Appearance, I18nManager, Platform } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { toastConfig } from '@/components/ui/ToastConfig';
 import { PrivacyGuard } from '@/components/privacy/PrivacyGuard';
 import { KeyboardViewport } from '@/components/ui/KeyboardViewport';
 
 SplashScreen.preventAutoHideAsync();
+
+// The current design system has one light palette. Keep native controls and
+// Android's automatic color transformation in that same scheme so explicit
+// white button labels are never rendered over an automatically lightened fill.
+Appearance.setColorScheme('light');
 
 I18nManager.allowRTL(true);
 I18nManager.forceRTL(true);
