@@ -183,8 +183,6 @@ export default function NotificationsScreen() {
   const userId = user?.id ?? -1;
   const { open } = useLocalSearchParams<{ open?: string }>();
   const openedNotification = useRef<number | null>(null);
-  const groupConversationIds = useRef<Set<number>>(new Set());
-  const hiddenUnreadIds = useRef<Set<number>>(new Set());
   const [items, setItems] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -201,41 +199,11 @@ export default function NotificationsScreen() {
       setLoadingMore(true);
     }
     try {
-      let currentPage = p;
-      let res: Awaited<ReturnType<typeof notificationsApi.list>>;
-
-      if (replace) {
-        hiddenUnreadIds.current.clear();
-        const [notificationsResult, conversationsResult] = await Promise.all([
-          notificationsApi.list(accessToken, currentPage),
-          chatApi.listConversations(accessToken).catch(() => null),
-        ]);
-        res = notificationsResult;
-        if (conversationsResult) {
-          groupConversationIds.current = new Set(
-            conversationsResult.data
-              .filter(conversation => conversation.type === 'group')
-              .map(conversation => conversation.id),
-          );
-        }
-      } else {
-        res = await notificationsApi.list(accessToken, currentPage);
-      }
-
-      const visible: AppNotification[] = [];
-      while (true) {
-        for (const notification of res.data) {
-          if (isGroupMessageNotification(notification, groupConversationIds.current)) {
-            if (!notification.read_at) hiddenUnreadIds.current.add(notification.id);
-          } else {
-            visible.push(notification);
-          }
-        }
-
-        if (visible.length > 0 || currentPage >= res.meta.last_page) break;
-        currentPage += 1;
-        res = await notificationsApi.list(accessToken, currentPage);
-      }
+      const res = await notificationsApi.list(accessToken, p);
+      const visible = res.data.filter(notification => !isGroupMessageNotification(notification));
+      const hiddenUnreadCount = res.data.filter(notification =>
+        !notification.read_at && isGroupMessageNotification(notification),
+      ).length;
 
       setItems(previous => {
         if (replace) return visible;
@@ -243,9 +211,9 @@ export default function NotificationsScreen() {
         for (const notification of visible) byId.set(notification.id, notification);
         return [...byId.values()];
       });
-      setUnreadCount(Math.max(0, res.unread_count - hiddenUnreadIds.current.size));
+      setUnreadCount(Math.max(0, res.unread_count - hiddenUnreadCount));
       setLastPage(res.meta.last_page);
-      setPage(currentPage);
+      setPage(p);
     } catch (e: any) {
       toast.error(e.message ?? 'خطا در بارگذاری');
     } finally {

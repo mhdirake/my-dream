@@ -7,7 +7,6 @@ import { Colors, Fonts } from '@/constants/colors';
 import { DailySuggestionProfile, DailySuggestionsMeta, DiscoverProfile, MutualUser, SwipePoolMeta, discoverApi } from '@/lib/api/discover';
 import { MatchCelebrationModal } from '@/components/MatchCelebrationModal';
 import { isGroupMessageNotification, notificationsApi } from '@/lib/api/notifications';
-import { chatApi } from '@/lib/api/chat';
 import { aiCoachApi } from '@/lib/api/ai-coach';
 import { profileApi } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -830,39 +829,13 @@ export default function DiscoverScreen() {
   const [dailyLoaded, setDailyLoaded] = useState(false);
   const swipedProfileIdsRef = useRef<Set<number>>(new Set());
 
-  const fetchUnread = useCallback(async () => {
+  const fetchUnread = useCallback(() => {
     if (!session?.accessToken) return;
-    try {
-      const [firstPage, conversations] = await Promise.all([
-        notificationsApi.list(session.accessToken, 1, true),
-        chatApi.listConversations(session.accessToken),
-      ]);
-      const groupIds = new Set(
-        conversations.data
-          .filter(conversation => conversation.type === 'group')
-          .map(conversation => conversation.id),
-      );
-
-      let response = firstPage;
-      let currentPage = 1;
-      while (true) {
-        const hasImportantUnread = response.data.some(notification =>
-          !notification.read_at && !isGroupMessageNotification(notification, groupIds),
-        );
-        if (hasImportantUnread) {
-          setHasUnread(true);
-          return;
-        }
-        if (currentPage >= response.meta.last_page) {
-          setHasUnread(false);
-          return;
-        }
-        currentPage += 1;
-        response = await notificationsApi.list(session.accessToken, currentPage, true);
-      }
-    } catch {
-      // Keep the existing indicator if refreshing either source fails.
-    }
+    notificationsApi.list(session.accessToken, 1, true)
+      .then(response => setHasUnread(response.data.some(notification =>
+        !notification.read_at && !isGroupMessageNotification(notification),
+      )))
+      .catch(() => {});
   }, [session?.accessToken]);
 
   useFocusEffect(useCallback(() => { fetchUnread(); }, [fetchUnread]));

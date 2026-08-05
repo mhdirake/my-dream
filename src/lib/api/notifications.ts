@@ -44,13 +44,10 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 
 /**
  * Group messages use the same notification types as direct messages on some
- * backend versions. Prefer explicit metadata, then fall back to the known
- * group conversation ids loaded by the notifications screen.
+ * backend versions, so keep a lightweight defensive check for malformed or
+ * stale responses even though the backend no longer creates these records.
  */
-export function isGroupMessageNotification(
-  notification: AppNotification,
-  groupConversationIds: ReadonlySet<number> = new Set<number>(),
-): boolean {
+export function isGroupMessageNotification(notification: AppNotification): boolean {
   const type = notification.type.toLowerCase().replace(/-/g, '_');
   const explicitlyGroupMessage =
     (type.includes('group') && type.includes('message'));
@@ -79,10 +76,7 @@ export function isGroupMessageNotification(
     conversation?.group_id != null
   ) return true;
 
-  const conversationId = Number(
-    metadata.conversation_id ?? metadata.conversationId ?? conversation?.id,
-  );
-  return Number.isInteger(conversationId) && groupConversationIds.has(conversationId);
+  return false;
 }
 
 export const notificationsApi = {

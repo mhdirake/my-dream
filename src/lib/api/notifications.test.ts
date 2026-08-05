@@ -24,17 +24,15 @@ describe('isGroupMessageNotification', () => {
     )).toBe(true);
   });
 
-  it('uses known group conversation ids when metadata only contains an id', () => {
+  it('recognizes nested group conversation metadata', () => {
     expect(isGroupMessageNotification(
-      notification('new_message', { conversation_id: 42 }),
-      new Set([42]),
+      notification('new_message', { conversation: { type: 'group' } }),
     )).toBe(true);
   });
 
   it('keeps direct message notifications', () => {
     expect(isGroupMessageNotification(
       notification('message_received', { conversation_type: 'direct', conversation_id: 7 }),
-      new Set([42]),
     )).toBe(false);
   });
 
