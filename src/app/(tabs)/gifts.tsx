@@ -6,7 +6,7 @@ import { BackendGift } from '@/lib/api/discover';
 import { paymentsApi } from '@/lib/api/payments';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { toast } from '@/lib/toast';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft, Coins, Gift, Package, Star, Wallet } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -49,8 +49,11 @@ const SCREEN_TABS = [
 export default function GiftsScreen() {
   const { session } = useAuth();
   const { bottom } = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ tab?: string }>();
 
-  const [screenTab, setScreenTab] = useState<'store' | 'received'>('store');
+  const [screenTab, setScreenTab] = useState<'store' | 'received'>(
+    params.tab === 'received' ? 'received' : 'store',
+  );
   const [filterTab, setFilterTab] = useState<string>('all');
   const [gifts, setGifts] = useState<BackendGift[]>([]);
   const [received, setReceived] = useState<SentGift[]>([]);
@@ -83,6 +86,10 @@ export default function GiftsScreen() {
   }, [session?.accessToken]);
 
   useEffect(() => { loadStore(); }, [loadStore]);
+
+  useEffect(() => {
+    if (params.tab === 'received') setScreenTab('received');
+  }, [params.tab]);
 
   useEffect(() => {
     if (screenTab === 'received' && received.length === 0) loadReceived();

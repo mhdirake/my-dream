@@ -30,6 +30,52 @@ export type NotificationsResponse = {
   };
 };
 
+const GIFT_PLAN_LABELS: Record<string, string> = {
+  free: 'پایه',
+  silver: 'نقره‌ای',
+  gold: 'طلایی',
+};
+
+function toPersianDigits(value: string | number): string {
+  return String(value).replace(/[0-9]/g, digit => '۰۱۲۳۴۵۶۷۸۹'.charAt(Number(digit)));
+}
+
+export function giftNotificationDetail(notification: AppNotification): string | null {
+  if (notification.type !== 'gift_received') return null;
+
+  const metadata = notification.metadata ?? {};
+  const giftKind = String(metadata.gift_kind ?? '').toLowerCase();
+
+  if (giftKind === 'catalog_gift') {
+    const title = typeof metadata.gift_title === 'string' ? metadata.gift_title.trim() : '';
+    return title ? `هدیه: ${title}` : 'هدیه فروشگاه';
+  }
+
+  if (giftKind === 'coin_gift') {
+    const amount = Number(metadata.amount);
+    return Number.isFinite(amount) && amount > 0
+      ? `${toPersianDigits(amount)} سکه`
+      : 'هدیه سکه';
+  }
+
+  if (giftKind === 'subscription' || giftKind === 'subscription_gift') {
+    const slug = String(metadata.plan_slug ?? '').toLowerCase();
+    const planName = typeof metadata.plan_name === 'string' ? metadata.plan_name.trim() : '';
+    const plan = planName || GIFT_PLAN_LABELS[slug] || slug;
+    const duration = Number(metadata.duration_days);
+    const durationText = Number.isFinite(duration) && duration > 0
+      ? `، ${toPersianDigits(duration)} روزه`
+      : '';
+    return plan ? `اشتراک ${plan}${durationText}` : 'هدیه اشتراک';
+  }
+
+  if (giftKind === 'gold_badge' || giftKind === 'gold_badge_gift') {
+    return 'نشان طلایی یک‌ماهه';
+  }
+
+  return null;
+}
+
 const MESSAGE_NOTIFICATION_TYPES = new Set([
   'new_message',
   'message_received',

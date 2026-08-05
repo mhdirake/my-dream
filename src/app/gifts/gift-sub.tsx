@@ -40,7 +40,7 @@ const TABS = [
 export default function GiftSubScreen() {
   const insets = useSafeAreaInsets();
   const { session } = useAuth();
-  const params = useLocalSearchParams<{ tab?: string; userId?: string; userName?: string }>();
+  const params = useLocalSearchParams<{ tab?: string; history?: string; userId?: string; userName?: string }>();
   const hasUserId = !!params.userId;
 
   const [tab, setTab] = useState<'sub' | 'coin'>((params.tab as any) ?? 'sub');
@@ -52,7 +52,9 @@ export default function GiftSubScreen() {
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [historyDir, setHistoryDir] = useState<'sent' | 'received'>('sent');
+  const [historyDir, setHistoryDir] = useState<'sent' | 'received'>(
+    params.history === 'received' ? 'received' : 'sent',
+  );
   const [subHistory, setSubHistory] = useState<{ sent: SubscriptionGiftRecord[]; received: SubscriptionGiftRecord[] } | null>(null);
   const [coinHistory, setCoinHistory] = useState<{ sent: CoinGiftRecord[]; received: CoinGiftRecord[] } | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -66,6 +68,11 @@ export default function GiftSubScreen() {
     if (!userId) return;
     router.push({ pathname: '/user/[id]', params: { id: String(userId) } } as never);
   };
+
+  useEffect(() => {
+    if (params.tab === 'sub' || params.tab === 'coin') setTab(params.tab);
+    if (params.history === 'sent' || params.history === 'received') setHistoryDir(params.history);
+  }, [params.history, params.tab]);
 
   useFocusEffect(useCallback(() => {
     const token = session?.accessToken;

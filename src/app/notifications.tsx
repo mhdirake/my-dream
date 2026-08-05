@@ -2,6 +2,7 @@ import { AppBar } from '@/components/ui/AppBar';
 import { Colors, Fonts, Spacing } from '@/constants/colors';
 import {
   type AppNotification,
+  giftNotificationDetail,
   isGroupMessageNotification,
   notificationsApi,
 } from '@/lib/api/notifications';
@@ -143,9 +144,25 @@ async function handleNavigation(n: AppNotification, token: string, myId: number)
       }
       break;
     }
-    case 'gift_received':
-      router.push('/gifts/wallet' as any);
+    case 'gift_received': {
+      const giftKind = String(m.gift_kind ?? '').toLowerCase();
+      if (giftKind === 'coin_gift') {
+        router.push('/gifts/wallet' as any);
+      } else if (giftKind === 'subscription' || giftKind === 'subscription_gift') {
+        router.push({
+          pathname: '/gifts/gift-sub' as any,
+          params: { tab: 'sub', history: 'received' },
+        });
+      } else if (giftKind === 'gold_badge' || giftKind === 'gold_badge_gift') {
+        router.push('/(tabs)/me' as any);
+      } else {
+        router.push({
+          pathname: '/(tabs)/gifts' as any,
+          params: { tab: 'received' },
+        });
+      }
       break;
+    }
     case 'payment_succeeded':
       if (m.purchase_type === 'subscription') {
         router.push('/subscription' as any);
@@ -282,6 +299,7 @@ export default function NotificationsScreen() {
     const meta = getMeta(n.type);
     const Icon = meta.icon;
     const isUnread = !n.read_at;
+    const giftDetail = giftNotificationDetail(n);
 
     return (
       <TouchableOpacity
@@ -303,6 +321,7 @@ export default function NotificationsScreen() {
           {n.body ? (
             <Text style={styles.rowBody} numberOfLines={2}>{n.body}</Text>
           ) : null}
+          {giftDetail ? <Text style={styles.giftDetail}>{giftDetail}</Text> : null}
           {n.related_user && (
             <Text style={styles.rowUser}>
               {n.related_user.first_name ?? n.related_user.username}
@@ -393,6 +412,7 @@ const styles = StyleSheet.create({
   },
 
   rowContent: { flex: 1, gap: 3 },
+  giftDetail: { fontSize: 12, color: Colors.goldDeep, fontFamily: Fonts.bold },
   rowTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 },
   rowTitle: { flex: 1, fontSize: 13, fontFamily: Fonts.semiBold, color: Colors.inkSoft },
   rowTitleBold: { fontFamily: Fonts.extraBold, color: Colors.ink },

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { type AppNotification, isGroupMessageNotification } from './notifications';
+import {
+  type AppNotification,
+  giftNotificationDetail,
+  isGroupMessageNotification,
+} from './notifications';
 
 function notification(
   type: string,
@@ -46,5 +50,29 @@ describe('isGroupMessageNotification', () => {
     expect(isGroupMessageNotification(
       notification('group_message_received', null),
     )).toBe(true);
+  });
+});
+
+describe('giftNotificationDetail', () => {
+  it('shows the catalog gift title', () => {
+    expect(giftNotificationDetail(
+      notification('gift_received', { gift_kind: 'catalog_gift', gift_title: 'رز رویایی' }),
+    )).toBe('هدیه: رز رویایی');
+  });
+
+  it('shows the received coin amount', () => {
+    expect(giftNotificationDetail(
+      notification('gift_received', { gift_kind: 'coin_gift', amount: 250 }),
+    )).toBe('۲۵۰ سکه');
+  });
+
+  it('shows the subscription plan and duration', () => {
+    expect(giftNotificationDetail(
+      notification('gift_received', {
+        gift_kind: 'subscription',
+        plan_slug: 'gold',
+        duration_days: 30,
+      }),
+    )).toBe('اشتراک طلایی، ۳۰ روزه');
   });
 });
