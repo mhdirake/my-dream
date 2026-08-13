@@ -314,9 +314,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface, borderRadius: Radius.pill,
     borderWidth: 1, borderColor: Colors.hair,
   },
-  filterChipActive: { backgroundColor: Colors.ink, borderColor: Colors.ink },
+  filterChipActive: { backgroundColor: Colors.accent, borderColor: Colors.accent },
   filterTxt: { fontSize: 12, fontFamily: Fonts.semiBold, color: Colors.inkSoft },
-  filterTxtActive: { color: '#fff' },
+  filterTxtActive: { color: Colors.onAccent },
 
   loadingBox: { height: 120, alignItems: 'center', justifyContent: 'center' },
   emptyBox: { height: 80, alignItems: 'center', justifyContent: 'center' },

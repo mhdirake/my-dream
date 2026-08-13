@@ -608,9 +608,9 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill,
     backgroundColor: Colors.surface,
   },
-  tabBtnActive: { backgroundColor: Colors.ink },
+  tabBtnActive: { backgroundColor: Colors.accent },
   tabTxt: { fontSize: 13, fontFamily: Fonts.semiBold, color: Colors.muted },
-  tabTxtActive: { color: '#fff' },
+  tabTxtActive: { color: Colors.onAccent },
   tabBadge: {
     minWidth: 18,
     height: 18,
@@ -622,7 +622,7 @@ const styles = StyleSheet.create({
   },
   tabBadgeActive: { backgroundColor: Colors.accent },
   tabBadgeTxt: { fontSize: 10, fontFamily: Fonts.bold, color: Colors.accent },
-  tabBadgeTxtActive: { color: '#fff' },
+  tabBadgeTxtActive: { color: Colors.onAccent },
 
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
   emptyEmoji: { fontSize: 40 },

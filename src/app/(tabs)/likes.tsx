@@ -477,9 +477,9 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill, backgroundColor: Colors.surface,
     borderWidth: 1, borderColor: Colors.hair,
   },
-  tabBtnActive: { backgroundColor: Colors.ink, borderColor: Colors.ink },
+  tabBtnActive: { backgroundColor: Colors.accent, borderColor: Colors.accent },
   tabTxt: { fontSize: 13, fontFamily: Fonts.semiBold, color: Colors.muted },
-  tabTxtActive: { color: '#fff' },
+  tabTxtActive: { color: Colors.onAccent },
   tabCount: {
     minWidth: 18, height: 18, borderRadius: 9,
     backgroundColor: Colors.accentSoft, alignItems: 'center', justifyContent: 'center',
@@ -487,7 +487,7 @@ const styles = StyleSheet.create({
   },
   tabCountActive: { backgroundColor: Colors.accent },
   tabCountTxt: { fontSize: 10, fontFamily: Fonts.bold, color: Colors.accent },
-  tabCountTxtActive: { color: '#fff' },
+  tabCountTxtActive: { color: Colors.onAccent },
 
   center: { paddingVertical: 60, alignItems: 'center' },
 

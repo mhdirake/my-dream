@@ -22,8 +22,8 @@ const toneMap: Record<Tone, { bg: string; fg: string }> = {
 
 export function Chip({ children, active, tone, small, onPress }: ChipProps) {
   const resolved = tone ? toneMap[tone] : null;
-  const bg = active ? Colors.ink : resolved ? resolved.bg : 'rgba(36,33,42,0.04)';
-  const fg = active ? '#fff'     : resolved ? resolved.fg : Colors.inkSoft;
+  const bg = active ? Colors.accent   : resolved ? resolved.bg : 'rgba(36,33,42,0.04)';
+  const fg = active ? Colors.onAccent : resolved ? resolved.fg : Colors.inkSoft;
 
   return (
     <Pressable

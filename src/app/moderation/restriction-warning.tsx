@@ -133,14 +133,14 @@ const styles = StyleSheet.create({
   ladderBoxCurrent: { backgroundColor: Colors.warn, borderColor: Colors.warn },
   ladderBoxBan: { backgroundColor: Colors.dangerSoft, borderColor: Colors.dangerSoft },
   ladderTxt: { fontSize: 10, fontFamily: Fonts.semiBold, color: Colors.muted },
-  ladderTxtCurrent: { color: '#fff' },
+  ladderTxtCurrent: { color: Colors.onChampagne },
 
   ackBtn: {
-    width: '100%', backgroundColor: Colors.ink,
+    width: '100%', backgroundColor: Colors.accent,
     borderRadius: Radius.pill, paddingVertical: 14,
     alignItems: 'center', marginTop: 8,
   },
-  ackTxt: { fontSize: 15, fontFamily: Fonts.bold, color: '#fff' },
+  ackTxt: { fontSize: 15, fontFamily: Fonts.bold, color: Colors.onAccent },
 
   appealBtn: { paddingVertical: 8 },
   appealTxt: { fontSize: 13, fontFamily: Fonts.semiBold, color: Colors.muted },

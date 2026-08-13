@@ -141,7 +141,7 @@ export default function PhotoScreen() {
           </Pressable>
           {displayUri && (
             <Pressable style={styles.cameraBtn} onPress={pickFromCamera}>
-              <Camera size={16} color="#fff" strokeWidth={2} />
+              <Camera size={16} color={Colors.onAccent} strokeWidth={2} />
             </Pressable>
           )}
         </View>
@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
   cameraBtn: {
     position: 'absolute', bottom: 8, right: 8,
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: Colors.ink, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center',
     borderWidth: 2, borderColor: Colors.surface,
   },
   actionRow: { flexDirection: 'row', gap: 8, marginBottom: 16, width: '100%' },

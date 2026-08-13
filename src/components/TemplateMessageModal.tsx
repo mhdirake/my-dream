@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
   },
   templateTitleActive: { color: 'rgba(255,255,255,0.75)' },
   templateTxt: { fontSize: 13.5, fontFamily: Fonts.regular, color: Colors.ink, lineHeight: 22 },
-  templateTxtActive: { color: '#fff', fontFamily: Fonts.semiBold },
+  templateTxtActive: { color: Colors.onAccent, fontFamily: Fonts.semiBold },
 
   footer: { paddingHorizontal: 20, paddingTop: 16 },
   sendBtn: {

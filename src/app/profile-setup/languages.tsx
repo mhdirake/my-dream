@@ -122,8 +122,8 @@ export default function LanguagesScreen() {
                         onLongPress={() => toggleLang(id)}
                         style={[styles.chip, isPrimary ? styles.chipPrimary : styles.chipSelected]}
                       >
-                        {isPrimary && <Star size={11} color="#fff" strokeWidth={2} fill="#fff" />}
-                        <Text style={[styles.chipText, (isPrimary || true) && styles.chipTextSelected]}>
+                        {isPrimary && <Star size={11} color={Colors.onAccent} strokeWidth={2} fill={Colors.onAccent} />}
+                        <Text style={[styles.chipText, isPrimary ? styles.chipTextPrimary : styles.chipTextSelected]}>
                           {lang.title}
                         </Text>
                       </Pressable>
@@ -211,10 +211,11 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill, paddingHorizontal: 13, paddingVertical: 7,
     backgroundColor: 'rgba(36,33,42,0.04)', borderWidth: 1.5, borderColor: Colors.lineSoft,
   },
-  chipSelected: { backgroundColor: Colors.ink, borderColor: Colors.ink },
+  chipSelected: { backgroundColor: Colors.surface3, borderColor: Colors.surface3 },
   chipPrimary: { backgroundColor: Colors.accent, borderColor: Colors.accent },
   chipText: { fontSize: 12.5, fontFamily: Fonts.semiBold, color: Colors.inkSoft },
-  chipTextSelected: { color: '#fff' },
+  chipTextSelected: { color: Colors.ink },
+  chipTextPrimary: { color: Colors.onAccent },
   errBox: { alignItems: 'center', marginTop: 40, gap: 12 },
   errTxt: { fontSize: 13, color: Colors.danger, fontFamily: Fonts.regular },
   retryBtn: {

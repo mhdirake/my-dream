@@ -268,9 +268,9 @@ const styles = StyleSheet.create({
     flex: 1, alignItems: 'center', paddingVertical: 8,
     borderRadius: Radius.md, backgroundColor: Colors.ph2,
   },
-  periodTabActive: { backgroundColor: Colors.ink },
+  periodTabActive: { backgroundColor: Colors.accent },
   periodLabel: { fontSize: 12, fontFamily: Fonts.semiBold, color: Colors.inkSoft },
-  periodLabelActive: { color: '#fff' },
+  periodLabelActive: { color: Colors.onAccent },
   periodDiscount: { fontSize: 9.5, fontFamily: Fonts.regular, color: Colors.muted, marginTop: 2 },
   periodDiscountActive: { color: Colors.gold },
 

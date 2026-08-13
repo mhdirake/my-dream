@@ -175,8 +175,8 @@ export default function MeScreen() {
               </View>
               <View style={styles.cameraBtn}>
                 {photoUploading
-                  ? <ActivityIndicator size="small" color="#fff" />
-                  : <Camera size={13} color="#fff" strokeWidth={2.5} />
+                  ? <ActivityIndicator size="small" color={Colors.onAccent} />
+                  : <Camera size={13} color={Colors.onAccent} strokeWidth={2.5} />
                 }
               </View>
             </TouchableOpacity>
@@ -298,7 +298,7 @@ const styles = StyleSheet.create({
   cameraBtn: {
     position: 'absolute', bottom: 0, right: 0,
     width: 24, height: 24, borderRadius: 12,
-    backgroundColor: Colors.ink, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center',
     borderWidth: 2, borderColor: Colors.surface,
   },
   avatarImg: { width: '100%', height: '100%' },

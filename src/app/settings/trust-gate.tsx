@@ -273,7 +273,7 @@ const styles = StyleSheet.create({
   },
   stepActive: { backgroundColor: Colors.accent, borderColor: Colors.accent },
   stepTxt: { fontSize: 12, fontFamily: Fonts.bold, color: Colors.muted },
-  stepTxtActive: { color: '#fff' },
+  stepTxtActive: { color: Colors.onAccent },
 
   infoCard: { marginTop: 4 },
   infoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },

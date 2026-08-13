@@ -270,8 +270,8 @@ function SwipeCard({
           >
             <Heart
               size={13}
-              color={liked ? '#fff' : Colors.accent}
-              fill={liked ? '#fff' : 'none'}
+              color={liked ? Colors.onAccent : Colors.accent}
+              fill={liked ? Colors.onAccent : 'none'}
               strokeWidth={2.4}
             />
             {profile.likes_count > 0 && (
@@ -810,7 +810,7 @@ function FloatingHeader({
               {m.id === 'ai' && (
                 <Sparkles
                   size={12}
-                  color={on ? '#fff' : Colors.purple}
+                  color={on ? Colors.onAccent : Colors.purple}
                   strokeWidth={2}
                 />
               )}
@@ -1030,7 +1030,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4, shadowRadius: 8, elevation: 5,
   },
   modeTxt: { fontFamily: Fonts.semiBold, fontSize: 13, color: Colors.muted },
-  modeTxtActive: { color: '#fff', fontFamily: Fonts.extraBold },
+  modeTxtActive: { color: Colors.onAccent, fontFamily: Fonts.extraBold },
 
   // ── Swipe layout ────────────────────────────────────────────────────────────
   swipeContainer: { flex: 1 },
@@ -1114,7 +1114,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.accent,
   },
   likeCountTxt: { fontSize: 12, fontFamily: Fonts.bold, color: Colors.accent },
-  likeCountTxtActive: { color: '#fff' },
+  likeCountTxtActive: { color: Colors.onAccent },
   cardMeta: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginTop: 2 },
   cardMetaTxt: { fontSize: 12.5, color: Colors.inkSoft, fontFamily: Fonts.regular },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
