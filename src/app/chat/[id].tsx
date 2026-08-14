@@ -1225,7 +1225,7 @@ export default function ConversationScreen() {
               const isGift = item.message_type === 'gift';
               const BubbleContainer = isGift || !isMine ? LinearGradient : View;
               const gradProps = isGift ? {
-                colors: [Colors.goldSoft, Colors.accentSoft] as [string, string],
+                colors: ['rgba(214,190,145,0.24)', 'rgba(214,190,145,0.4)'] as [string, string],
                 start: { x: 0, y: 0 },
                 end: { x: 1, y: 1 },
               } : isMine ? {} : {
