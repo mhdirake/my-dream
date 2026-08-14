@@ -2,6 +2,7 @@ import { Colors, Fonts } from '@/constants/colors';
 import { toFaDigits } from '@/lib/localization';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { ChatToastProvider } from '@/components/ui/ChatToast';
+import { NotificationToastProvider, useNotificationToast } from '@/components/ui/NotificationToast';
 import { RestrictionBanner } from '@/components/moderation/RestrictionBanner';
 import { UnreadProvider, useUnreadCtx } from '@/lib/chat/UnreadContext';
 import { useModerationCtx } from '@/lib/moderation/ModerationContext';
@@ -37,7 +38,9 @@ export default function TabsLayout() {
   return (
     <UnreadProvider>
       <ChatToastProvider>
-        <ModerationGate />
+        <NotificationToastProvider>
+          <ModerationGate />
+        </NotificationToastProvider>
       </ChatToastProvider>
     </UnreadProvider>
   );
@@ -62,6 +65,7 @@ function TabsNav() {
   const { totalUnread } = useUnreadCtx();
   const { session } = useAuth();
   const { addUserEventHandler } = useCentrifugoCtx();
+  const { showNotificationToast } = useNotificationToast();
 
   useEffect(() => {
     if (!session?.accessToken) return;
@@ -92,8 +96,16 @@ function TabsNav() {
       if (!payload?.notification?.id) return;
 
       showLocalNotificationFromRealtime(payload.notification).catch(() => undefined);
+      showNotificationToast({
+        title: payload.notification.title ?? 'My Dream',
+        body: payload.notification.body ?? '',
+        onPress: () => router.push({
+          pathname: '/notifications' as any,
+          params: { open: String(payload.notification!.id) },
+        }),
+      });
     });
-  }, [addUserEventHandler, session?.accessToken]);
+  }, [addUserEventHandler, session?.accessToken, showNotificationToast]);
 
   return (
     <View style={{ flex: 1 }}>

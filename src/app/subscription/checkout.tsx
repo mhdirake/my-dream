@@ -10,7 +10,7 @@ import { paymentsApi } from '@/lib/api/payments';
 import { payAndWait } from '@/lib/payments/payAndWait';
 import { toast } from '@/lib/toast';
 import { router, useLocalSearchParams } from 'expo-router';
-import { CreditCard, Lock, Tag, Wallet } from 'lucide-react-native';
+import { CheckCircle, CreditCard, Lock, Tag, Wallet } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
@@ -50,6 +50,7 @@ export default function CheckoutScreen() {
   const [method, setMethod] = useState<'card' | 'wallet'>('card');
   const [discount, setDiscount] = useState('');
   const [paying, setPaying] = useState(false);
+  const [purchaseResult, setPurchaseResult] = useState<{ planName: string; price: string } | null>(null);
 
   useEffect(() => {
     if (!session?.accessToken) return;
@@ -81,8 +82,7 @@ export default function CheckoutScreen() {
       const res = await paymentsApi.paySubscription(session.accessToken, plan.id);
       const result = await payAndWait(session.accessToken, res.data.id, res.payment_url);
       if (result.status === 'completed') {
-        toast.success('اشتراک با موفقیت فعال شد!');
-        router.back();
+        setPurchaseResult({ planName, price: formatPrice(basePrice, periodObj.mult) });
       } else if (result.status === 'failed') {
         toast.error(result.detail?.failure_message ?? 'پرداخت ناموفق بود');
       } else {
@@ -94,6 +94,38 @@ export default function CheckoutScreen() {
       setPaying(false);
     }
   };
+
+  if (purchaseResult) {
+    return (
+      <SafeAreaView style={styles.root}>
+        <AppBar title="نتیجه خرید" />
+        <View style={styles.resultWrap}>
+          <View style={styles.resultIcon}>
+            <CheckCircle size={44} color={Colors.ok} strokeWidth={1.8} />
+          </View>
+          <Text style={styles.resultTitle}>خرید موفق بود!</Text>
+          <Text style={styles.resultBody}>
+            اشتراک {purchaseResult.planName} با موفقیت فعال شد.
+          </Text>
+          <Card soft style={styles.resultCard}>
+            <View style={styles.priceRow}>
+              <Text style={styles.priceLabel}>پلن</Text>
+              <Text style={styles.priceVal}>{purchaseResult.planName}</Text>
+            </View>
+            <View style={[styles.priceRow, styles.priceTotalRow]}>
+              <Text style={styles.totalLabel}>مبلغ پرداخت‌شده</Text>
+              <Text style={styles.totalVal}>{purchaseResult.price}</Text>
+            </View>
+          </Card>
+        </View>
+        <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
+          <Button variant="accent" onPress={() => router.replace('/(tabs)/me' as any)}>
+            رفتن به پروفایل
+          </Button>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.root}>
@@ -234,6 +266,22 @@ export default function CheckoutScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
   content: { padding: Spacing.lg },
+
+  resultWrap: { flex: 1, padding: Spacing.lg, alignItems: 'center', justifyContent: 'center' },
+  resultIcon: {
+    width: 84, height: 84, borderRadius: 42,
+    backgroundColor: Colors.ph2, alignItems: 'center', justifyContent: 'center',
+    marginBottom: 18,
+  },
+  resultTitle: {
+    fontSize: 20, fontFamily: Fonts.extraBold, color: Colors.ink,
+    marginBottom: 8, textAlign: 'center',
+  },
+  resultBody: {
+    fontSize: 13, color: Colors.inkSoft, fontFamily: Fonts.regular,
+    textAlign: 'center', marginBottom: 24, lineHeight: 20,
+  },
+  resultCard: { width: '100%', padding: 14 },
 
   summaryCard: { marginBottom: Spacing.xl },
   summaryLabel: { fontSize: 11, color: Colors.muted, fontFamily: Fonts.regular, marginBottom: 4 },

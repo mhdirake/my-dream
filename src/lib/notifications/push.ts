@@ -26,7 +26,7 @@ async function getNotifications(): Promise<NotificationsModule | null> {
         handleNotification: async () => ({
           shouldShowBanner: true,
           shouldShowList: true,
-          shouldPlaySound: false,
+          shouldPlaySound: true,
           shouldSetBadge: false,
         }),
       });
@@ -44,6 +44,7 @@ async function ensureAndroidChannel() {
     name: 'اعلان‌های My Dream',
     importance: Notifications.AndroidImportance.MAX,
     vibrationPattern: [0, 250, 250, 250],
+    sound: 'default',
   });
 }
 
@@ -85,6 +86,8 @@ export async function showLocalNotificationFromRealtime(notification: {
     content: {
       title: notification.title ?? 'My Dream',
       body: notification.body ?? '',
+      sound: 'default',
+      ...(Platform.OS === 'android' ? { channelId: 'default' } : {}),
       data: {
         notification_id: notification.id,
         type: notification.type,
