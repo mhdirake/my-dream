@@ -9,7 +9,7 @@ import { formatPersianTime } from '@/lib/date/persian';
 import { toFaDigits } from '@/lib/localization';
 import { toast } from '@/lib/toast';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Check, Clock, Search, X } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -103,6 +103,10 @@ export default function ChatScreen() {
       return () => clearTimeout(t);
     }
   }, [searchOpen]);
+
+  // Safety net for when a realtime event (e.g. conversation.accepted) is missed —
+  // e.g. the socket was disconnected when it fired — so the list still self-heals.
+  useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
 
   function otherUser(c: Conversation): ConversationUser {
     return conversationPeer(c, myId);

@@ -14,8 +14,11 @@ function isEditableElement(element: Element | null): element is HTMLElement {
  * Owns keyboard avoidance for the whole application.
  *
  * Native iOS needs padding because its window does not resize automatically.
- * Android is configured with adjustResize. Mobile browsers are synchronized
- * with visualViewport because their layout viewport often stays unchanged.
+ * Android relies on adjustResize by default, but that alone becomes unreliable
+ * once edge-to-edge / a translucent status bar is involved (effectively the
+ * default under Android 15+), so it also gets an explicit 'height' behavior
+ * here as a JS-side fallback. Mobile browsers are synchronized with
+ * visualViewport because their layout viewport often stays unchanged.
  */
 export function KeyboardViewport({ children }: { children: ReactNode }) {
   useEffect(() => {
@@ -96,7 +99,7 @@ export function KeyboardViewport({ children }: { children: ReactNode }) {
   return (
     <KeyboardAvoidingView
       style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.select({ ios: 'padding', android: 'height', default: undefined })}
       keyboardVerticalOffset={0}
     >
       {children}
