@@ -38,11 +38,9 @@ export function useConversations(
   const { addUserEventHandler, onConnect } = useCentrifugoCtx();
   const { setTotalUnread } = useUnreadCtx();
 
-  const conversationsRef = useRef<Conversation[]>([]);
   const onNewMessageRef = useRef(onNewMessage);
   const fetchCounterRef = useRef(0);
   useEffect(() => { onNewMessageRef.current = onNewMessage; }, [onNewMessage]);
-  useEffect(() => { conversationsRef.current = conversations; }, [conversations]);
 
   // Sync totalUnread whenever conversations change — avoids setState-in-updater
   useEffect(() => {
@@ -62,7 +60,6 @@ export function useConversations(
       const sorted = sortByLastMessage(acceptedPage.data);
       setConversations(sorted);
       setNextCursor(acceptedPage.next_cursor);
-      conversationsRef.current = sorted;
       setPendingIncoming(incoming);
       setPendingOutgoing(outgoing);
     } catch {
@@ -116,20 +113,22 @@ export function useConversations(
         // Patch only the affected row. Versioned server events contain an
         // absolute unread count, so duplicates and reconnects cannot inflate it.
         let foundConversation = false;
+        let patchedConv: Conversation | null = null;
         setConversations(prev => {
           foundConversation = prev.some(c => c.public_id === convPublicId);
-          const updated = prev.map(c =>
-            c.public_id === convPublicId
-              ? {
-                  ...c,
-                  unread_count: p.unread_count ?? (c.unread_count ?? 0) + 1,
-                  last_message_at: p.last_message_at ?? c.last_message_at,
-                  last_message_sender_user_id: p.last_message_sender_user_id ?? c.last_message_sender_user_id,
-                  last_message_type: p.last_message_type ?? c.last_message_type,
-                  last_message_preview: p.last_message_preview ?? c.last_message_preview,
-                }
-              : c,
-          );
+          const updated = prev.map(c => {
+            if (c.public_id !== convPublicId) return c;
+            const next: Conversation = {
+              ...c,
+              unread_count: p.unread_count ?? (c.unread_count ?? 0) + 1,
+              last_message_at: p.last_message_at ?? c.last_message_at,
+              last_message_sender_user_id: p.last_message_sender_user_id ?? c.last_message_sender_user_id,
+              last_message_type: p.last_message_type ?? c.last_message_type,
+              last_message_preview: p.last_message_preview ?? c.last_message_preview,
+            };
+            patchedConv = next;
+            return next;
+          });
           return sortByLastMessage(updated);
         });
 
@@ -138,11 +137,11 @@ export function useConversations(
           return;
         }
 
-        if (!p.is_sender) {
-          queueMicrotask(() => {
-            const conv = conversationsRef.current.find(c => c.public_id === convPublicId);
-            if (conv) onNewMessageRef.current?.(conv);
-          });
+        // patchedConv is computed synchronously above — reading it here (rather
+        // than a ref synced via useEffect, which lags a render behind) avoids
+        // firing the toast with the previous message's preview.
+        if (!p.is_sender && patchedConv) {
+          onNewMessageRef.current?.(patchedConv);
         }
       }
     });

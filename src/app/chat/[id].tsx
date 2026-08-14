@@ -2211,6 +2211,7 @@ const styles = StyleSheet.create({
   retryMessage: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6 },
   retryMessageText: { color: Colors.danger, fontFamily: Fonts.bold, fontSize: 10.5 },
   bubbleGift: {
+    backgroundColor: 'transparent',
     borderWidth: 1,
     borderColor: '#F3DFB9',
     maxWidth: '78%',
