@@ -52,7 +52,7 @@ export default function Root({ children }: PropsWithChildren) {
           input, textarea, [contenteditable="true"] {
             -webkit-tap-highlight-color: transparent;
             -webkit-text-size-adjust: 100%;
-            font-size: 16px;
+            font-size: 16px !important;
             outline: none !important;
             box-shadow: none !important;
             -webkit-appearance: none;

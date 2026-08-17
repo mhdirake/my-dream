@@ -1,6 +1,6 @@
 import { Colors, Fonts } from '@/constants/colors';
 import { router, useRootNavigationState } from 'expo-router';
-import { ChevronLeft } from 'lucide-react-native';
+import { ChevronRight } from 'lucide-react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 interface AppBarProps {
@@ -18,6 +18,12 @@ export function AppBar({ title, sub, back, right, dark }: AppBarProps) {
   return (
     <View style={[styles.bar, dark && styles.barDark]}>
 
+      {back && (
+        <Pressable onPress={() => canGoBack ? router.back() : router.replace('/' as any)} style={styles.backBtn} hitSlop={8}>
+          <ChevronRight size={20} color={color} strokeWidth={2.2} />
+        </Pressable>
+      )}
+
       <View style={styles.titleWrap}>
         <Text style={[styles.title, { color, fontFamily: Fonts.extraBold }]} numberOfLines={1}>
           {title}
@@ -30,11 +36,6 @@ export function AppBar({ title, sub, back, right, dark }: AppBarProps) {
       </View>
 
       {right && <View style={styles.right}>{right}</View>}
-      {back && (
-        <Pressable onPress={() => canGoBack ? router.back() : router.replace('/' as any)} style={styles.backBtn} hitSlop={8}>
-          <ChevronLeft size={20} color={color} strokeWidth={2.2} />
-        </Pressable>
-      )}
     </View>
   );
 }

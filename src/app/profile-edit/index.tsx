@@ -3,7 +3,7 @@ import { ClientProfile, profileApi } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { router } from 'expo-router';
 import {
-  ArrowLeft,
+  ArrowRight,
   ChevronLeft,
   Flag,
   Globe,
@@ -165,7 +165,7 @@ export default function ProfileEditHub() {
     <SafeAreaView style={styles.root} edges={['top']}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={goBack}>
-          <ArrowLeft size={20} color={Colors.ink} strokeWidth={2.5} />
+          <ArrowRight size={20} color={Colors.ink} strokeWidth={2.5} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>ویرایش پروفایل</Text>
         <View style={{ width: 36 }} />

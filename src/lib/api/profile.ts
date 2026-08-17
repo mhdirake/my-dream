@@ -43,6 +43,7 @@ export type UserProfile = {
     assistant_analysis?: { summary?: string } | null;
     assistant_analysis_status?: string;
   } | null;
+  personality_test_hidden?: boolean;
   voice_intro_url?: string | null;
   voice_intro_duration_seconds?: number | null;
   // Preserved from cache when available — not in API response

@@ -3,7 +3,7 @@ import { aiCoachApi, type CoachSession } from '@/lib/api/ai-coach';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { formatPersianDate } from '@/lib/date/persian';
 import { router } from 'expo-router';
-import { Bot, ChevronLeft, MessageCircle, Plus, Trash2 } from 'lucide-react-native';
+import { Bot, ChevronRight, MessageCircle, Plus, Trash2 } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -100,7 +100,7 @@ export default function AiCoachIndex() {
     <SafeAreaView style={styles.root} edges={['top']}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
-          <ChevronLeft size={22} color={Colors.ink} strokeWidth={2.5} />
+          <ChevronRight size={22} color={Colors.ink} strokeWidth={2.5} />
         </TouchableOpacity>
         <View style={styles.headerTitle}>
           <Bot size={18} color={Colors.accent} strokeWidth={2} />

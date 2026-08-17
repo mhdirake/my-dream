@@ -7,7 +7,7 @@ import { aiInsightApi } from '@/lib/api/ai-insight';
 import { profileApi } from '@/lib/api/profile';
 import { toast } from '@/lib/toast';
 import { router } from 'expo-router';
-import { ChevronLeft, Eye, MessageCircle, Shield, ShieldOff, Sparkles } from 'lucide-react-native';
+import { Brain, ChevronLeft, Eye, MessageCircle, Shield, ShieldOff, Sparkles } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator, ScrollView, StyleSheet, Switch,
@@ -19,6 +19,7 @@ type PrivacySettings = {
   safe_mode_enabled: boolean;
   message_permission_mode: string;
   min_profile_completion: number | null;
+  personality_test_visibility: 'visible' | 'hidden';
   provinces: { id: number; name: string }[];
   cities: { id: number; name: string }[];
 };
@@ -51,6 +52,7 @@ export default function PrivacyScreen() {
   const [isGold, setIsGold] = useState(false);
   const [insightVisible, setInsightVisible] = useState(true);
   const [savingInsight, setSavingInsight] = useState(false);
+  const [savingPersonality, setSavingPersonality] = useState(false);
 
   useEffect(() => {
     if (!session?.accessToken) return;
@@ -105,7 +107,29 @@ export default function PrivacyScreen() {
     }
   };
 
+  const togglePersonalityVisibility = async (val: boolean) => {
+    if (!session?.accessToken || !settings) return;
+    setSavingPersonality(true);
+    const prev = settings.personality_test_visibility;
+    const next = val ? 'visible' : 'hidden';
+    setSettings(s => s ? { ...s, personality_test_visibility: next } : s);
+    try {
+      const res = await api.patch<{ data: PrivacySettings }>(
+        '/api/client/privacy-settings',
+        { personality_test_visibility: next },
+        session.accessToken,
+      );
+      setSettings(res.data);
+    } catch (e: any) {
+      setSettings(s => s ? { ...s, personality_test_visibility: prev } : s);
+      toast.error(e.message ?? 'خطا در ذخیره');
+    } finally {
+      setSavingPersonality(false);
+    }
+  };
+
   const currentMode = settings?.message_permission_mode ?? 'everyone';
+  const personalityVisible = (settings?.personality_test_visibility ?? 'visible') !== 'hidden';
 
   return (
     <SafeAreaView style={styles.root}>
@@ -208,6 +232,29 @@ export default function PrivacyScreen() {
             {!isGold && (
               <Text style={styles.safeNote}>مخفی‌کردن تحلیل مخصوص کاربران اشتراک طلایی است.</Text>
             )}
+          </Card>
+
+          {/* Personality test visibility */}
+          <Text style={styles.sectionTitle}>تست شخصیت</Text>
+          <Card soft>
+            <View style={styles.safeModeRow}>
+              <View style={[styles.modeIcon, { backgroundColor: Colors.purpleSoft }]}>
+                <Brain size={20} color={Colors.purple} strokeWidth={2} />
+              </View>
+              <View style={styles.modeText}>
+                <Text style={styles.modeTitle}>نمایش خروجی تست شخصیت در پروفایل</Text>
+                <Text style={styles.modeSub}>
+                  {personalityVisible ? 'قابل مشاهده برای دیگران' : 'مخفی'}
+                </Text>
+              </View>
+              <Switch
+                value={personalityVisible}
+                onValueChange={togglePersonalityVisibility}
+                disabled={savingPersonality}
+                trackColor={{ false: Colors.hair, true: Colors.purple + 'AA' }}
+                thumbColor={personalityVisible ? Colors.purple : Colors.muted}
+              />
+            </View>
           </Card>
 
           {/* Profile visibility note */}

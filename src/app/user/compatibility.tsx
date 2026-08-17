@@ -5,7 +5,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { toFaDigits } from '@/lib/localization';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Check, Heart, Sparkles, X } from 'lucide-react-native';
+import { ArrowRight, Check, Heart, Sparkles, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -78,7 +78,7 @@ export default function CompatibilityScreen() {
     return (
       <SafeAreaView style={styles.root} edges={['top']}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <ArrowLeft size={20} color={Colors.ink} strokeWidth={2.5} />
+          <ArrowRight size={20} color={Colors.ink} strokeWidth={2.5} />
         </TouchableOpacity>
         <View style={styles.center}>
           <Text style={styles.emptyTxt}>پروفایل یافت نشد</Text>
@@ -119,7 +119,7 @@ export default function CompatibilityScreen() {
           style={styles.backBtn}
           onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)' as never)}
         >
-          <ArrowLeft size={20} color={Colors.ink} strokeWidth={2.5} />
+          <ArrowRight size={20} color={Colors.ink} strokeWidth={2.5} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>تحلیل تطابق</Text>
         <View style={{ width: 36 }} />

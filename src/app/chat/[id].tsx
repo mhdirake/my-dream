@@ -1049,7 +1049,6 @@ export default function ConversationScreen() {
   }, []);
 
   const sendSticker = useCallback(async (sticker: string) => {
-    setStickerPickerOpen(false);
     try {
       await sendTyped({
         type: 'sticker',
@@ -1059,6 +1058,8 @@ export default function ConversationScreen() {
       setReplyingTo(null);
     } catch {
       toast.error('ارسال استیکر ناموفق بود');
+    } finally {
+      setStickerPickerOpen(false);
     }
   }, [replyingTo, sendTyped]);
 
