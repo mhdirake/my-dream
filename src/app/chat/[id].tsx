@@ -28,7 +28,6 @@ import {
   ActivityIndicator,
   AppState,
   FlatList,
-  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -224,7 +223,6 @@ const CHAT_VIEWABILITY_CONFIG = { itemVisiblePercentThreshold: 60, minimumViewTi
 const RESOLVING_INITIAL_POSITION: InitialChatPosition = { kind: 'resolving' };
 const MESSAGE_BUBBLE_MIN_WIDTH = 132;
 const GROUP_AVATAR_SIZE = 30;
-const ANDROID_KEYBOARD_COMPOSER_GAP = 24;
 
 function formatLastSeen(iso: string): string {
   const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
@@ -348,7 +346,6 @@ export default function ConversationScreen() {
   const [attachmentTrayOpen, setAttachmentTrayOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [limitReached, setLimitReached] = useState(false);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [msgMenu, setMsgMenu] = useState<{ id: string; sender: number; body: string; type?: string; myReaction?: string | null } | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
@@ -515,9 +512,6 @@ export default function ConversationScreen() {
     : RESOLVING_INITIAL_POSITION;
   const listIsReady = initialPositionState.conversationKey === conversationKey && listReady;
   const inputBottomPadding = insets.bottom + 10;
-  const composerLift = Platform.OS === 'android' && keyboardHeight > 0
-    ? Math.max(0, keyboardHeight - insets.bottom + ANDROID_KEYBOARD_COMPOSER_GAP)
-    : 0;
   const setInitialPosition = useCallback((position: InitialChatPosition) => {
     setInitialPositionState({ conversationKey, position });
   }, [conversationKey]);
@@ -682,20 +676,6 @@ export default function ConversationScreen() {
 
   useEffect(() => () => {
     if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
-  }, []);
-
-  useEffect(() => {
-    if (Platform.OS !== 'android') return undefined;
-    const showSub = Keyboard.addListener('keyboardDidShow', event => {
-      setKeyboardHeight(event.endCoordinates.height);
-    });
-    const hideSub = Keyboard.addListener('keyboardDidHide', () => {
-      setKeyboardHeight(0);
-    });
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
   }, []);
 
   // Presence: fetch on open, heartbeat every 30s
@@ -1134,7 +1114,7 @@ export default function ConversationScreen() {
 
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={0}
       >
         {loading ? (
@@ -1750,7 +1730,7 @@ export default function ConversationScreen() {
           </View>
         )}
 
-        <View style={[styles.inputBar, { paddingBottom: inputBottomPadding, marginBottom: composerLift }, (!canChat || limitReached) && styles.inputBarDisabled]}>
+        <View style={[styles.inputBar, { paddingBottom: inputBottomPadding }, (!canChat || limitReached) && styles.inputBarDisabled]}>
           {!canChat || limitReached ? (
             <View style={styles.inputLocked}>
               <Lock size={14} color={Colors.muted} strokeWidth={1.8} />
