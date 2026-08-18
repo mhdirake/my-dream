@@ -231,23 +231,33 @@ export function useChatMessages(
         setMessages(prev => mergeMessages(prev, [updated]));
 
       } else if (data.event === 'message.reaction.updated') {
-        const msgId = raw.message_id as string;
-        const reaction = raw.reaction as string;
-        const userId = Number(raw.user_id);
+        const msgId = (raw.message_id ?? raw.MessageID) as string;
+        const reaction = (raw.reaction ?? raw.Reaction) as string;
+        const userId = Number(raw.user_id ?? raw.UserID);
         setMessages(prev => prev.map(m => {
           if (m.message_id !== msgId) return m;
           // echo واقعی جایگزین entry موقتِ optimistic (user_id: -1) می‌شه — وگرنه دوبار شمرده می‌شه
-          const existing = (m.reactions ?? []).filter(r => !(r.user_id === -1 && r.reaction === reaction));
+          const existing = (m.reactions ?? []).filter(r =>
+            r.user_id !== userId && !(r.user_id === -1 && r.reaction === reaction),
+          );
           const already = existing.some(r => r.reaction === reaction && r.user_id === userId);
-          return { ...m, reactions: already ? existing : [...existing, { reaction, user_id: userId }] };
+          return {
+            ...m,
+            reactions: already ? existing : [...existing, { reaction, user_id: userId }],
+            my_reaction: userId === accountId ? reaction : m.my_reaction,
+          };
         }));
 
       } else if (data.event === 'message.reaction.removed') {
-        const msgId = raw.message_id as string;
-        const userId = Number(raw.user_id);
+        const msgId = (raw.message_id ?? raw.MessageID) as string;
+        const userId = Number(raw.user_id ?? raw.UserID);
         setMessages(prev => prev.map(m => {
           if (m.message_id !== msgId) return m;
-          return { ...m, reactions: (m.reactions ?? []).filter(r => r.user_id !== userId) };
+          return {
+            ...m,
+            reactions: (m.reactions ?? []).filter(r => r.user_id !== userId && r.user_id !== -1),
+            my_reaction: userId === accountId ? null : m.my_reaction,
+          };
         }));
 
       } else if (data.event === 'message.read') {
@@ -508,7 +518,7 @@ export function useChatMessages(
         return { ...m, reactions: next, my_reaction: null };
       }
       if (myPrev) {
-        next = existing.filter(r => r.reaction !== myPrev);
+        next = existing.filter(r => !(r.user_id === -1 && r.reaction === myPrev));
       } else {
         next = existing;
       }
@@ -526,7 +536,7 @@ export function useChatMessages(
     setMessages(prev => prev.map(m => {
       if (m.message_id !== messageId) return m;
       const myPrev = m.my_reaction;
-      const next = (m.reactions ?? []).filter(r => r.reaction !== myPrev);
+      const next = (m.reactions ?? []).filter(r => !(r.user_id === -1 && r.reaction === myPrev));
       return { ...m, reactions: next, my_reaction: null };
     }));
     try {

@@ -3,6 +3,7 @@ import { Colors, Fonts, Spacing } from '@/constants/colors';
 import {
   type AppNotification,
   giftNotificationDetail,
+  isolateMixedDirectionText,
   isGroupMessageNotification,
   notificationsApi,
 } from '@/lib/api/notifications';
@@ -59,9 +60,9 @@ function userDisplayName(user: AppNotification['related_user']): string {
 function notificationTitle(n: AppNotification): string {
   const name = userDisplayName(n.related_user);
   if (name && ['new_message', 'message_received', 'chat_message_created'].includes(n.type)) {
-    return `پیام جدید از ${name}`;
+    return isolateMixedDirectionText(`پیام جدید از ${name}`);
   }
-  return n.title ?? n.type;
+  return isolateMixedDirectionText(n.title ?? n.type);
 }
 
 function metadataNumber(metadata: Record<string, unknown>, keys: string[]): number | null {
@@ -386,12 +387,12 @@ export default function NotificationsScreen() {
             <Text style={styles.rowTime}>{relativeTime(n.created_at)}</Text>
           </View>
           {n.body ? (
-            <Text style={styles.rowBody} numberOfLines={2}>{n.body}</Text>
+            <Text style={styles.rowBody} numberOfLines={2}>{isolateMixedDirectionText(n.body)}</Text>
           ) : null}
           {giftDetail ? <Text style={styles.giftDetail}>{giftDetail}</Text> : null}
           {n.related_user && (
             <Text style={styles.rowUser}>
-              {userDisplayName(n.related_user)}
+              {isolateMixedDirectionText(userDisplayName(n.related_user))}
             </Text>
           )}
         </View>

@@ -129,6 +129,7 @@ export default function ForgotPasswordOtpScreen() {
           />
         </View>
 
+        <KeyboardStickyBar style={styles.buttonWrap} bottomOffset={insets.bottom + 32}>
         {seconds > 0 ? (
           <Text style={styles.resend}>
             ارسال مجدد در{' '}
@@ -146,7 +147,6 @@ export default function ForgotPasswordOtpScreen() {
           </Text>
         )}
 
-        <KeyboardStickyBar style={styles.buttonWrap} bottomOffset={insets.bottom + 32}>
           <Button
             variant="accent"
             onPress={handleVerify}
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
   },
   resend: {
     textAlign: 'center',
-    marginTop: 24,
+    marginBottom: 12,
     fontSize: 12,
     color: Colors.muted,
     fontFamily: Fonts.regular,
@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
   timer: { fontFamily: Fonts.bold, color: Colors.ink },
   resendActive: {
     textAlign: 'center',
-    marginTop: 24,
+    marginBottom: 12,
     fontSize: 12,
     color: Colors.accent,
     fontFamily: Fonts.bold,

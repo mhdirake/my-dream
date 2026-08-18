@@ -60,6 +60,12 @@ describe('giftNotificationDetail', () => {
     )).toBe('هدیه: رز رویایی');
   });
 
+  it('isolates latin catalog gift titles inside Persian text', () => {
+    expect(giftNotificationDetail(
+      notification('gift_received', { gift_kind: 'catalog_gift', gift_title: 'Dream Rose' }),
+    )).toBe('هدیه: \u2068Dream Rose\u2069');
+  });
+
   it('shows the received coin amount', () => {
     expect(giftNotificationDetail(
       notification('gift_received', { gift_kind: 'coin_gift', amount: 250 }),

@@ -583,6 +583,11 @@ export default function ConversationScreen() {
     );
   }, []);
 
+  useFocusEffect(useCallback(() => {
+    if (!initialScrollDoneRef.current || initialPosition.kind !== 'tail') return;
+    requestAnimationFrame(() => scrollToTail(false));
+  }, [initialPosition.kind, scrollToTail]));
+
   const performInitialScroll = useCallback(() => {
     if (initialScrollDoneRef.current) return;
     if (initialScrollInProgressRef.current) return;
@@ -971,6 +976,11 @@ export default function ConversationScreen() {
     }
   }, [hasMore, loadMore]);
 
+  const handleListLayout = useCallback(() => {
+    if (!initialScrollDoneRef.current || !isNearTailRef.current) return;
+    requestAnimationFrame(() => scrollToTail(false));
+  }, [scrollToTail]);
+
   const cancelEdit = useCallback(() => {
     setEditingId(null);
     setText('');
@@ -1114,7 +1124,7 @@ export default function ConversationScreen() {
 
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={0}
       >
         {loading ? (
@@ -1160,8 +1170,9 @@ export default function ConversationScreen() {
             data={messages}
             keyExtractor={m => m.message_id}
             onScroll={handleScroll}
+            onLayout={handleListLayout}
             scrollEventThrottle={16}
-            maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+            maintainVisibleContentPosition={Platform.OS === 'web' ? undefined : { minIndexForVisible: 0 }}
             onContentSizeChange={handleContentSizeChange}
             onViewableItemsChanged={onViewableItemsChanged}
             viewabilityConfig={CHAT_VIEWABILITY_CONFIG}
@@ -1972,7 +1983,8 @@ export default function ConversationScreen() {
           style={styles.flex}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          <Pressable style={styles.menuOverlay} onPress={closeGiftPicker}>
+          <View style={styles.menuOverlay}>
+            <Pressable style={StyleSheet.absoluteFill} onPress={closeGiftPicker} />
             <View style={styles.giftSheet}>
             <View style={styles.menuHandle} />
             {selectedGift ? (
@@ -2061,7 +2073,7 @@ export default function ConversationScreen() {
               </>
             )}
             </View>
-          </Pressable>
+          </View>
         </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
@@ -2195,7 +2207,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     borderWidth: 1,
     borderColor: '#F3DFB9',
-    maxWidth: '78%',
     paddingVertical: 14,
     paddingHorizontal: 18,
   },
@@ -2378,11 +2389,11 @@ const styles = StyleSheet.create({
     color: Colors.inkSoft,
   },
   bubblePressMine: Platform.select({
-    web: { marginLeft: 'auto', maxWidth: '78%' },
+    web: { alignSelf: 'flex-end', marginLeft: 'auto', maxWidth: '78%' },
     default: { alignSelf: 'flex-start', maxWidth: '78%' },
   }),
   bubblePressTheirs: Platform.select({
-    web: { marginRight: 'auto', maxWidth: '78%' },
+    web: { alignSelf: 'flex-start', marginRight: 'auto', maxWidth: '78%' },
     default: { alignSelf: 'flex-end', maxWidth: '78%' },
   }),
   groupMessageRow: Platform.select({

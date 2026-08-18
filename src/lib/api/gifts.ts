@@ -11,10 +11,22 @@ export type GiftUser = {
   first_name: string;
   last_name: string | null;
   profile_photo_path: string | null;
+  profile_photo?: {
+    urls?: {
+      thumbnail?: string;
+      small?: string;
+      medium?: string;
+      large?: string;
+      original?: string;
+    };
+  } | null;
 };
 
 export function giftUserPhotoUrl(user: GiftUser | null | undefined): string | null {
-  const path = user?.profile_photo_path;
+  const path = user?.profile_photo?.urls?.thumbnail
+    ?? user?.profile_photo?.urls?.small
+    ?? user?.profile_photo?.urls?.medium
+    ?? user?.profile_photo_path;
   if (!path) return null;
   return path.startsWith('http') ? path : `${MEDIA_BASE}/${path.replace(/^\//, '')}`;
 }

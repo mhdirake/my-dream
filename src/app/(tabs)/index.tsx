@@ -327,16 +327,16 @@ function SwipeGuide() {
   return (
     <Animated.View style={[styles.guideOverlay, style]} pointerEvents="none">
       <View style={styles.guideCard}>
-        <View style={[styles.guideIconWrap, { backgroundColor: Colors.danger }]}>
-          <X size={20} color="#fff" strokeWidth={2.5} />
-        </View>
-        <Text style={styles.guideTxt}>{'بکش چپ\nرد کردن'}</Text>
-      </View>
-      <View style={styles.guideCard}>
         <View style={[styles.guideIconWrap, { backgroundColor: Colors.ok }]}>
           <Heart size={20} color="#fff" fill="#fff" strokeWidth={0} />
         </View>
         <Text style={styles.guideTxt}>{'بکش راست\nپسندیدن'}</Text>
+      </View>
+      <View style={styles.guideCard}>
+        <View style={[styles.guideIconWrap, { backgroundColor: Colors.danger }]}>
+          <X size={20} color="#fff" strokeWidth={2.5} />
+        </View>
+        <Text style={styles.guideTxt}>{'بکش چپ\nرد کردن'}</Text>
       </View>
     </Animated.View>
   );

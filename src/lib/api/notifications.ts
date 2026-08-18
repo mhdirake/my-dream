@@ -40,6 +40,12 @@ function toPersianDigits(value: string | number): string {
   return String(value).replace(/[0-9]/g, digit => '۰۱۲۳۴۵۶۷۸۹'.charAt(Number(digit)));
 }
 
+export function isolateMixedDirectionText(value: string): string {
+  return value.replace(/[A-Za-z0-9][A-Za-z0-9._@+\- ]*[A-Za-z0-9]|\b[A-Za-z0-9]\b/g, match =>
+    `\u2068${match.trim()}\u2069`,
+  );
+}
+
 export function giftNotificationDetail(notification: AppNotification): string | null {
   if (notification.type !== 'gift_received') return null;
 
@@ -48,7 +54,7 @@ export function giftNotificationDetail(notification: AppNotification): string | 
 
   if (giftKind === 'catalog_gift') {
     const title = typeof metadata.gift_title === 'string' ? metadata.gift_title.trim() : '';
-    return title ? `هدیه: ${title}` : 'هدیه فروشگاه';
+    return title ? isolateMixedDirectionText(`هدیه: ${title}`) : 'هدیه فروشگاه';
   }
 
   if (giftKind === 'coin_gift') {
@@ -66,7 +72,7 @@ export function giftNotificationDetail(notification: AppNotification): string | 
     const durationText = Number.isFinite(duration) && duration > 0
       ? `، ${toPersianDigits(duration)} روزه`
       : '';
-    return plan ? `اشتراک ${plan}${durationText}` : 'هدیه اشتراک';
+    return plan ? isolateMixedDirectionText(`اشتراک ${plan}${durationText}`) : 'هدیه اشتراک';
   }
 
   if (giftKind === 'gold_badge' || giftKind === 'gold_badge_gift') {

@@ -45,6 +45,23 @@ function fieldFromMessage(message: string): string | null {
 
 export function localizeErrorMessage(rawMessage: unknown, status?: number): string {
   const raw = typeof rawMessage === 'string' ? rawMessage.trim() : '';
+
+  if (
+    /limit exceeded|daily .*limit|quota|subscription|plan limit|swipe limit|message limit|like limit/i.test(raw) ||
+    /سقف|لیمیت|محدودیت|اشتراک/.test(raw) ||
+    (status === 429 && /daily|limit|quota|subscription|plan|swipe|message|like/i.test(raw))
+  ) {
+    return 'به محدودیت اشتراک فعلی‌ات رسیدی. برای ادامه، اشتراکت را ارتقا بده یا بعداً دوباره تلاش کن.';
+  }
+
+  if (
+    /forbidden|not allowed|permission/i.test(raw) ||
+    /اجازه انجام این عملیات را نداری|مجاز نیست|دسترسی نداری/.test(raw) ||
+    status === 403
+  ) {
+    return 'این کار با اشتراک فعلی‌ات مجاز نیست. برای ادامه باید اشتراکت را ارتقا بدهی.';
+  }
+
   if (raw && /[\u0600-\u06ff]/.test(raw)) return toFaDigits(raw);
 
   const field = fieldFromMessage(raw);
@@ -72,9 +89,6 @@ export function localizeErrorMessage(rawMessage: unknown, status?: number): stri
   }
   if (/unauthenticated|token.*expired|invalid token/i.test(raw) || status === 401) {
     return 'نشست شما منقضی شده است؛ دوباره وارد شو.';
-  }
-  if (/forbidden|not allowed|permission/i.test(raw) || status === 403) {
-    return 'اجازه انجام این عملیات را نداری.';
   }
   if (/not found/i.test(raw) || status === 404) {
     return 'اطلاعات موردنظر پیدا نشد.';

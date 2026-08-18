@@ -9,7 +9,7 @@ import { toFaDigits } from '@/lib/localization';
 import { toast } from '@/lib/toast';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const OTP_LENGTH = 5;
@@ -95,6 +95,7 @@ export default function OTPScreen() {
           />
         </View>
 
+        <KeyboardStickyBar style={styles.btnWrap} bottomOffset={insets.bottom + 32}>
         {seconds > 0 ? (
           <Text style={styles.resend}>
             ارسال مجدد در{' '}
@@ -108,7 +109,6 @@ export default function OTPScreen() {
           </Text>
         )}
 
-        <KeyboardStickyBar style={styles.btnWrap} bottomOffset={insets.bottom + 32}>
           <Button
             variant="accent"
             onPress={handleVerify}
@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
   },
   resend: {
     textAlign: 'center',
-    marginTop: 24,
+    marginBottom: 12,
     fontSize: 12,
     color: Colors.muted,
     fontFamily: Fonts.regular,

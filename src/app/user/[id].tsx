@@ -1049,7 +1049,11 @@ export default function ProfileViewScreen() {
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.giftScroll}>
                   {userGifts.slice(0, 12).map(g => (
                     <View key={g.sent_gift_id} style={[styles.giftItem, g.is_pinned && styles.giftItemPinned]}>
-                      <Text style={styles.giftItemEmoji}>🎁</Text>
+                      {g.asset_url ? (
+                        <Image source={{ uri: g.asset_url }} style={styles.giftItemImage} contentFit="contain" />
+                      ) : (
+                        <Text style={styles.giftItemEmoji}>🎁</Text>
+                      )}
                       <Text style={styles.giftItemTitle} numberOfLines={1}>{g.gift_title}</Text>
                       {g.is_pinned && <Star size={10} color={Colors.goldDeep} fill={Colors.gold} strokeWidth={1.5} />}
                     </View>
@@ -1078,6 +1082,15 @@ export default function ProfileViewScreen() {
         </TouchableOpacity>
         <TouchableOpacity style={styles.giftBtn} onPress={() => setGiftOpen(true)}>
           <Gift size={18} color={Colors.goldDeep} strokeWidth={2} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.anonBtn}
+          onPress={handleAnon}
+          activeOpacity={0.82}
+          accessibilityRole="button"
+          accessibilityLabel="ارسال علاقه ناشناس"
+        >
+          <Eye size={18} color={Colors.purple} strokeWidth={2.2} />
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.chatGradBtn}
@@ -1284,6 +1297,7 @@ const styles = StyleSheet.create({
     maxWidth: 160,
   },
   giftItemPinned: { borderColor: Colors.gold, backgroundColor: Colors.goldSoft },
+  giftItemImage: { width: 28, height: 28 },
   giftItemEmoji: { fontSize: 18 },
   giftItemTitle: { fontSize: 12, fontFamily: Fonts.semiBold, color: Colors.ink, flexShrink: 1 },
   bio: { fontSize: 14, fontFamily: Fonts.regular, color: Colors.ink, lineHeight: 24 },
@@ -1466,6 +1480,10 @@ const styles = StyleSheet.create({
   giftBtn: {
     width: 42, height: 42, borderRadius: 21,
     backgroundColor: Colors.goldSoft, alignItems: 'center', justifyContent: 'center',
+  },
+  anonBtn: {
+    width: 42, height: 42, borderRadius: 21,
+    backgroundColor: Colors.purpleSoft, alignItems: 'center', justifyContent: 'center',
   },
   chatGradBtn: {
     flex: 1, height: 42, borderRadius: 21, overflow: 'hidden',

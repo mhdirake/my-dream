@@ -1,5 +1,6 @@
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
+import { WebImageCropModal } from '@/components/ui/WebImageCropModal';
 import { APP_VERSION_LABEL } from '@/constants/appVersion';
 import { Chip } from '@/components/ui/Chip';
 import { Colors, Fonts, Spacing } from '@/constants/colors';
@@ -70,6 +71,7 @@ export default function MeScreen() {
   const [loading, setLoading] = useState(true);
   const [photoError, setPhotoError] = useState(false);
   const [localPhotoUri, setLocalPhotoUri] = useState<string | null>(null);
+  const [cropUri, setCropUri] = useState<string | null>(null);
   const [photoUploading, setPhotoUploading] = useState(false);
 
   useEffect(() => {
@@ -78,7 +80,7 @@ export default function MeScreen() {
       .then(setProfile)
       .catch(e => { if (e instanceof ApiError && e.status === 401) logout(); })
       .finally(() => setLoading(false));
-  }, [session]);
+  }, [logout, session]);
 
   const uploadPhoto = async (uri: string) => {
     if (!session?.accessToken) return;
@@ -109,7 +111,13 @@ export default function MeScreen() {
       aspect: [1, 1],
       quality: 0.85,
     });
-    if (!result.canceled) uploadPhoto(result.assets[0].uri);
+    if (!result.canceled) {
+      if (Platform.OS === 'web') {
+        setCropUri(result.assets[0].uri);
+        return;
+      }
+      uploadPhoto(result.assets[0].uri);
+    }
   };
 
   const pickFromCamera = async () => {
@@ -123,7 +131,13 @@ export default function MeScreen() {
       aspect: [1, 1],
       quality: 0.85,
     });
-    if (!result.canceled) uploadPhoto(result.assets[0].uri);
+    if (!result.canceled) {
+      if (Platform.OS === 'web') {
+        setCropUri(result.assets[0].uri);
+        return;
+      }
+      uploadPhoto(result.assets[0].uri);
+    }
   };
 
   const handleChangePhoto = () => {
@@ -154,6 +168,15 @@ export default function MeScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
+      <WebImageCropModal
+        visible={Boolean(cropUri)}
+        uri={cropUri}
+        onCancel={() => setCropUri(null)}
+        onComplete={uri => {
+          setCropUri(null);
+          uploadPhoto(uri);
+        }}
+      />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: bottom + 92 }]}>
 
         <Card style={styles.profileCard}>

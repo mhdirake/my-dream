@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { SessionExpiredModal } from '@/components/ui/SessionExpiredModal';
+import { WebImageCropModal } from '@/components/ui/WebImageCropModal';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { ApiError } from '@/lib/api/client';
 import { onboardingApi } from '@/lib/api/onboarding';
@@ -13,6 +14,7 @@ import { useEffect, useState } from 'react';
 import {
   Alert,
   Image,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -37,6 +39,7 @@ export default function PhotoScreen() {
   // newPhotoUri = عکس جدید انتخاب‌شده توسط کاربر (برای آپلود)
   const [existingPhotoUrl, setExistingPhotoUrl] = useState<string | null>(null);
   const [newPhotoUri, setNewPhotoUri] = useState<string | null>(null);
+  const [cropUri, setCropUri] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [sessionExpired, setSessionExpired] = useState(false);
@@ -71,6 +74,10 @@ export default function PhotoScreen() {
       quality: 0.85,
     });
     if (!result.canceled) {
+      if (Platform.OS === 'web') {
+        setCropUri(result.assets[0].uri);
+        return;
+      }
       setNewPhotoUri(result.assets[0].uri);
       setError('');
     }
@@ -88,6 +95,10 @@ export default function PhotoScreen() {
       quality: 0.85,
     });
     if (!result.canceled) {
+      if (Platform.OS === 'web') {
+        setCropUri(result.assets[0].uri);
+        return;
+      }
       setNewPhotoUri(result.assets[0].uri);
       setError('');
     }
@@ -119,6 +130,16 @@ export default function PhotoScreen() {
       <SessionExpiredModal
         visible={sessionExpired}
         onLogin={() => router.replace('/onboarding/login' as any)}
+      />
+      <WebImageCropModal
+        visible={Boolean(cropUri)}
+        uri={cropUri}
+        onCancel={() => setCropUri(null)}
+        onComplete={uri => {
+          setNewPhotoUri(uri);
+          setCropUri(null);
+          setError('');
+        }}
       />
       <Stepper step={3} />
       <ScrollView
