@@ -255,7 +255,7 @@ export function useChatMessages(
           if (m.message_id !== msgId) return m;
           return {
             ...m,
-            reactions: (m.reactions ?? []).filter(r => r.user_id !== userId && r.user_id !== -1),
+            reactions: (m.reactions ?? []).filter(r => r.user_id !== userId && !(r.user_id === -1 && userId === accountId)),
             my_reaction: userId === accountId ? null : m.my_reaction,
           };
         }));

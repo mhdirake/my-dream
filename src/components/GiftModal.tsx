@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Props = {
   visible: boolean;
@@ -29,6 +30,7 @@ const SLUG_EMOJI: Record<string, string> = {
 };
 
 export function GiftModal({ visible, userId, firstName, token, onClose }: Props) {
+  const insets = useSafeAreaInsets();
   const [gifts, setGifts] = useState<BackendGift[]>([]);
   const [selected, setSelected] = useState<number | null>(null);
   const [sending, setSending] = useState(false);
@@ -62,7 +64,7 @@ export function GiftModal({ visible, userId, firstName, token, onClose }: Props)
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
       <Pressable style={styles.backdrop} onPress={handleClose} />
-      <View style={styles.sheet}>
+      <View style={[styles.sheet, { paddingBottom: 40 + insets.bottom }]}>
         <View style={styles.handle} />
         <>
             <Text style={styles.title}>ارسال هدیه به {firstName}</Text>
@@ -119,7 +121,7 @@ const styles = StyleSheet.create({
   sheet: {
     backgroundColor: Colors.bg,
     borderTopLeftRadius: 28, borderTopRightRadius: 28,
-    padding: 24, paddingBottom: 40,
+    padding: 24,
     alignItems: 'center',
     shadowColor: '#000', shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.12, shadowRadius: 16, elevation: 20,

@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Props = {
   visible: boolean;
@@ -25,6 +26,7 @@ type Props = {
 };
 
 export function TemplateMessageModal({ visible, userId, firstName, token, onClose, onSent }: Props) {
+  const insets = useSafeAreaInsets();
   const [templates, setTemplates] = useState<ConversationTemplate[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [selected, setSelected] = useState<number | null>(null);
@@ -72,7 +74,7 @@ export function TemplateMessageModal({ visible, userId, firstName, token, onClos
     <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
       <View style={styles.container}>
         <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
-      <View style={styles.sheet}>
+      <View style={[styles.sheet, { paddingBottom: 36 + insets.bottom }]}>
         <View style={styles.handle} />
 
         {/* Header */}
@@ -178,7 +180,7 @@ const styles = StyleSheet.create({
   sheet: {
     backgroundColor: Colors.surface,
     borderTopLeftRadius: 28, borderTopRightRadius: 28,
-    paddingBottom: 36, maxHeight: '85%',
+    maxHeight: '85%',
   },
   handle: {
     width: 38, height: 4, borderRadius: 2,

@@ -41,7 +41,16 @@ import {
   ViewToken,
   View,
 } from 'react-native';
-import Animated, { ZoomIn } from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  Extrapolation,
+  interpolate,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  ZoomIn,
+} from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 function formatTime(iso: string) {
@@ -291,6 +300,63 @@ function replyPreviewText(message: Message | null): string {
   if (message.message_type === 'sticker') return message.sticker_id || 'استیکر';
   if (message.message_type === 'gif') return 'GIF';
   return 'مشاهده پیام';
+}
+
+const REPLY_SWIPE_TRIGGER = 56;
+const REPLY_SWIPE_MAX = 76;
+
+function SwipeToReply({
+  onReply, disabled, children,
+}: {
+  onReply: () => void;
+  disabled?: boolean;
+  children: React.ReactNode;
+}) {
+  const translateX = useSharedValue(0);
+  const triggered = useSharedValue(false);
+
+  const pan = Gesture.Pan()
+    .enabled(!disabled)
+    .activeOffsetX([-10, 10])
+    .failOffsetY([-12, 12])
+    .onUpdate(e => {
+      const dx = Math.max(0, e.translationX);
+      translateX.value = dx > REPLY_SWIPE_MAX
+        ? REPLY_SWIPE_MAX + (dx - REPLY_SWIPE_MAX) * 0.15
+        : dx;
+      if (dx >= REPLY_SWIPE_TRIGGER && !triggered.value) {
+        triggered.value = true;
+        runOnJS(onReply)();
+      }
+    })
+    .onEnd(() => {
+      translateX.value = withSpring(0, { damping: 18, stiffness: 220 });
+      triggered.value = false;
+    });
+
+  const bubbleStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
+  const iconStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(translateX.value, [0, REPLY_SWIPE_TRIGGER], [0, 1], Extrapolation.CLAMP),
+    transform: [
+      { scale: interpolate(translateX.value, [0, REPLY_SWIPE_TRIGGER], [0.5, 1], Extrapolation.CLAMP) },
+    ],
+  }));
+
+  return (
+    <GestureDetector gesture={pan}>
+      <View style={styles.swipeReplyWrap}>
+        <Animated.View style={[styles.swipeReplyIcon, iconStyle]} pointerEvents="none">
+          <Text style={styles.swipeReplyIconTxt}>↩</Text>
+        </Animated.View>
+        <Animated.View style={bubbleStyle}>
+          {children}
+        </Animated.View>
+      </View>
+    </GestureDetector>
+  );
 }
 
 export default function ConversationScreen() {
@@ -1443,18 +1509,20 @@ export default function ConversationScreen() {
                   )}
                   {isGroup ? (
                     <View style={[styles.groupMessageRow, isMine && styles.groupMessageRowMine]}>
-                      <Pressable
-                        style={styles.groupBubblePress}
-                        onLongPress={() => handleMessageLongPress(item.message_id, item.sender_user_id, item.body_text || item.caption, item.my_reaction, item.message_type)}
-                        delayLongPress={400}
-                      >
-                        <BubbleContainer
-                          {...(gradProps as any)}
-                          style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleTheirs, isGift && styles.bubbleGift]}
+                      <SwipeToReply disabled={item.is_deleted} onReply={() => setReplyingTo(item)}>
+                        <Pressable
+                          style={styles.groupBubblePress}
+                          onLongPress={() => handleMessageLongPress(item.message_id, item.sender_user_id, item.body_text || item.caption, item.my_reaction, item.message_type)}
+                          delayLongPress={400}
                         >
-                          {bubbleContent}
-                        </BubbleContainer>
-                      </Pressable>
+                          <BubbleContainer
+                            {...(gradProps as any)}
+                            style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleTheirs, isGift && styles.bubbleGift]}
+                          >
+                            {bubbleContent}
+                          </BubbleContainer>
+                        </Pressable>
+                      </SwipeToReply>
                       <View style={styles.groupAvatarSlot}>
                         {showGroupAvatar ? (
                           <TouchableOpacity
@@ -1478,18 +1546,20 @@ export default function ConversationScreen() {
                       </View>
                     </View>
                   ) : (
-                    <Pressable
-                      style={isMine ? styles.bubblePressMine : styles.bubblePressTheirs}
-                      onLongPress={() => handleMessageLongPress(item.message_id, item.sender_user_id, item.body_text || item.caption, item.my_reaction, item.message_type)}
-                      delayLongPress={400}
-                    >
-                      <BubbleContainer
-                        {...(gradProps as any)}
-                        style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleTheirs, isGift && styles.bubbleGift]}
+                    <SwipeToReply disabled={item.is_deleted} onReply={() => setReplyingTo(item)}>
+                      <Pressable
+                        style={isMine ? styles.bubblePressMine : styles.bubblePressTheirs}
+                        onLongPress={() => handleMessageLongPress(item.message_id, item.sender_user_id, item.body_text || item.caption, item.my_reaction, item.message_type)}
+                        delayLongPress={400}
                       >
-                        {bubbleContent}
-                      </BubbleContainer>
-                    </Pressable>
+                        <BubbleContainer
+                          {...(gradProps as any)}
+                          style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleTheirs, isGift && styles.bubbleGift]}
+                        >
+                          {bubbleContent}
+                        </BubbleContainer>
+                      </Pressable>
+                    </SwipeToReply>
                   )}
                 </View>
               );
@@ -1842,7 +1912,7 @@ export default function ConversationScreen() {
       {/* Message long-press menu */}
       <Modal visible={!!msgMenu} transparent animationType="fade" onRequestClose={() => { setMsgMenu(null); setConfirmDeleteId(null); }}>
         <Pressable style={styles.menuOverlay} onPress={() => { setMsgMenu(null); setConfirmDeleteId(null); }}>
-          <View style={styles.menuSheet}>
+          <View style={[styles.menuSheet, { paddingBottom: 32 + insets.bottom }]}>
             <View style={styles.menuHandle} />
             {confirmDeleteId ? (
               <>
@@ -1940,7 +2010,7 @@ export default function ConversationScreen() {
       {/* More menu */}
       <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
         <Pressable style={styles.menuOverlay} onPress={() => setMenuOpen(false)}>
-          <View style={styles.menuSheet}>
+          <View style={[styles.menuSheet, { paddingBottom: 32 + insets.bottom }]}>
             <View style={styles.menuHandle} />
             {otherId && (
               <TouchableOpacity
@@ -1985,7 +2055,7 @@ export default function ConversationScreen() {
         >
           <View style={styles.menuOverlay}>
             <Pressable style={StyleSheet.absoluteFill} onPress={closeGiftPicker} />
-            <View style={styles.giftSheet}>
+            <View style={[styles.giftSheet, { paddingBottom: 28 + insets.bottom }]}>
             <View style={styles.menuHandle} />
             {selectedGift ? (
               <>
@@ -2318,7 +2388,7 @@ const styles = StyleSheet.create({
   giftSheet: {
     backgroundColor: Colors.surface,
     borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl,
-    paddingHorizontal: Spacing.lg, paddingBottom: 28, paddingTop: 8,
+    paddingHorizontal: Spacing.lg, paddingTop: 8,
   },
   giftSheetTitle: {
     fontFamily: Fonts.bold, fontSize: 15, color: Colors.ink,
@@ -2388,6 +2458,22 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: Colors.inkSoft,
   },
+  swipeReplyWrap: {
+    justifyContent: 'center',
+  },
+  swipeReplyIcon: {
+    position: 'absolute',
+    left: -34,
+    top: '50%',
+    marginTop: -13,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.accentSoft,
+  },
+  swipeReplyIconTxt: { fontSize: 14, color: Colors.accent },
   bubblePressMine: Platform.select({
     web: { alignSelf: 'flex-end', marginLeft: 'auto', maxWidth: '78%' },
     default: { alignSelf: 'flex-start', maxWidth: '78%' },
@@ -2700,7 +2786,7 @@ const styles = StyleSheet.create({
   menuSheet: {
     backgroundColor: Colors.surface,
     borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl,
-    paddingBottom: 32, paddingTop: 10,
+    paddingTop: 10,
     overflow: 'hidden',
   },
   menuHandle: {
