@@ -31,6 +31,17 @@ export function giftUserPhotoUrl(user: GiftUser | null | undefined): string | nu
   return path.startsWith('http') ? path : `${MEDIA_BASE}/${path.replace(/^\//, '')}`;
 }
 
+// English seed titles displayed in Persian — admin-created gifts with a Persian
+// title already pass through unchanged via the fallback.
+const GIFT_TITLE_FA: Record<string, string> = {
+  'Dream Rose': 'گل رز رویایی',
+  'Coffee Invite': 'دعوت به قهوه',
+  'Cool Moon': 'ماه دلنشین',
+  'Golden Heart': 'قلب طلایی',
+  'Legendary Star': 'ستاره افسانه‌ای',
+};
+export const giftDisplayTitle = (title: string) => GIFT_TITLE_FA[title] ?? title;
+
 export type SentGift = {
   sent_gift_id: number;
   gift_title: string;

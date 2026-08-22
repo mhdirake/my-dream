@@ -60,10 +60,16 @@ describe('giftNotificationDetail', () => {
     )).toBe('هدیه: رز رویایی');
   });
 
-  it('isolates latin catalog gift titles inside Persian text', () => {
+  it('translates known English catalog gift titles to Persian', () => {
     expect(giftNotificationDetail(
       notification('gift_received', { gift_kind: 'catalog_gift', gift_title: 'Dream Rose' }),
-    )).toBe('هدیه: \u2068Dream Rose\u2069');
+    )).toBe('هدیه: گل رز رویایی');
+  });
+
+  it('isolates latin catalog gift titles with no known translation', () => {
+    expect(giftNotificationDetail(
+      notification('gift_received', { gift_kind: 'catalog_gift', gift_title: 'Custom Gift' }),
+    )).toBe('هدیه: \u2068Custom Gift\u2069');
   });
 
   it('shows the received coin amount', () => {

@@ -2,7 +2,7 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { ApiError } from '@/lib/api/client';
 import { Message, type MessageSender, chatApi } from '@/lib/api/chat';
 import { BackendGift } from '@/lib/api/discover';
-import { giftsApi } from '@/lib/api/gifts';
+import { giftDisplayTitle, giftsApi } from '@/lib/api/gifts';
 import { profileApi } from '@/lib/api/profile';
 import { useChatMessages } from '@/lib/chat/useChatMessages';
 import { useCentrifugoCtx } from '@/lib/chat/CentrifugoContext';
@@ -277,13 +277,18 @@ function senderAvatarUrl(
     ?? null;
 }
 
-function senderById(userId: number, allMessages: Message[], mySender: MessageSender | null): MessageSender | null {
-  if (userId === mySender?.id || userId === -1) return mySender;
-  return allMessages.find(item => item.sender_user_id === userId && item.sender)?.sender ?? null;
+function senderById(userId: number, myId: number, allMessages: Message[], mySender: MessageSender | null): MessageSender | null {
+  // Optimistic reactions store the actor as -1 (see setReaction in useChatMessages)
+  // before the real id is known — resolve it to the real id up front so we still fall
+  // back to a sender embedded in an already-loaded message when mySender hasn't
+  // finished loading yet (a separate, slower fetch), instead of returning null.
+  const resolvedId = userId === -1 ? myId : userId;
+  if (resolvedId === mySender?.id) return mySender;
+  return allMessages.find(item => item.sender_user_id === resolvedId && item.sender)?.sender ?? null;
 }
 
-function reactionAvatarUrl(userId: number, allMessages: Message[], mySender: MessageSender | null): string | null {
-  const sender = senderById(userId, allMessages, mySender);
+function reactionAvatarUrl(userId: number, myId: number, allMessages: Message[], mySender: MessageSender | null): string | null {
+  const sender = senderById(userId, myId, allMessages, mySender);
 
   return sender?.profile_photo?.urls?.thumbnail
     ?? sender?.profile_photo?.urls?.small
@@ -300,6 +305,17 @@ function replyPreviewText(message: Message | null): string {
   if (message.message_type === 'sticker') return message.sticker_id || 'استیکر';
   if (message.message_type === 'gif') return 'GIF';
   return 'مشاهده پیام';
+}
+
+const EMOJI_RUN_REGEX = /(\p{Extended_Pictographic}(️|‍\p{Extended_Pictographic})*|[\u{1F1E6}-\u{1F1FF}]{2}|\s)/gu;
+
+// Big, background-less bubble for emoji-only messages (WhatsApp/Telegram-style) —
+// capped at 12 graphemes so a long run of emoji doesn't blow up the layout.
+function isEmojiOnlyText(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed) return false;
+  if (trimmed.replace(EMOJI_RUN_REGEX, '').length > 0) return false;
+  return [...trimmed.replace(/\s/g, '')].length <= 12;
 }
 
 const REPLY_SWIPE_TRIGGER = 56;
@@ -344,6 +360,14 @@ function SwipeToReply({
       { scale: interpolate(translateX.value, [0, REPLY_SWIPE_TRIGGER], [0.5, 1], Extrapolation.CLAMP) },
     ],
   }));
+
+  // RNGH's web GestureDetector can still intercept touch/pointer events for gesture
+  // arbitration even when the gesture itself is .enabled(false) — most noticeable as
+  // broken FlatList scrolling after a long-press (e.g. opening the reaction picker).
+  // Swiping to reply isn't a native web interaction anyway, so skip the wrapper entirely.
+  if (Platform.OS === 'web') {
+    return <View style={styles.swipeReplyWrap}>{children}</View>;
+  }
 
   return (
     <GestureDetector gesture={pan}>
@@ -997,7 +1021,7 @@ export default function ConversationScreen() {
           conversation_type: 'direct',
           sender_user_id: myId,
           message_type: 'gift',
-          body_text: note?.trim() || gift.title,
+          body_text: note?.trim() || giftDisplayTitle(gift.title),
           caption: '',
           media_url: '',
           sticker_id: '',
@@ -1016,7 +1040,7 @@ export default function ConversationScreen() {
       toast.success('هدیه ارسال شد 🎁');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '';
-      toast.error(msg.includes('coin') || msg.includes('سکه') ? 'سکه کافی نداری' : 'ارسال هدیه ناموفق بود');
+      toast.error(msg || 'ارسال هدیه ناموفق بود');
     } finally {
       setSendingGiftId(null);
     }
@@ -1281,7 +1305,14 @@ export default function ConversationScreen() {
               const reactionEntries = Object.entries(reactionGroups);
 
               const isGift = item.message_type === 'gift';
-              const BubbleContainer = isGift || !isMine ? LinearGradient : View;
+              const isEmojiOnly = item.message_type === 'text'
+                && !item.reply_to_message_id
+                && !!(item.body_text || item.caption)
+                && isEmojiOnlyText(item.body_text || item.caption);
+              const BubbleContainer = isEmojiOnly ? View : isGift || !isMine ? LinearGradient : View;
+              const bubbleContainerStyle = isEmojiOnly
+                ? styles.bubbleEmojiOnly
+                : [styles.bubble, isMine ? styles.bubbleMine : styles.bubbleTheirs, isGift && styles.bubbleGift];
               const gradProps = isGift ? {
                 colors: ['rgba(214,190,145,0.24)', 'rgba(214,190,145,0.4)'] as [string, string],
                 start: { x: 0, y: 0 },
@@ -1378,7 +1409,7 @@ export default function ConversationScreen() {
                     />
                   ) : item.message_type === 'gift' ? (() => {
                     const giftMeta = gifts.find(g => g.id === item.gift_id);
-                    const giftTitle = giftMeta?.title ?? 'هدیه';
+                    const giftTitle = giftMeta ? giftDisplayTitle(giftMeta.title) : 'هدیه';
                     const noteText = item.body_text || item.caption;
                     const hasCustomNote = !!noteText && noteText !== giftTitle;
                     // انیمیشن ورود فقط برای گیفت تازه‌رسیده — نه موقع اسکرول تاریخچه
@@ -1416,7 +1447,11 @@ export default function ConversationScreen() {
                     </Text>
                   ) : null}
                   {(item.message_type !== 'gift') && !!messageText && (
-                    <Text style={[styles.bubbleTxt, isMine ? styles.bubbleTxtMine : styles.bubbleTxtTheirs, imageUri != null && { marginTop: 6 }]}>
+                    <Text style={[
+                      isEmojiOnly ? styles.bubbleTxtEmojiOnly : styles.bubbleTxt,
+                      !isEmojiOnly && (isMine ? styles.bubbleTxtMine : styles.bubbleTxtTheirs),
+                      imageUri != null && { marginTop: 6 },
+                    ]}>
                       {messageText}
                     </Text>
                   )}
@@ -1453,7 +1488,7 @@ export default function ConversationScreen() {
                             <Text style={styles.reactionEmoji}>{emoji}</Text>
                             <View style={styles.reactionAvatars}>
                               {visibleUserIds.map((userId, avatarIndex) => {
-                                const avatarUri = reactionAvatarUrl(userId, messages, mySender);
+                                const avatarUri = reactionAvatarUrl(userId, myId, messages, mySender);
 
                                 return (
                                   <View
@@ -1517,7 +1552,7 @@ export default function ConversationScreen() {
                         >
                           <BubbleContainer
                             {...(gradProps as any)}
-                            style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleTheirs, isGift && styles.bubbleGift]}
+                            style={bubbleContainerStyle}
                           >
                             {bubbleContent}
                           </BubbleContainer>
@@ -1554,7 +1589,7 @@ export default function ConversationScreen() {
                       >
                         <BubbleContainer
                           {...(gradProps as any)}
-                          style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleTheirs, isGift && styles.bubbleGift]}
+                          style={bubbleContainerStyle}
                         >
                           {bubbleContent}
                         </BubbleContainer>
@@ -2059,7 +2094,7 @@ export default function ConversationScreen() {
             <View style={styles.menuHandle} />
             {selectedGift ? (
               <>
-                <Text style={styles.giftSheetTitle}>ارسال {selectedGift.title}</Text>
+                <Text style={styles.giftSheetTitle}>ارسال {giftDisplayTitle(selectedGift.title)}</Text>
                 <View style={styles.giftPreviewCard}>
                   <LinearGradient
                     colors={[Colors.goldSoft, Colors.accentSoft]}
@@ -2072,7 +2107,7 @@ export default function ConversationScreen() {
                   ) : (
                     <Text style={styles.giftPreviewEmoji}>{GIFT_SLUG_EMOJI[selectedGift.slug] ?? '🎁'}</Text>
                   )}
-                  <Text style={styles.giftPreviewTitle}>{selectedGift.title}</Text>
+                  <Text style={styles.giftPreviewTitle}>{giftDisplayTitle(selectedGift.title)}</Text>
                   <View style={styles.giftRowPricePill}>
                     <Text style={styles.giftRowPriceTxt}>{toPersianNum(selectedGift.coin_price)} سکه</Text>
                   </View>
@@ -2127,7 +2162,7 @@ export default function ConversationScreen() {
                       >
                         <Text style={styles.giftRowEmoji}>{GIFT_SLUG_EMOJI[g.slug] ?? '🎁'}</Text>
                         <View style={{ flex: 1 }}>
-                          <Text style={styles.giftRowTitle}>{g.title}</Text>
+                          <Text style={styles.giftRowTitle}>{giftDisplayTitle(g.title)}</Text>
                           {g.is_limited && <Text style={styles.giftRowLimited}>نسخه محدود</Text>}
                         </View>
                         <View style={styles.giftRowPricePill}>
@@ -2557,12 +2592,18 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
+  bubbleEmojiOnly: {
+    backgroundColor: 'transparent',
+    paddingHorizontal: 4,
+    paddingVertical: 0,
+  },
   msgTypeBadge: {
     fontSize: 11, color: Colors.muted, marginBottom: 3,
   },
   bubbleTxt: { fontSize: 12, fontFamily: Fonts.regular, lineHeight: 19 },
   bubbleTxtMine: { color: '#fff' },
   bubbleTxtTheirs: { color: Colors.ink },
+  bubbleTxtEmojiOnly: { fontSize: 46, lineHeight: 56 },
   bubbleMeta: {
     flexDirection: 'row', alignItems: 'center',
     gap: 4, marginTop: 3, justifyContent: 'flex-end',

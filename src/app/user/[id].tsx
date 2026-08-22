@@ -7,7 +7,7 @@ import { blockApi, type BlockStatus } from '@/lib/api/block';
 import { chatApi, type Conversation } from '@/lib/api/chat';
 import { confirmSheet } from '@/lib/confirmSheet';
 import { discoverApi, type MutualUser } from '@/lib/api/discover';
-import { giftsApi, type SentGift } from '@/lib/api/gifts';
+import { giftsApi, giftDisplayTitle, type SentGift } from '@/lib/api/gifts';
 import { toast } from '@/lib/toast';
 import { toFaDigits } from '@/lib/localization';
 import { profileApi, type ClientProfile, type UserProfile } from '@/lib/api/profile';
@@ -40,6 +40,7 @@ import {
   Sparkles,
   Star,
   Target,
+  User,
   UserX,
   X,
 } from 'lucide-react-native';
@@ -60,6 +61,26 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import Svg, { Circle } from 'react-native-svg';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
+
+// Catalog gifts have no uploaded asset yet — same fallback map as (tabs)/gifts.tsx,
+// keyed by title since SentGift only snapshots gift_title, not slug.
+const GIFT_TITLE_EMOJI: Record<string, string> = {
+  'Dream Rose': '🌹',
+  'گل رز': '🌹',
+  'گل رز رویایی': '🌹',
+  'Coffee Invite': '☕',
+  'دعوت قهوه': '☕',
+  'دعوت به قهوه': '☕',
+  'Cool Moon': '🌙',
+  'ماه باحال': '🌙',
+  'ماه خنک': '🌙',
+  'Golden Heart': '💛',
+  'قلب طلایی': '💛',
+  'Legendary Star': '⭐',
+  'ستاره افسانه‌ای': '⭐',
+  'ستاره افسانه ای': '⭐',
+};
+const giftEmoji = (g: SentGift) => GIFT_TITLE_EMOJI[g.gift_title] ?? '🎁';
 
 function calcAge(birth: string) {
   return Math.floor((Date.now() - new Date(birth).getTime()) / (1000 * 60 * 60 * 24 * 365.25));
@@ -504,6 +525,7 @@ export default function ProfileViewScreen() {
   const [actionsOpen, setActionsOpen] = useState(false);
   const [anonConfirmOpen, setAnonConfirmOpen] = useState(false);
   const [userGifts, setUserGifts] = useState<SentGift[]>([]);
+  const [failedGiftAssetIds, setFailedGiftAssetIds] = useState<Set<number>>(new Set());
   const [matchInfo, setMatchInfo] = useState<{ user: MutualUser; message?: string | null } | null>(null);
   const [existingConversation, setExistingConversation] = useState<Conversation | null>(null);
   const [avatarViewerOpen, setAvatarViewerOpen] = useState(false);
@@ -865,7 +887,9 @@ export default function ProfileViewScreen() {
               {photoUrl ? (
                 <Image source={{ uri: photoUrl }} style={styles.avatarImg} contentFit="cover" />
               ) : (
-                <View style={[styles.avatarImg, styles.heroPh]} />
+                <View style={[styles.avatarImg, styles.heroPh]}>
+                  <User size={28} color={Colors.muted} strokeWidth={1.5} />
+                </View>
               )}
             </TouchableOpacity>
             <View style={styles.heroNameRow}>
@@ -1092,13 +1116,17 @@ export default function ProfileViewScreen() {
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.giftScroll}>
                   {userGifts.slice(0, 12).map(g => (
                     <View key={g.sent_gift_id} style={[styles.giftItem, g.is_pinned && styles.giftItemPinned]}>
-                      {g.asset_url ? (
-                        <Image source={{ uri: g.asset_url }} style={styles.giftItemImage} contentFit="contain" />
+                      {g.asset_url && !failedGiftAssetIds.has(g.sent_gift_id) ? (
+                        <Image
+                          source={{ uri: g.asset_url }}
+                          style={styles.giftItemImage}
+                          contentFit="contain"
+                          onError={() => setFailedGiftAssetIds(prev => new Set(prev).add(g.sent_gift_id))}
+                        />
                       ) : (
-                        <Text style={styles.giftItemEmoji}>🎁</Text>
+                        <Text style={styles.giftItemEmoji}>{giftEmoji(g)}</Text>
                       )}
-                      <Text style={styles.giftItemTitle} numberOfLines={1}>{g.gift_title}</Text>
-                      {g.is_pinned && <Star size={10} color={Colors.goldDeep} fill={Colors.gold} strokeWidth={1.5} />}
+                      <Text style={styles.giftItemTitle} numberOfLines={1}>{giftDisplayTitle(g.gift_title)}</Text>
                     </View>
                   ))}
                 </ScrollView>
@@ -1241,7 +1269,7 @@ const styles = StyleSheet.create({
 
   // ── Banner + Profile card ────────────────────────────────────────────────
   heroWrap: { position: 'relative' },
-  heroPh: { backgroundColor: Colors.purpleSoft },
+  heroPh: { backgroundColor: Colors.purpleSoft, alignItems: 'center', justifyContent: 'center' },
   profileHeader: {
     minHeight: 54,
     flexDirection: 'row',
@@ -1504,7 +1532,7 @@ const styles = StyleSheet.create({
   compatTitle: { fontSize: 13.5, fontFamily: Fonts.extraBold, color: Colors.purple },
   compatSubTxt: { fontSize: 11, color: Colors.inkSoft, fontFamily: Fonts.regular, lineHeight: 17 },
   noCompatCard: {
-    flexDirection: 'row-reverse', alignItems: 'center', gap: 8,
+    flexDirection: 'row-reverse', alignItems: 'center', gap: 8, textAlign: "right", justifyContent: "space-between",
     backgroundColor: Colors.purpleSoft, borderRadius: 14, padding: 14,
     borderWidth: 1, borderColor: Colors.purple + '22',
   },

@@ -1,7 +1,7 @@
 import { Card } from '@/components/ui/Card';
 import { Avatar } from '@/components/ui/Avatar';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
-import { giftUserPhotoUrl, giftsApi, SentGift } from '@/lib/api/gifts';
+import { giftDisplayTitle, giftUserPhotoUrl, giftsApi, SentGift } from '@/lib/api/gifts';
 import { BackendGift } from '@/lib/api/discover';
 import { paymentsApi } from '@/lib/api/payments';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -102,7 +102,7 @@ export default function GiftsScreen() {
       pathname: '/gifts/[id]' as any,
       params: {
         id: String(g.id),
-        title: g.title,
+        title: giftDisplayTitle(g.title),
         emoji: giftEmoji(g),
         type: g.type,
         coin_price: String(g.coin_price),
@@ -188,7 +188,7 @@ export default function GiftsScreen() {
                         </View>
                       )}
                       <Text style={styles.storeEmoji}>{giftEmoji(g)}</Text>
-                      <Text style={styles.storeName} numberOfLines={2}>{g.title}</Text>
+                      <Text style={styles.storeName} numberOfLines={2}>{giftDisplayTitle(g.title)}</Text>
                       <View style={[styles.storeTypeBadge, { backgroundColor: meta.bg }]}>
                         <Text style={[styles.storeTypeTxt, { color: meta.color }]}>{meta.label}</Text>
                       </View>
@@ -247,9 +247,10 @@ export default function GiftsScreen() {
                       size={44}
                       name={sg.sender?.first_name ?? sg.sender?.username}
                       photoUrl={giftUserPhotoUrl(sg.sender)}
+                      iconFallback
                     />
                     <View style={styles.receivedInfo}>
-                      <Text style={styles.receivedTitle}>{sg.gift_title}</Text>
+                      <Text style={styles.receivedTitle}>{giftDisplayTitle(sg.gift_title)}</Text>
                       <View style={[styles.receivedType, { backgroundColor: meta.bg }]}>
                         <Text style={[styles.receivedTypeTxt, { color: meta.color }]}>{meta.label}</Text>
                       </View>

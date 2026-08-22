@@ -1,5 +1,6 @@
 import { Colors, Fonts } from '@/constants/colors';
 import { BackendGift, discoverApi } from '@/lib/api/discover';
+import { giftDisplayTitle } from '@/lib/api/gifts';
 import { toast } from '@/lib/toast';
 import { useEffect, useState } from 'react';
 import {
@@ -50,6 +51,7 @@ export function GiftModal({ visible, userId, firstName, token, onClose }: Props)
       onClose();
     } catch (e: any) {
       toast.error(e.message ?? 'خطا در ارسال هدیه');
+    } finally {
       setSending(false);
     }
   };
@@ -86,7 +88,7 @@ export function GiftModal({ visible, userId, firstName, token, onClose }: Props)
                       activeOpacity={0.75}
                     >
                       <Text style={styles.giftEmoji}>{emoji}</Text>
-                      <Text style={styles.giftLabel}>{g.title}</Text>
+                      <Text style={styles.giftLabel}>{giftDisplayTitle(g.title)}</Text>
                       <View style={styles.coinRow}>
                         <Text style={styles.coinIcon}>🪙</Text>
                         <Text style={styles.coinTxt}>{g.coin_price}</Text>

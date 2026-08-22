@@ -1,4 +1,5 @@
 import { api } from './client';
+import { giftDisplayTitle } from './gifts';
 
 export type NotificationRelatedUser = {
   id: number;
@@ -53,7 +54,8 @@ export function giftNotificationDetail(notification: AppNotification): string | 
   const giftKind = String(metadata.gift_kind ?? '').toLowerCase();
 
   if (giftKind === 'catalog_gift') {
-    const title = typeof metadata.gift_title === 'string' ? metadata.gift_title.trim() : '';
+    const rawTitle = typeof metadata.gift_title === 'string' ? metadata.gift_title.trim() : '';
+    const title = rawTitle ? giftDisplayTitle(rawTitle) : '';
     return title ? isolateMixedDirectionText(`هدیه: ${title}`) : 'هدیه فروشگاه';
   }
 

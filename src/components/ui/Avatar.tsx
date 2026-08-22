@@ -1,4 +1,5 @@
 import { Image } from 'expo-image';
+import { User } from 'lucide-react-native';
 import { StyleSheet, Text, View } from 'react-native';
 import { Colors, Fonts } from '@/constants/colors';
 
@@ -8,9 +9,10 @@ interface AvatarProps {
   online?: boolean;
   ring?: boolean;
   photoUrl?: string | null;
+  iconFallback?: boolean;
 }
 
-export function Avatar({ size = 44, name, online, ring, photoUrl }: AvatarProps) {
+export function Avatar({ size = 44, name, online, ring, photoUrl, iconFallback }: AvatarProps) {
   const initials = name ? name.charAt(0).toUpperCase() : '';
   return (
     <View style={{ width: size, height: size, position: 'relative' }}>
@@ -26,6 +28,8 @@ export function Avatar({ size = 44, name, online, ring, photoUrl }: AvatarProps)
             style={[StyleSheet.absoluteFill, { borderRadius: size / 2 }]}
             contentFit="cover"
           />
+        ) : iconFallback ? (
+          <User size={size * 0.5} color={Colors.purple} strokeWidth={1.5} />
         ) : (
           <Text style={[styles.initial, { fontSize: size * 0.36, fontFamily: Fonts.bold, color: Colors.purple }]}>
             {initials}
