@@ -9,10 +9,11 @@ import { useLocalSearchParams } from 'expo-router';
 import { Clock, Coins, EyeOff, Lock, Sparkles } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Pressable, ScrollView,
+  ActivityIndicator, Pressable, ScrollView,
   StyleSheet, Text, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { confirmSheet } from '@/lib/confirmSheet';
 
 const toPersian = (n: number) => String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
 
@@ -40,7 +41,7 @@ export default function UserInsightScreen() {
 
   const handlePurchase = () => {
     const locked = insight as { locked: true; price?: number } | null;
-    Alert.alert(
+    confirmSheet.show(
       'خرید دسترسی',
       `${toPersian(locked?.price ?? 700)} سکه از کیف پول کسر می‌شه. می‌خوای ادامه بدی؟`,
       [

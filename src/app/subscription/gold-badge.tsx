@@ -11,9 +11,10 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Coins, ShieldCheck, Star, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View,
+  ActivityIndicator, ScrollView, StyleSheet, Text, View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { confirmSheet } from '@/lib/confirmSheet';
 
 const toPersian = (n: number) => String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
 
@@ -80,7 +81,7 @@ export default function GoldBadgeScreen() {
   const handleBuy = async () => {
     if (!pkg || !session?.accessToken) return;
     if ((coins ?? 0) < badgeCost) {
-      Alert.alert(
+      confirmSheet.show(
         'سکه کافی نیست',
         `برای خرید این بج به ${toPersian(badgeCost)} سکه نیاز داری. اکنون ${toPersian(coins ?? 0)} سکه داری.`,
         [
@@ -90,7 +91,7 @@ export default function GoldBadgeScreen() {
       );
       return;
     }
-    Alert.alert(
+    confirmSheet.show(
       giftUserId ? 'اهدای نشان طلایی' : 'خرید بج طلایی',
       giftUserId
         ? `نشان طلایی به ${params.userName ?? 'این کاربر'} هدیه داده می‌شود و ${toPersian(badgeCost)} سکه کسر می‌شود. ادامه می‌دهید؟`

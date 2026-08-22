@@ -1245,7 +1245,7 @@ export default function ConversationScreen() {
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="interactive"
             removeClippedSubviews={Platform.OS === 'android'}
-            initialNumToRender={18}
+            initialNumToRender={Math.min(messages.length, 100)}
             maxToRenderPerBatch={8}
             updateCellsBatchingPeriod={40}
             windowSize={9}
@@ -2593,7 +2593,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.accent,
   },
   replyQuoteAccentMine: { backgroundColor: 'rgba(255,255,255,0.9)' },
-  replyQuoteContent: { flex: 1, minWidth: 0 },
+  replyQuoteContent: { flexShrink: 1, minWidth: 0 },
   replyQuoteTitle: { fontSize: 10.5, fontFamily: Fonts.bold, color: Colors.accent, textAlign: 'right' },
   replyQuoteTitleMine: { color: '#fff' },
   replyQuoteBody: {

@@ -12,7 +12,6 @@ import * as ImagePicker from 'expo-image-picker';
 import { Camera, CheckCircle, Image as ImageIcon } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
-  Alert,
   Image,
   Platform,
   Pressable,
@@ -21,6 +20,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { confirmSheet } from '@/lib/confirmSheet';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const GUIDELINES = [
@@ -64,7 +64,7 @@ export default function PhotoScreen() {
   const pickFromGallery = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('دسترسی لازمه', 'برای انتخاب عکس باید دسترسی به گالری رو بدی.');
+      confirmSheet.show('دسترسی لازمه', 'برای انتخاب عکس باید دسترسی به گالری رو بدی.');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -86,7 +86,7 @@ export default function PhotoScreen() {
   const pickFromCamera = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('دسترسی لازمه', 'برای گرفتن عکس باید دسترسی به دوربین رو بدی.');
+      confirmSheet.show('دسترسی لازمه', 'برای گرفتن عکس باید دسترسی به دوربین رو بدی.');
       return;
     }
     const result = await ImagePicker.launchCameraAsync({

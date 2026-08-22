@@ -7,10 +7,12 @@ import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { I18nManager, Platform } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { toastConfig } from '@/components/ui/ToastConfig';
+import { ConfirmSheetHost } from '@/lib/confirmSheet';
 import { PrivacyGuard } from '@/components/privacy/PrivacyGuard';
 import { KeyboardViewport } from '@/components/ui/KeyboardViewport';
 import { Colors } from '@/constants/colors';
@@ -42,6 +44,7 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: Colors.bg }}>
+      <KeyboardProvider>
       <PrivacyGuard>
         <SafeAreaProvider initialMetrics={Platform.OS === 'web' ? WEB_INITIAL_SAFE_AREA_METRICS : undefined}>
           <StatusBar style="light" />
@@ -64,8 +67,10 @@ export default function RootLayout() {
             </ModerationProvider>
           </AuthProvider>
           <Toast config={toastConfig} visibilityTime={3000} topOffset={56} />
+          <ConfirmSheetHost />
         </SafeAreaProvider>
       </PrivacyGuard>
+      </KeyboardProvider>
     </GestureHandlerRootView>
   );
 }

@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { blockApi, type BlockStatus } from '@/lib/api/block';
 import { chatApi, type Conversation } from '@/lib/api/chat';
+import { confirmSheet } from '@/lib/confirmSheet';
 import { discoverApi, type MutualUser } from '@/lib/api/discover';
 import { giftsApi, type SentGift } from '@/lib/api/gifts';
 import { toast } from '@/lib/toast';
@@ -45,7 +46,6 @@ import {
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Animated,
   Modal,
   Platform,
@@ -274,6 +274,56 @@ function ProfileActionsSheet({
   );
 }
 
+// ── AnonConfirmSheet ─────────────────────────────────────────────────────────
+
+function AnonConfirmSheet({
+  visible, firstName, onClose, onConfirm,
+}: {
+  visible: boolean;
+  firstName: string;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+  const slideY = useRef(new Animated.Value(500)).current;
+
+  useEffect(() => {
+    if (visible) {
+      Animated.spring(slideY, { toValue: 0, useNativeDriver: true, tension: 80, friction: 12 }).start();
+    } else {
+      Animated.timing(slideY, { toValue: 500, duration: 220, useNativeDriver: true }).start();
+    }
+  }, [visible, slideY]);
+
+  return (
+    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
+      <View style={styles.sheetContainer}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <Animated.View style={[styles.sheet, { paddingBottom: 16 + insets.bottom, transform: [{ translateY: slideY }] }]}>
+          <View style={styles.sheetHandle} />
+          <View style={styles.anonIconWrap}>
+            <Eye size={22} color={Colors.purple} strokeWidth={2} />
+          </View>
+          <Text style={styles.sheetTitle}>علاقه ناشناس</Text>
+          <Text style={[styles.sheetSub, { marginBottom: 20 }]}>
+            علاقه ناشناس به {firstName} فرستاده می‌شه. هویتت فاش نمی‌شه.
+          </Text>
+          <TouchableOpacity
+            style={styles.anonConfirmBtn}
+            onPress={() => { onClose(); setTimeout(onConfirm, 240); }}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.anonConfirmTxt}>ارسال</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.sheetCancel} onPress={onClose} activeOpacity={0.7}>
+            <Text style={styles.sheetCancelTxt}>لغو</Text>
+          </TouchableOpacity>
+        </Animated.View>
+      </View>
+    </Modal>
+  );
+}
+
 // ── LockedRow ─────────────────────────────────────────────────────────────────
 
 function LockedRow({ label }: { label: string }) {
@@ -452,6 +502,7 @@ export default function ProfileViewScreen() {
   const [giftOpen, setGiftOpen] = useState(false);
   const [templateOpen, setTemplateOpen] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
+  const [anonConfirmOpen, setAnonConfirmOpen] = useState(false);
   const [userGifts, setUserGifts] = useState<SentGift[]>([]);
   const [matchInfo, setMatchInfo] = useState<{ user: MutualUser; message?: string | null } | null>(null);
   const [existingConversation, setExistingConversation] = useState<Conversation | null>(null);
@@ -640,27 +691,19 @@ export default function ProfileViewScreen() {
   };
   const handleAnon = () => {
     if (!session || !profile) return;
-    Alert.alert(
-      'علاقه ناشناس',
-      `علاقه ناشناس به ${profile.first_name} فرستاده می‌شه. هویتت فاش نمی‌شه.`,
-      [
-        { text: 'لغو', style: 'cancel' },
-        {
-          text: 'ارسال',
-          onPress: () => {
-            discoverApi.interact(session.accessToken, profile.id, 'anonymous_interest')
-              .then(res => {
-                if (res.data?.mutual && res.data.mutual_user) {
-                  setMatchInfo({ user: res.data.mutual_user, message: res.data.mutual_message });
-                } else {
-                  toast.success('علاقه ناشناس فرستاده شد!');
-                }
-              })
-              .catch((e: any) => toast.error(e.message ?? 'خطا'));
-          },
-        },
-      ],
-    );
+    setAnonConfirmOpen(true);
+  };
+  const confirmAnon = () => {
+    if (!session || !profile) return;
+    discoverApi.interact(session.accessToken, profile.id, 'anonymous_interest')
+      .then(res => {
+        if (res.data?.mutual && res.data.mutual_user) {
+          setMatchInfo({ user: res.data.mutual_user, message: res.data.mutual_message });
+        } else {
+          toast.success('علاقه ناشناس فرستاده شد!');
+        }
+      })
+      .catch((e: any) => toast.error(e.message ?? 'خطا'));
   };
   const handleInsight = () => {
     router.push({ pathname: '/ai-insight/user' as any, params: { userId: String(profile?.id), userName: profile?.first_name } });
@@ -669,7 +712,7 @@ export default function ProfileViewScreen() {
     if (!session || !profile) return;
     const isBlocked = blockStatus?.blocked_by_me ?? false;
     if (isBlocked) {
-      Alert.alert('رفع مسدودیت', `آیا می‌خواهی ${profile.first_name} را رفع بلاک کنی؟`, [
+      confirmSheet.show('رفع مسدودیت', `آیا می‌خواهی ${profile.first_name} را رفع بلاک کنی؟`, [
         { text: 'لغو', style: 'cancel' },
         {
           text: 'رفع بلاک', style: 'destructive',
@@ -683,7 +726,7 @@ export default function ProfileViewScreen() {
         },
       ]);
     } else {
-      Alert.alert('مسدود کردن', `آیا می‌خواهی ${profile.first_name} را مسدود کنی؟`, [
+      confirmSheet.show('مسدود کردن', `آیا می‌خواهی ${profile.first_name} را مسدود کنی؟`, [
         { text: 'لغو', style: 'cancel' },
         {
           text: 'مسدود کردن', style: 'destructive',
@@ -708,7 +751,7 @@ export default function ProfileViewScreen() {
     });
   };
   const handleShare = () => {
-    Alert.alert('اشتراک‌گذاری', 'این قابلیت به زودی اضافه می‌شه.', [{ text: 'باشه' }]);
+    confirmSheet.show('اشتراک‌گذاری', 'این قابلیت به زودی اضافه می‌شه.', [{ text: 'باشه' }]);
   };
   const handleMessagePress = () => {
     if (!profile) return;
@@ -1148,6 +1191,12 @@ export default function ProfileViewScreen() {
         onReport={handleReport}
         onShare={handleShare}
       />
+      <AnonConfirmSheet
+        visible={anonConfirmOpen}
+        firstName={profile.first_name}
+        onClose={() => setAnonConfirmOpen(false)}
+        onConfirm={confirmAnon}
+      />
       <MatchCelebrationModal
         visible={!!matchInfo}
         otherName={matchInfo?.user.first_name ?? ''}
@@ -1535,6 +1584,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sheetCancelTxt: { fontSize: 14, fontFamily: Fonts.bold, color: Colors.inkSoft },
+
+  // ── Anon confirm sheet ────────────────────────────────────────────────────
+  anonIconWrap: {
+    width: 48, height: 48, borderRadius: 24,
+    backgroundColor: Colors.purple + '14',
+    alignItems: 'center', justifyContent: 'center',
+    alignSelf: 'center', marginBottom: 12,
+  },
+  anonConfirmBtn: {
+    marginTop: 4, paddingVertical: 14,
+    backgroundColor: Colors.purple, borderRadius: 16,
+    alignItems: 'center',
+  },
+  anonConfirmTxt: { fontSize: 14, fontFamily: Fonts.bold, color: '#fff' },
 
   // ── Avatar viewer ─────────────────────────────────────────────────────────
   viewerOverlay: {

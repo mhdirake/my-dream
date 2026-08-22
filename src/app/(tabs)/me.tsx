@@ -16,7 +16,8 @@ import {
   Pencil, Settings, Shield, Sparkles, Star, User, Users, type LucideIcon,
 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { ActionSheetIOS, ActivityIndicator, Alert, Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActionSheetIOS, ActivityIndicator, Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { confirmSheet } from '@/lib/confirmSheet';
 import { router } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -92,7 +93,7 @@ export default function MeScreen() {
       setProfile(updated);
       setPhotoError(false);
     } catch {
-      Alert.alert('خطا', 'آپلود عکس موفق نبود. دوباره تلاش کن.');
+      confirmSheet.show('خطا', 'آپلود عکس موفق نبود. دوباره تلاش کن.');
       setLocalPhotoUri(null);
     } finally {
       setPhotoUploading(false);
@@ -102,7 +103,7 @@ export default function MeScreen() {
   const pickFromGallery = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('دسترسی لازمه', 'برای انتخاب عکس باید دسترسی به گالری رو بدی.');
+      confirmSheet.show('دسترسی لازمه', 'برای انتخاب عکس باید دسترسی به گالری رو بدی.');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -123,7 +124,7 @@ export default function MeScreen() {
   const pickFromCamera = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('دسترسی لازمه', 'برای گرفتن عکس باید دسترسی به دوربین رو بدی.');
+      confirmSheet.show('دسترسی لازمه', 'برای گرفتن عکس باید دسترسی به دوربین رو بدی.');
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
@@ -149,7 +150,7 @@ export default function MeScreen() {
         i => { if (i === 1) pickFromGallery(); else if (i === 2) pickFromCamera(); },
       );
     } else {
-      Alert.alert('تغییر عکس پروفایل', '', [
+      confirmSheet.show('تغییر عکس پروفایل', undefined, [
         { text: 'انتخاب از گالری', onPress: pickFromGallery },
         { text: 'گرفتن عکس', onPress: pickFromCamera },
         { text: 'لغو', style: 'cancel' },

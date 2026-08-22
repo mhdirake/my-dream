@@ -8,10 +8,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Brain, Coins, RefreshCw, Sparkles } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Pressable, ScrollView,
+  ActivityIndicator, Pressable, ScrollView,
   StyleSheet, Text, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { confirmSheet } from '@/lib/confirmSheet';
 
 const toPersian = (n: number) => String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
 
@@ -55,7 +56,7 @@ export default function SelfInsightScreen() {
 
     const locked = insight as { locked: true; price: number } | null;
     if (locked?.locked) {
-      Alert.alert(
+      confirmSheet.show(
         'آنالیز هوش مصنوعی',
         `${toPersian(locked.price)} سکه از کیف پول شما کسر می‌شه. ادامه می‌دی؟`,
         [
@@ -81,7 +82,7 @@ export default function SelfInsightScreen() {
         if (d?.status === 'insufficient_data') {
           const req = d.required!;
           const cur = d.current!;
-          Alert.alert(
+          confirmSheet.show(
             'داده کافی نیست',
             `برای آنالیز نیاز به حداقل ${toPersian(req.active_conversations)} گفتگوی فعال (الان: ${toPersian(cur.active_conversations)}) و ${toPersian(req.total_messages)} پیام (الان: ${toPersian(cur.total_messages)}) داری.`,
           );

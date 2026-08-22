@@ -16,7 +16,6 @@ import { ChevronLeft, Coins, Gift, Star } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -25,6 +24,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { confirmSheet } from '@/lib/confirmSheet';
 
 const toPersian = (n: number) => String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
 
@@ -178,7 +178,7 @@ export default function GiftSubScreen() {
       return;
     }
 
-    Alert.alert(
+    confirmSheet.show(
       'تأیید ارسال هدیه',
       tab === 'sub'
         ? `اشتراک انتخابی به @${username} هدیه داده می‌شود.`

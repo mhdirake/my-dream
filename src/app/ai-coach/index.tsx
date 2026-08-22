@@ -7,7 +7,6 @@ import { Bot, ChevronRight, MessageCircle, Plus, Trash2 } from 'lucide-react-nat
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   StyleSheet,
   Text,
@@ -15,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { confirmSheet } from '@/lib/confirmSheet';
 
 function formatDate(iso: string) {
   return formatPersianDate(iso, { month: 'short' });
@@ -48,14 +48,14 @@ export default function AiCoachIndex() {
       const s = await aiCoachApi.createSession(token);
       router.push({ pathname: '/ai-coach/[id]', params: { id: s.id } } as never);
     } catch {
-      Alert.alert('خطا', 'ایجاد گفتگو ممکن نشد. دوباره امتحان کن.');
+      confirmSheet.show('خطا', 'ایجاد گفتگو ممکن نشد. دوباره امتحان کن.');
     } finally {
       setCreating(false);
     }
   };
 
   const deleteSession = (s: CoachSession) => {
-    Alert.alert('حذف گفتگو', `گفتگو «${s.title ?? 'بدون عنوان'}» حذف بشه؟`, [
+    confirmSheet.show('حذف گفتگو', `گفتگو «${s.title ?? 'بدون عنوان'}» حذف بشه؟`, [
       { text: 'لغو', style: 'cancel' },
       {
         text: 'حذف', style: 'destructive',
@@ -64,7 +64,7 @@ export default function AiCoachIndex() {
             await aiCoachApi.deleteSession(token, s.id);
             setSessions(prev => prev.filter(x => x.id !== s.id));
           } catch {
-            Alert.alert('خطا', 'حذف ممکن نشد.');
+            confirmSheet.show('خطا', 'حذف ممکن نشد.');
           }
         },
       },

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useEffect } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { getKeyboardViewportMetrics } from '@/lib/keyboardViewport';
 
 const WEB_FOCUS_SETTLE_DELAYS = [0, 120, 320];
@@ -13,11 +14,12 @@ function isEditableElement(element: Element | null): element is HTMLElement {
 /**
  * Owns keyboard avoidance for the whole application.
  *
- * Native iOS needs padding because its window does not resize automatically.
- * Android uses the app-level adjustResize setting, so adding a JS-side
- * KeyboardAvoidingView behavior would move the app twice. Mobile browsers are
- * synchronized with visualViewport because their layout viewport often stays
- * unchanged.
+ * Android's app-level adjustResize setting stopped auto-resizing the window
+ * once edge-to-edge became mandatory (Android 15+), so both platforms now
+ * drive keyboard avoidance in JS via react-native-keyboard-controller (it
+ * tracks WindowInsetsAnimationCallback on Android instead of the legacy,
+ * late-firing keyboardDidShow event). Mobile browsers are synchronized with
+ * visualViewport because their layout viewport often stays unchanged.
  */
 export function KeyboardViewport({ children }: { children: ReactNode }) {
   useEffect(() => {
@@ -98,7 +100,7 @@ export function KeyboardViewport({ children }: { children: ReactNode }) {
   return (
     <KeyboardAvoidingView
       style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={0}
     >
       {children}

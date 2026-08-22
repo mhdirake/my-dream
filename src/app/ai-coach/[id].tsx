@@ -6,7 +6,6 @@ import { Bot, ChevronRight, Send } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Platform,
   StyleSheet,
@@ -16,6 +15,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { confirmSheet } from '@/lib/confirmSheet';
 
 const QUICK_CHIPS = [
   { label: 'پیشنهاد برای بیو', prompt: 'برام یه بیو جذاب برای پروفایل دیتینگ پیشنهاد بده' },
@@ -72,7 +72,7 @@ export default function AiCoachChat() {
       setMessages(detail.messages ?? []);
       setKind(detail.kind ?? 'coach');
     } catch {
-      Alert.alert('خطا', 'بارگذاری گفتگو ممکن نشد.', [
+      confirmSheet.show('خطا', 'بارگذاری گفتگو ممکن نشد.', [
         { text: 'بازگشت', onPress: () => router.back() },
       ]);
     } finally {
@@ -108,7 +108,7 @@ export default function AiCoachChat() {
       setMessages(prev => [...prev, reply]);
     } catch {
       setMessages(prev => prev.filter(m => m.id !== optimistic.id));
-      Alert.alert('خطا', 'ارسال پیام ممکن نشد.');
+      confirmSheet.show('خطا', 'ارسال پیام ممکن نشد.');
     } finally {
       setSending(false);
     }

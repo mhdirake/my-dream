@@ -7,7 +7,6 @@ import { toast } from '@/lib/toast';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   StyleSheet,
   Text,
@@ -15,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { confirmSheet } from '@/lib/confirmSheet';
 
 function timeAgo(iso: string) {
   const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
@@ -60,7 +60,7 @@ export default function BlockedUsersScreen() {
   };
 
   const handleUnblock = (item: BlockedItem) => {
-    Alert.alert(
+    confirmSheet.show(
       'رفع مسدودیت',
       `آیا می‌خواهی ${item.blocked_user.first_name} را رفع بلاک کنی؟`,
       [
