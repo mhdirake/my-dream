@@ -16,7 +16,7 @@ const LIMITS = [
   { label: 'لایک روزانه', basic: '۳', silver: '۱۰', gold: '۲۰' },
   { label: 'چت جدید', basic: '۳', silver: '۸', gold: '۲۰' },
   { label: 'پیام روزانه', basic: '۱۰', silver: '۵۰۰', gold: 'نامحدود' },
-  { label: 'علاقه ناشناس', basic: '۳', silver: '۱۰', gold: '۲۰' },
+  { label: 'علاقه ناشناس', basic: '۳', silver: '۱۰', gold: 'نامحدود' },
 ];
 
 const FEATURES = [
