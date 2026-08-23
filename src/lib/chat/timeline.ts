@@ -58,6 +58,11 @@ function mergeExistingMessage(existing: Message, incoming: Message): Message {
     media_file_id: incoming.media_file_id ?? existing.media_file_id,
     duration_seconds: incoming.duration_seconds ?? existing.duration_seconds,
     reply_to_message_id: incoming.reply_to_message_id ?? existing.reply_to_message_id,
+    // REST responses never carry reaction data (see MessageResponse on the backend) —
+    // only the dedicated message.reaction.updated/removed realtime events do. Keeping
+    // `incoming` here would wipe a just-confirmed reaction on every refetch/reconnect.
+    reactions: existing.reactions,
+    my_reaction: existing.my_reaction,
   };
 }
 

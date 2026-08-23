@@ -48,7 +48,6 @@ import Animated, {
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
   ZoomIn,
 } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -336,17 +335,20 @@ function SwipeToReply({
     .activeOffsetX([-10, 10])
     .failOffsetY([-12, 12])
     .onUpdate(e => {
+      if (triggered.value) return;
       const dx = Math.max(0, e.translationX);
+      if (dx >= REPLY_SWIPE_TRIGGER) {
+        triggered.value = true;
+        translateX.value = 0;
+        runOnJS(onReply)();
+        return;
+      }
       translateX.value = dx > REPLY_SWIPE_MAX
         ? REPLY_SWIPE_MAX + (dx - REPLY_SWIPE_MAX) * 0.15
         : dx;
-      if (dx >= REPLY_SWIPE_TRIGGER && !triggered.value) {
-        triggered.value = true;
-        runOnJS(onReply)();
-      }
     })
     .onEnd(() => {
-      translateX.value = withSpring(0, { damping: 18, stiffness: 220 });
+      translateX.value = 0;
       triggered.value = false;
     });
 
@@ -1965,7 +1967,7 @@ export default function ConversationScreen() {
               <>
                 {/* Reaction picker — shown for all messages */}
                 {(() => {
-                  const EMOJIS = ['❤️', '😂', '👍', '😮', '😢', '🔥'];
+                  const EMOJIS = ['❤️', '😂', '👍', '😮', '😢'];
                   const curReaction = msgMenu?.myReaction;
                   return (
                     <View style={styles.reactionPicker}>
