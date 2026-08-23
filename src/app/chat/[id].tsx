@@ -336,15 +336,19 @@ function SwipeToReply({
     .failOffsetY([-12, 12])
     .onUpdate(e => {
       if (triggered.value) return;
-      const dx = Math.max(0, e.translationX);
-      if (dx >= REPLY_SWIPE_TRIGGER) {
+      // Reply is triggered by dragging the bubble to the left, so only negative
+      // translationX counts — clamping it away (as a right-swipe gesture would) is
+      // what previously made left-drags never trigger a reply at all.
+      const dx = Math.min(0, e.translationX);
+      const mag = -dx;
+      if (mag >= REPLY_SWIPE_TRIGGER) {
         triggered.value = true;
         translateX.value = 0;
         runOnJS(onReply)();
         return;
       }
-      translateX.value = dx > REPLY_SWIPE_MAX
-        ? REPLY_SWIPE_MAX + (dx - REPLY_SWIPE_MAX) * 0.15
+      translateX.value = mag > REPLY_SWIPE_MAX
+        ? -(REPLY_SWIPE_MAX + (mag - REPLY_SWIPE_MAX) * 0.15)
         : dx;
     })
     .onEnd(() => {
@@ -357,9 +361,9 @@ function SwipeToReply({
   }));
 
   const iconStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(translateX.value, [0, REPLY_SWIPE_TRIGGER], [0, 1], Extrapolation.CLAMP),
+    opacity: interpolate(translateX.value, [-REPLY_SWIPE_TRIGGER, 0], [1, 0], Extrapolation.CLAMP),
     transform: [
-      { scale: interpolate(translateX.value, [0, REPLY_SWIPE_TRIGGER], [0.5, 1], Extrapolation.CLAMP) },
+      { scale: interpolate(translateX.value, [-REPLY_SWIPE_TRIGGER, 0], [1, 0.5], Extrapolation.CLAMP) },
     ],
   }));
 
@@ -2500,7 +2504,7 @@ const styles = StyleSheet.create({
   },
   swipeReplyIcon: {
     position: 'absolute',
-    left: -34,
+    right: -34,
     top: '50%',
     marginTop: -13,
     width: 26,
