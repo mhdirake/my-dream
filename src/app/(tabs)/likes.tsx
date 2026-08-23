@@ -304,7 +304,7 @@ function ReceivedSection({
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.upsellTitle}>
-                {count > 0 ? `${toPersian(count)} نفر علاقه ناشناس فرستادن` : 'شاید کسی علاقه فرستاده'}
+                {count > 0 ? `${toPersian(count)} علاقه ناشناس برات فرستاده شده` : 'شاید کسی علاقه فرستاده'}
               </Text>
               <Text style={styles.upsellSub}>
                 {pkg ? `${toPersian(pkg.coin_price)} سکه · ${toPersian(pkg.duration_days)} روز دسترسی` : 'برای دیدن دسترسی بخر'}
