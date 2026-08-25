@@ -24,14 +24,14 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 const BASE = process.env.EXPO_PUBLIC_API_URL ?? '';
 const toPersian = (n: number) => String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
 
-type MenuItem = { icon: LucideIcon; iconColor: string; label: string; sub: string; route?: string };
+type MenuItem = { icon: LucideIcon; iconColor: string; label: string; sub: string; route?: string; comingSoon?: boolean };
 
 const MENU_ITEMS: MenuItem[] = [
   { icon: Pencil,      iconColor: Colors.purple,   label: 'ویرایش پروفایل',    sub: 'اطلاعات، عکس، بیو',          route: '/profile-edit' },
   { icon: LayoutGrid,  iconColor: Colors.accent,   label: 'پیش‌نمایش پروفایل', sub: 'درصد تکمیل و موارد ناقص',   route: '/profile-setup/profile-preview' },
   { icon: Brain,       iconColor: Colors.purple,   label: 'تست شخصیت',          sub: 'تست شخصیت · بج طلایی',      route: '/profile-setup/personality-test-intro' },
   { icon: Sparkles,   iconColor: Colors.purple,   label: 'آنالیز هوش مصنوعی', sub: 'تحلیل شخصیتی من',            route: '/ai-insight/self' },
-  { icon: Bot,        iconColor: Colors.accent,   label: 'مربی هوش مصنوعی',  sub: 'گفتگو با AI Coach',            route: '/ai-coach' },
+  { icon: Bot,        iconColor: Colors.accent,   label: 'مربی هوش مصنوعی',  sub: 'گفتگو با AI Coach',            comingSoon: true },
   { icon: Shield,     iconColor: Colors.trust,    label: 'احراز هویت',         sub: 'تأیید پایه · AI · جامعه',    route: '/verification' },
   { icon: Bell,        iconColor: Colors.trust,    label: 'اعلان‌ها',           sub: 'مدیریت اعلان‌ها',            route: '/notifications' },
   { icon: Shield,      iconColor: Colors.ok,       label: 'حریم خصوصی',        sub: 'حالت امن · کنترل پیام',      route: '/settings/privacy' },
@@ -281,16 +281,24 @@ export default function MeScreen() {
             <TouchableOpacity
               key={item.label}
               style={[styles.menuRow, i < MENU_ITEMS.length - 1 && styles.menuBorder]}
-              onPress={() => { if (item.route) router.push(item.route as never); }}
+              activeOpacity={item.comingSoon ? 1 : 0.7}
+              onPress={() => { if (item.comingSoon) return; if (item.route) router.push(item.route as never); }}
             >
               <View style={[styles.menuIcon, { backgroundColor: item.iconColor + '18' }]}>
                 <item.icon size={18} color={item.iconColor} strokeWidth={1.8} />
               </View>
               <View style={styles.menuText}>
-                <Text style={styles.menuLabel}>{item.label}</Text>
+                <View style={styles.menuLabelRow}>
+                  <Text style={styles.menuLabel}>{item.label}</Text>
+                  {item.comingSoon && (
+                    <View style={styles.comingSoonBadge}>
+                      <Text style={styles.comingSoonBadgeTxt}>به زودی</Text>
+                    </View>
+                  )}
+                </View>
                 <Text style={styles.menuSub}>{item.sub}</Text>
               </View>
-              <ChevronLeft size={16} color={Colors.muted} strokeWidth={2} />
+              {!item.comingSoon && <ChevronLeft size={16} color={Colors.muted} strokeWidth={2} />}
             </TouchableOpacity>
           ))}
         </Card>
@@ -402,8 +410,14 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   menuText: { flex: 1 },
+  menuLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   menuLabel: { fontSize: 13.5, fontFamily: Fonts.semiBold, color: Colors.ink },
   menuSub: { fontSize: 11, color: Colors.muted, fontFamily: Fonts.regular, marginTop: 1 },
+  comingSoonBadge: {
+    paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8,
+    backgroundColor: Colors.hair,
+  },
+  comingSoonBadgeTxt: { fontSize: 10, fontFamily: Fonts.semiBold, color: Colors.muted },
 
   version: {
     fontSize: 11, color: Colors.muted, fontFamily: Fonts.regular,

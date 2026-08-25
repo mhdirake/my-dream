@@ -56,12 +56,17 @@ export function localizeErrorMessage(rawMessage: unknown, status?: number): stri
 
   if (
     /forbidden|not allowed|permission/i.test(raw) ||
-    /اجازه انجام این عملیات را نداری|مجاز نیست|دسترسی نداری/.test(raw) ||
-    status === 403
+    /اجازه انجام این عملیات را نداری|مجاز نیست|دسترسی نداری/.test(raw)
   ) {
     return 'این کار با اشتراک فعلی‌ات مجاز نیست. برای ادامه باید اشتراکت را ارتقا بدهی.';
   }
 
+  // Any other message (e.g. per-target rejections like a resend cooldown,
+  // self-target, or blocked users -- not subscription-tier issues) is already a
+  // specific, user-facing Persian string from the backend. Show it as-is instead
+  // of falling through to a generic "upgrade your subscription" message, which
+  // used to fire for every 403 regardless of the real reason (and is nonsensical
+  // for Gold users, who have no higher tier to upgrade to).
   if (raw && /[\u0600-\u06ff]/.test(raw)) return toFaDigits(raw);
 
   const field = fieldFromMessage(raw);

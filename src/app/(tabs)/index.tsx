@@ -7,7 +7,6 @@ import { Colors, Fonts } from '@/constants/colors';
 import { DailySuggestionProfile, DailySuggestionsMeta, DiscoverProfile, MutualUser, SwipePoolMeta, discoverApi } from '@/lib/api/discover';
 import { MatchCelebrationModal } from '@/components/MatchCelebrationModal';
 import { isGroupMessageNotification, notificationsApi } from '@/lib/api/notifications';
-import { aiCoachApi } from '@/lib/api/ai-coach';
 import { profileApi } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { profileCache } from '@/lib/cache/profileCache';
@@ -620,27 +619,7 @@ function DailyView({ profiles, loading, meta }: { profiles: DiscoverProfile[]; l
 }
 
 // ── AiView ───────────────────────────────────────────────────────────────────
-function AiView({ plan, profiles, loading, token }: { plan: string; profiles: DailySuggestionProfile[]; loading: boolean; token: string }) {
-  const [creating, setCreating] = useState(false);
-
-  const openAssistant = async () => {
-    if (creating || !token) return;
-    setCreating(true);
-    try {
-      const session = await aiCoachApi.createSession(
-        token,
-        'دستیار مچ هوشمند',
-        'match_assistant',
-        { long_distance: true },
-      );
-      router.push({ pathname: '/ai-coach/[id]', params: { id: String(session.id) } } as never);
-    } catch (error: any) {
-      toast.error(error?.message ?? 'ایجاد گفت‌وگو با دستیار ممکن نشد');
-    } finally {
-      setCreating(false);
-    }
-  };
-
+function AiView({ plan, profiles, loading }: { plan: string; profiles: DailySuggestionProfile[]; loading: boolean; token: string }) {
   if (plan !== 'gold') {
     return (
       <View style={styles.listCenter}>
@@ -677,10 +656,13 @@ function AiView({ plan, profiles, loading, token }: { plan: string; profiles: Da
 
   return (
     <ScrollView contentContainerStyle={styles.dailyContent} showsVerticalScrollIndicator={false}>
-      <TouchableOpacity style={styles.aiChatBtn} onPress={openAssistant} disabled={creating} activeOpacity={0.85}>
-        {creating ? <ActivityIndicator color="#fff" size="small" /> : <Bot size={17} color="#fff" strokeWidth={2} />}
+      <View style={[styles.aiChatBtn, styles.aiChatBtnDisabled]}>
+        <Bot size={17} color="#fff" strokeWidth={2} />
         <Text style={styles.aiChatBtnTxt}>گفتگو با دستیار مچ</Text>
-      </TouchableOpacity>
+        <View style={styles.aiChatBtnBadge}>
+          <Text style={styles.aiChatBtnBadgeTxt}>به زودی</Text>
+        </View>
+      </View>
       <View style={styles.aiHeaderRow}>
         <Sparkles size={16} color={Colors.purple} strokeWidth={2} />
         <Text style={styles.aiHeaderTxt}>مچ‌های هوشمند امروز بر اساس امتیاز سازگاری</Text>
@@ -1276,6 +1258,12 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.purple, borderRadius: 999, paddingVertical: 12, marginBottom: 12,
   },
   aiChatBtnTxt: { fontSize: 13.5, fontFamily: Fonts.bold, color: '#fff' },
+  aiChatBtnDisabled: { opacity: 0.6 },
+  aiChatBtnBadge: {
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+  },
+  aiChatBtnBadgeTxt: { fontSize: 10.5, fontFamily: Fonts.semiBold, color: '#fff' },
   aiScorePill: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
     backgroundColor: Colors.purple + '12',

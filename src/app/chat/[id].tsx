@@ -286,13 +286,27 @@ function senderById(userId: number, myId: number, allMessages: Message[], mySend
   return allMessages.find(item => item.sender_user_id === resolvedId && item.sender)?.sender ?? null;
 }
 
-function reactionAvatarUrl(userId: number, myId: number, allMessages: Message[], mySender: MessageSender | null): string | null {
+function reactionAvatarUrl(
+  userId: number,
+  myId: number,
+  allMessages: Message[],
+  mySender: MessageSender | null,
+  otherId?: string,
+  otherAvatarUrl?: string,
+): string | null {
   const sender = senderById(userId, myId, allMessages, mySender);
-
-  return sender?.profile_photo?.urls?.thumbnail
+  const url = sender?.profile_photo?.urls?.thumbnail
     ?? sender?.profile_photo?.urls?.small
     ?? sender?.profile_photo?.urls?.medium
     ?? null;
+  if (url) return url;
+
+  // No message from this user is loaded yet to embed a sender, e.g. they only
+  // reacted without ever sending a message — fall back to the direct-chat
+  // peer's known avatar (passed in via route params) instead of a placeholder.
+  const resolvedId = userId === -1 ? myId : userId;
+  if (otherId && resolvedId === Number(otherId)) return otherAvatarUrl ?? null;
+  return null;
 }
 
 function replyPreviewText(message: Message | null): string {
@@ -1494,7 +1508,7 @@ export default function ConversationScreen() {
                             <Text style={styles.reactionEmoji}>{emoji}</Text>
                             <View style={styles.reactionAvatars}>
                               {visibleUserIds.map((userId, avatarIndex) => {
-                                const avatarUri = reactionAvatarUrl(userId, myId, messages, mySender);
+                                const avatarUri = reactionAvatarUrl(userId, myId, messages, mySender, otherId, avatar);
 
                                 return (
                                   <View
