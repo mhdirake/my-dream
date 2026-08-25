@@ -489,8 +489,9 @@ export function useChatMessages(
     setMessages(prev => prev.map(m => m.message_id === messageId ? { ...m, is_deleted: true } : m));
     try {
       await chatApi.deleteMessage(token, conversationId, messageId);
-    } catch {
+    } catch (error) {
       setMessages(prev => prev.map(m => m.message_id === messageId ? { ...m, is_deleted: false } : m));
+      throw error;
     }
   }, [token, conversationId]);
 
@@ -510,19 +511,16 @@ export function useChatMessages(
     setMessages(prev => prev.map(m => {
       if (m.message_id !== messageId) return m;
       const myPrev = m.my_reaction;
-      const existing = m.reactions ?? [];
-      let next: Reaction[];
+      // Strip any prior reaction of mine regardless of how it's currently represented —
+      // either the optimistic placeholder (user_id: -1) from this session, or the real
+      // account id if it was loaded from the server (e.g. reacted in an earlier session).
+      // Matching only -1 here left stale reactions on screen until the next full refetch.
+      const withoutMine = (m.reactions ?? []).filter(r => r.user_id !== accountId && r.user_id !== -1);
       if (myPrev === reaction) {
         // remove
-        next = existing.filter(r => r.reaction !== reaction || r.user_id !== -1);
-        return { ...m, reactions: next, my_reaction: null };
+        return { ...m, reactions: withoutMine, my_reaction: null };
       }
-      if (myPrev) {
-        next = existing.filter(r => !(r.user_id === -1 && r.reaction === myPrev));
-      } else {
-        next = existing;
-      }
-      return { ...m, reactions: [...next, { reaction, user_id: -1 }], my_reaction: reaction };
+      return { ...m, reactions: [...withoutMine, { reaction, user_id: -1 }], my_reaction: reaction };
     }));
 
     try {
@@ -530,13 +528,12 @@ export function useChatMessages(
     } catch {
       fetchMessages();
     }
-  }, [token, conversationId, fetchMessages]);
+  }, [token, conversationId, fetchMessages, accountId]);
 
   const removeReaction = useCallback(async (messageId: string) => {
     setMessages(prev => prev.map(m => {
       if (m.message_id !== messageId) return m;
-      const myPrev = m.my_reaction;
-      const next = (m.reactions ?? []).filter(r => !(r.user_id === -1 && r.reaction === myPrev));
+      const next = (m.reactions ?? []).filter(r => r.user_id !== accountId && r.user_id !== -1);
       return { ...m, reactions: next, my_reaction: null };
     }));
     try {
@@ -544,7 +541,7 @@ export function useChatMessages(
     } catch {
       fetchMessages();
     }
-  }, [token, conversationId, fetchMessages]);
+  }, [token, conversationId, fetchMessages, accountId]);
 
   const loadContext = useCallback(async (messageId: string): Promise<string | null> => {
     try {

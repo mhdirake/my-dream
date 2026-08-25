@@ -309,6 +309,14 @@ function reactionAvatarUrl(
   return null;
 }
 
+const EDIT_WINDOW_MS = 2 * 60 * 1000;
+
+// Mirrors the backend's CanEditMessage window (edit_rules.go) — editing (unlike
+// unsend, which has no time limit) is only allowed within 2 minutes of sending.
+function withinEditWindow(createdAt: string): boolean {
+  return Date.now() - new Date(createdAt).getTime() <= EDIT_WINDOW_MS;
+}
+
 function replyPreviewText(message: Message | null): string {
   if (!message) return 'مشاهده پیام';
   if (message.body_text || message.caption) return message.body_text || message.caption;
@@ -456,7 +464,7 @@ export default function ConversationScreen() {
   const [attachmentTrayOpen, setAttachmentTrayOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [limitReached, setLimitReached] = useState(false);
-  const [msgMenu, setMsgMenu] = useState<{ id: string; sender: number; body: string; type?: string; myReaction?: string | null } | null>(null);
+  const [msgMenu, setMsgMenu] = useState<{ id: string; sender: number; body: string; type?: string; myReaction?: string | null; createdAt: string } | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // پیش‌بارگذاری کاتالوگ هدیه‌ها تا پیام‌های نوع gift (حتی قبل از باز کردن picker) بتونن به عکس/عنوان واقعی وصل بشن
@@ -1144,8 +1152,8 @@ export default function ConversationScreen() {
     router.push({ pathname: '/user/[id]', params: { id: String(senderId) } } as never);
   }, [isGroup, myId]);
 
-  const handleMessageLongPress = useCallback((messageId: string, senderId: number, bodyText: string, myReaction?: string | null, messageType?: string) => {
-    setMsgMenu({ id: messageId, sender: senderId, body: bodyText, type: messageType, myReaction });
+  const handleMessageLongPress = useCallback((messageId: string, senderId: number, bodyText: string, createdAt: string, myReaction?: string | null, messageType?: string) => {
+    setMsgMenu({ id: messageId, sender: senderId, body: bodyText, type: messageType, myReaction, createdAt });
   }, []);
 
   const sendSticker = useCallback(async (sticker: string) => {
@@ -1567,7 +1575,7 @@ export default function ConversationScreen() {
                       <SwipeToReply disabled={item.is_deleted} onReply={() => setReplyingTo(item)}>
                         <Pressable
                           style={styles.groupBubblePress}
-                          onLongPress={() => handleMessageLongPress(item.message_id, item.sender_user_id, item.body_text || item.caption, item.my_reaction, item.message_type)}
+                          onLongPress={() => handleMessageLongPress(item.message_id, item.sender_user_id, item.body_text || item.caption, item.created_at, item.my_reaction, item.message_type)}
                           delayLongPress={400}
                         >
                           <BubbleContainer
@@ -1604,7 +1612,7 @@ export default function ConversationScreen() {
                     <SwipeToReply disabled={item.is_deleted} onReply={() => setReplyingTo(item)}>
                       <Pressable
                         style={isMine ? styles.bubblePressMine : styles.bubblePressTheirs}
-                        onLongPress={() => handleMessageLongPress(item.message_id, item.sender_user_id, item.body_text || item.caption, item.my_reaction, item.message_type)}
+                        onLongPress={() => handleMessageLongPress(item.message_id, item.sender_user_id, item.body_text || item.caption, item.created_at, item.my_reaction, item.message_type)}
                         delayLongPress={400}
                       >
                         <BubbleContainer
@@ -1973,7 +1981,11 @@ export default function ConversationScreen() {
               <>
                 <Text style={styles.msgMenuTitle}>پیام برای همه حذف می‌شود</Text>
                 <TouchableOpacity style={[styles.menuRow, styles.menuRowDanger]} activeOpacity={0.7}
-                  onPress={() => { deleteMsg(confirmDeleteId); setConfirmDeleteId(null); setMsgMenu(null); }}>
+                  onPress={() => {
+                    deleteMsg(confirmDeleteId).catch((e: any) => toast.error(e?.message ?? 'حذف پیام ممکن نشد'));
+                    setConfirmDeleteId(null);
+                    setMsgMenu(null);
+                  }}>
                   <Text style={[styles.menuRowTxt, styles.menuRowTxtDanger]}>تأیید حذف</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.menuRow, styles.menuCancel]} activeOpacity={0.7}
@@ -2018,7 +2030,7 @@ export default function ConversationScreen() {
 
                 {msgMenu?.sender === myId ? (
                   <>
-                    {msgMenu?.type === 'text' && (
+                    {msgMenu?.type === 'text' && withinEditWindow(msgMenu.createdAt) && (
                       <TouchableOpacity style={styles.menuRow} activeOpacity={0.7}
                         onPress={() => { setEditingId(msgMenu!.id); setText(msgMenu!.body); setMsgMenu(null); }}>
                         <Text style={styles.menuRowTxt}>ویرایش پیام</Text>
@@ -2030,12 +2042,10 @@ export default function ConversationScreen() {
                         <Text style={styles.menuRowTxt}>اشتراک‌گذاری</Text>
                       </TouchableOpacity>
                     )}
-                    {msgMenu?.type === 'text' && (
-                      <TouchableOpacity style={[styles.menuRow, styles.menuRowDanger]} activeOpacity={0.7}
-                        onPress={() => setConfirmDeleteId(msgMenu!.id)}>
-                        <Text style={[styles.menuRowTxt, styles.menuRowTxtDanger]}>حذف پیام</Text>
-                      </TouchableOpacity>
-                    )}
+                    <TouchableOpacity style={[styles.menuRow, styles.menuRowDanger]} activeOpacity={0.7}
+                      onPress={() => setConfirmDeleteId(msgMenu!.id)}>
+                      <Text style={[styles.menuRowTxt, styles.menuRowTxtDanger]}>حذف پیام</Text>
+                    </TouchableOpacity>
                   </>
                 ) : (
                   <>
