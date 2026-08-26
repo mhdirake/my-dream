@@ -1333,10 +1333,12 @@ export default function ConversationScreen() {
               const reactionEntries = Object.entries(reactionGroups);
 
               const isGift = item.message_type === 'gift';
-              const isEmojiOnly = item.message_type === 'text'
-                && !item.reply_to_message_id
-                && !!(item.body_text || item.caption)
-                && isEmojiOnlyText(item.body_text || item.caption);
+              const isEmojiOnly = !item.reply_to_message_id && (
+                (item.message_type === 'text'
+                  && !!(item.body_text || item.caption)
+                  && isEmojiOnlyText(item.body_text || item.caption))
+                || (item.message_type === 'sticker' && !!item.sticker_id)
+              );
               const BubbleContainer = isEmojiOnly ? View : isGift || !isMine ? LinearGradient : View;
               const bubbleContainerStyle = isEmojiOnly
                 ? styles.bubbleEmojiOnly
@@ -1468,10 +1470,11 @@ export default function ConversationScreen() {
                         )}
                       </Animated.View>
                     );
-                  })() : item.message_type !== 'text' && item.message_type !== 'template_first_message' ? (
+                  })() : item.message_type === 'sticker' ? (
+                    <Text style={styles.bubbleTxtEmojiOnly}>{item.sticker_id || '😊'}</Text>
+                  ) : item.message_type !== 'text' && item.message_type !== 'template_first_message' ? (
                     <Text style={[styles.msgTypeBadge, isMine && { color: 'rgba(255,255,255,0.7)' }]}>
-                      {item.message_type === 'sticker' ? (item.sticker_id || '😊') :
-                       item.message_type === 'gif' ? '🎞' : '🖼'}
+                      {item.message_type === 'gif' ? '🎞' : '🖼'}
                     </Text>
                   ) : null}
                   {(item.message_type !== 'gift') && !!messageText && (

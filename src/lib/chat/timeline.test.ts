@@ -70,6 +70,20 @@ describe('mergeMessages', () => {
     });
   });
 
+  it('does not let a thin REST ack wipe a sticker already confirmed by the realtime echo', () => {
+    // Reproduces a race: the Centrifugo message.created echo (full content) arrives and
+    // replaces the optimistic entry first; the slower REST response from sending the
+    // message resolves afterwards and is deliberately thin (Go's CreateMessage handler
+    // only returns message_id/status/etc, not sticker_id/gif_id/gift_id). That second,
+    // by-message_id merge must not overwrite the already-correct sticker_id with ''.
+    const existing = message({ message_id: 'server-1', message_type: 'sticker', body_text: '', sticker_id: '😍' });
+    const thinAck = message({ message_id: 'server-1', message_type: 'sticker', body_text: '', sticker_id: '' });
+
+    expect(mergeMessages([existing], [thinAck])[0]).toMatchObject({
+      sticker_id: '😍',
+    });
+  });
+
   it('deduplicates replayed events and keeps chronological order', () => {
     const newer = message({ message_id: 'server-2', client_message_id: 'client-2', created_at: '2026-07-21T10:01:00.000Z' });
     const older = message({ message_id: 'server-1', created_at: '2026-07-21T10:00:00.000Z' });

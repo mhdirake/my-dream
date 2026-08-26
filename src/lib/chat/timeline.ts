@@ -56,6 +56,10 @@ function mergeExistingMessage(existing: Message, incoming: Message): Message {
     caption: incoming.caption || existing.caption,
     media_url: incoming.media_url || existing.media_url,
     media_file_id: incoming.media_file_id ?? existing.media_file_id,
+    sticker_id: incoming.sticker_id || existing.sticker_id,
+    gif_id: incoming.gif_id || existing.gif_id,
+    gift_id: incoming.gift_id || existing.gift_id,
+    sent_gift_id: incoming.sent_gift_id || existing.sent_gift_id,
     duration_seconds: incoming.duration_seconds ?? existing.duration_seconds,
     reply_to_message_id: incoming.reply_to_message_id ?? existing.reply_to_message_id,
     // REST responses never carry reaction data (see MessageResponse on the backend) —
