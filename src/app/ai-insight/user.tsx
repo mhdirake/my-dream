@@ -1,7 +1,9 @@
 import { AppBar } from '@/components/ui/AppBar';
+import { CoinBadge } from '@/components/ui/CoinBadge';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { aiInsightApi, type UserInsight, type UserInsightUnlocked, type GenerateError } from '@/lib/api/ai-insight';
 import { ApiError } from '@/lib/api/client';
+import { paymentsApi } from '@/lib/api/payments';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { toast } from '@/lib/toast';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -30,6 +32,7 @@ export default function UserInsightScreen() {
   const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState(false);
   const [insight, setInsight] = useState<UserInsight | null>(null);
+  const [coins, setCoins] = useState<number | null>(null);
 
   useEffect(() => {
     if (!session?.accessToken || !uid) return;
@@ -37,6 +40,7 @@ export default function UserInsightScreen() {
       .then(setInsight)
       .catch(() => toast.error('خطا در بارگذاری'))
       .finally(() => setLoading(false));
+    paymentsApi.getWallet(session.accessToken).then(w => setCoins(w.coin_balance)).catch(() => {});
   }, [session?.accessToken, uid]);
 
   const handlePurchase = () => {
@@ -78,7 +82,7 @@ export default function UserInsightScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
-      <AppBar title={`آنالیز ${userName ?? ''}`} back />
+      <AppBar title={`آنالیز ${userName ?? ''}`} back right={<CoinBadge count={coins} />} />
 
       {loading ? (
         <View style={styles.center}>
@@ -132,17 +136,12 @@ export default function UserInsightScreen() {
                 onPress={handlePurchase}
                 disabled={purchasing}
               >
-                <LinearGradient
-                  colors={Colors.gradColors}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.btnGrad}
-                >
+                <View style={styles.btnGrad}>
                   {purchasing
-                    ? <ActivityIndicator color="#fff" size="small" />
-                    : <><Sparkles size={16} color="#fff" strokeWidth={2} /><Text style={styles.btnTxt}>خرید دسترسی</Text></>
+                    ? <ActivityIndicator color={Colors.accent} size="small" />
+                    : <><Sparkles size={16} color={Colors.accent} strokeWidth={2} /><Text style={styles.btnTxt}>خرید دسترسی</Text></>
                   }
-                </LinearGradient>
+                </View>
               </Pressable>
             </>
           )}
@@ -246,12 +245,13 @@ const styles = StyleSheet.create({
   },
   availableTagTxt: { fontSize: 11, fontFamily: Fonts.semiBold, color: Colors.ok },
 
-  btn: { borderRadius: Radius.xl, overflow: 'hidden' },
+  btn: { borderRadius: Radius.xl },
   btnGrad: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 8, paddingVertical: 15,
+    gap: 8, paddingVertical: 15, borderRadius: Radius.xl,
+    backgroundColor: Colors.accentSoft, borderWidth: 1.5, borderColor: Colors.accent,
   },
-  btnTxt: { fontSize: 15, fontFamily: Fonts.bold, color: '#fff' },
+  btnTxt: { fontSize: 15, fontFamily: Fonts.bold, color: Colors.accent },
 
   accessRow: {
     flexDirection: 'row', alignItems: 'center', gap: 6,

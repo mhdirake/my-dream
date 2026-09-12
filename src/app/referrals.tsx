@@ -1,10 +1,11 @@
 import { AppBar } from '@/components/ui/AppBar';
 import { Card } from '@/components/ui/Card';
+import { DetailCard } from '@/components/ui/DetailCard';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { api } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { toast } from '@/lib/toast';
-import { CheckCircle, Circle, Clipboard, Gift, Star, Users, Zap } from 'lucide-react-native';
+import { CheckCircle, Circle, Clipboard, Gift, Lightbulb, Star, Users, Zap } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator, Alert, Clipboard as RNClipboard,
@@ -62,7 +63,7 @@ export default function ReferralsScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
-      <AppBar title="معرفی به دوستان" back />
+      <AppBar title="معرفی به دوستان" back backFallback="/me" />
 
       {loading ? (
         <View style={styles.center}><ActivityIndicator color={Colors.accent} /></View>
@@ -160,19 +161,15 @@ export default function ReferralsScreen() {
           })}
 
           {/* How it works */}
-          <Text style={styles.sectionTitle}>شرایط واجد شرایط بودن</Text>
-          <Card soft>
-            {[
-              'دوستت با کد تو ثبت‌نام کنه',
-              'پروفایلش رو کامل کنه',
-              'اشتراک فعال داشته باشه',
-            ].map((t, i) => (
-              <View key={i} style={styles.ruleRow}>
-                <View style={styles.ruleDot} />
-                <Text style={styles.ruleTxt}>{t}</Text>
-              </View>
-            ))}
-          </Card>
+          <DetailCard
+            icon={<Lightbulb size={26} color={Colors.trust} strokeWidth={1.9} />}
+            title="شرایط واجد شرایط بودن"
+            items={[
+              { icon: <Users size={14} color={Colors.trust} strokeWidth={2} />, text: 'دوستت با کد تو ثبت‌نام کنه' },
+              { icon: <CheckCircle size={14} color={Colors.ok} strokeWidth={2} />, text: 'پروفایلش رو کامل کنه' },
+              { icon: <Star size={14} color={Colors.purple} strokeWidth={2} />, text: 'اشتراک فعال داشته باشه' },
+            ]}
+          />
 
           <View style={{ height: 40 }} />
         </ScrollView>
@@ -237,8 +234,4 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.okSoft, borderRadius: Radius.pill, paddingHorizontal: 9, paddingVertical: 4,
   },
   grantedTxt: { fontSize: 10.5, fontFamily: Fonts.bold, color: Colors.ok },
-
-  ruleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 10 },
-  ruleDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.accent, marginTop: 6 },
-  ruleTxt: { flex: 1, fontSize: 12.5, color: Colors.inkSoft, fontFamily: Fonts.regular, lineHeight: 20 },
 });

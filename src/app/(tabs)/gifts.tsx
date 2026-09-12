@@ -1,21 +1,28 @@
-import { Card } from '@/components/ui/Card';
+import { DetailCard } from '@/components/ui/DetailCard';
 import { Avatar } from '@/components/ui/Avatar';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
+import { AppMaxWidth, Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { giftDisplayTitle, giftUserPhotoUrl, giftsApi, SentGift } from '@/lib/api/gifts';
 import { BackendGift } from '@/lib/api/discover';
 import { paymentsApi } from '@/lib/api/payments';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { toast } from '@/lib/toast';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ChevronLeft, Coins, Gift, Package, Star, Wallet } from 'lucide-react-native';
+import { CheckCircle, ChevronLeft, Coins, Gift, Package, Star, Wallet } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator, ScrollView, StyleSheet, Text,
-  TouchableOpacity, View,
+  TouchableOpacity, useWindowDimensions, View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const toPersian = (n: number) => String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
+
+// Fixed px gap for the 3-column store grid below — see the identical note in
+// likes.tsx: percentage widths + a gap never sum to exactly 100%, and the row
+// vs. column gaps end up different sizes. A width computed from the real
+// screen width keeps both gaps identical and the grid flush with the container.
+const GRID_GAP = 10;
+const STORE_COLUMNS = 3;
 
 const TYPE_META: Record<string, { label: string; color: string; bg: string }> = {
   simple:    { label: 'ساده',      color: Colors.trust,  bg: Colors.trustSoft },
@@ -49,6 +56,12 @@ const SCREEN_TABS = [
 export default function GiftsScreen() {
   const { session } = useAuth();
   const { bottom } = useSafeAreaInsets();
+  const { width: winWidth } = useWindowDimensions();
+  // #root is capped to AppMaxWidth on web (see +html.tsx) and centered, but
+  // useWindowDimensions() still reports the raw browser window width — on a
+  // wide monitor that made cards blow up far past the actual visible column.
+  const contentWidth = Math.min(winWidth, AppMaxWidth);
+  const storeCardWidth = (contentWidth - Spacing.lg * 2 - GRID_GAP * (STORE_COLUMNS - 1)) / STORE_COLUMNS;
   const params = useLocalSearchParams<{ tab?: string }>();
 
   const [screenTab, setScreenTab] = useState<'store' | 'received'>(
@@ -173,14 +186,21 @@ export default function GiftsScreen() {
               </View>
             ) : filtered.length === 0 ? (
               <View style={styles.emptyBox}>
+                <Package size={28} color={Colors.hair} strokeWidth={1.5} />
                 <Text style={styles.emptyTxt}>هدیه‌ای در این دسته موجود نیست</Text>
+                <Text style={styles.emptySub}>دسته‌ی دیگه‌ای رو امتحان کن</Text>
               </View>
             ) : (
               <View style={styles.giftGrid}>
                 {filtered.map(g => {
                   const meta = TYPE_META[g.type] ?? { label: g.type, color: Colors.muted, bg: Colors.ph2 };
                   return (
-                    <TouchableOpacity key={g.id} style={styles.storeCard} onPress={() => openGift(g)} activeOpacity={0.8}>
+                    <TouchableOpacity
+                      key={g.id}
+                      style={[styles.storeCard, { width: storeCardWidth }]}
+                      onPress={() => openGift(g)}
+                      activeOpacity={0.8}
+                    >
                       {g.is_limited && (
                         <View style={styles.limitedBadge}>
                           <Package size={8} color={Colors.accent} strokeWidth={2.5} />
@@ -203,20 +223,26 @@ export default function GiftsScreen() {
             )}
 
             {/* Gift-Sub CTA */}
-            <Card tint="gold" style={styles.giftSubCard}>
-              <View style={styles.giftSubRow}>
-                <Star size={16} color={Colors.goldDeep} fill={Colors.gold} strokeWidth={1.5} />
-                <Text style={styles.giftSubTitle}>هدیه اشتراک یا سکه</Text>
-              </View>
-              <Text style={styles.giftSubSub}>اشتراک Silver/Gold یا سکه به دوستت هدیه بده</Text>
-              <TouchableOpacity
-                style={styles.giftSubBtn}
-                onPress={() => router.push('/gifts/gift-sub' as any)}
-              >
-                <Gift size={13} color={Colors.goldDeep} strokeWidth={2} />
-                <Text style={styles.giftSubBtnTxt}>ارسال هدیه ویژه</Text>
-              </TouchableOpacity>
-            </Card>
+            <DetailCard
+              style={styles.giftSubCard}
+              icon={<Star size={26} color={Colors.trust} strokeWidth={1.8} />}
+              title="هدیه اشتراک یا سکه"
+              subtitle="اشتراک نقره‌ای یا طلایی یا سکه به دوستت هدیه بده"
+              items={[
+                'یک ماه اشتراک کامل',
+                'فعال‌سازی آنی برای دوستت',
+                'کاملاً غافلگیرکننده',
+              ].map(b => ({ icon: <CheckCircle size={12} color={Colors.ok} strokeWidth={2} />, text: b }))}
+              footer={
+                <TouchableOpacity
+                  style={styles.giftSubBtn}
+                  onPress={() => router.push('/gifts/gift-sub' as any)}
+                >
+                  <Gift size={13} color={Colors.accent} strokeWidth={2} />
+                  <Text style={styles.giftSubBtnTxt}>ارسال هدیه ویژه</Text>
+                </TouchableOpacity>
+              }
+            />
           </>
         ) : (
           <>
@@ -226,7 +252,9 @@ export default function GiftsScreen() {
               </View>
             ) : received.length === 0 ? (
               <View style={styles.emptyBox}>
+                <Gift size={28} color={Colors.hair} strokeWidth={1.5} />
                 <Text style={styles.emptyTxt}>هنوز هدیه‌ای دریافت نکردی</Text>
+                <Text style={styles.emptySub}>وقتی کسی هدیه بفرسته اینجا میاد</Text>
               </View>
             ) : (
               received.map(sg => {
@@ -320,12 +348,16 @@ const styles = StyleSheet.create({
   filterTxtActive: { color: Colors.onAccent },
 
   loadingBox: { height: 120, alignItems: 'center', justifyContent: 'center' },
-  emptyBox: { height: 80, alignItems: 'center', justifyContent: 'center' },
-  emptyTxt: { fontSize: 13, color: Colors.muted, fontFamily: Fonts.regular },
+  emptyBox: { paddingVertical: 48, alignItems: 'center', gap: 8 },
+  emptyTxt: { fontSize: 13.5, color: Colors.inkSoft, fontFamily: Fonts.semiBold },
+  emptySub: { fontSize: 11.5, color: Colors.muted, fontFamily: Fonts.regular },
 
-  giftGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: Spacing.xl },
+  // Column width is computed per-render from the real screen width (see
+  // `storeCardWidth` above) so all three columns sit flush against the
+  // container edges; CSS `gap` (not per-item margins) spaces the cards,
+  // since logical marginStart/End doesn't apply symmetrically under RTL.
+  giftGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: GRID_GAP, marginBottom: Spacing.xl },
   storeCard: {
-    width: '30%',
     backgroundColor: Colors.surface, borderRadius: Radius.lg,
     borderWidth: 1, borderColor: Colors.hair,
     padding: 10, alignItems: 'center', gap: 5,
@@ -348,16 +380,13 @@ const styles = StyleSheet.create({
   },
   storePriceTxt: { fontSize: 10, fontFamily: Fonts.bold, color: Colors.goldDeep },
 
-  giftSubCard: { gap: 8, marginBottom: Spacing.lg },
-  giftSubRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  giftSubTitle: { fontSize: 14, fontFamily: Fonts.bold, color: Colors.goldDeep },
-  giftSubSub: { fontSize: 12, color: Colors.inkSoft, fontFamily: Fonts.regular },
+  giftSubCard: { marginBottom: Spacing.lg },
   giftSubBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: Colors.gold, borderRadius: Radius.md,
-    paddingHorizontal: 16, paddingVertical: 9, alignSelf: 'flex-start', marginTop: 4,
+    backgroundColor: Colors.accentSoft, borderWidth: 1.5, borderColor: Colors.accent,
+    borderRadius: Radius.md, paddingHorizontal: 16, paddingVertical: 9,
   },
-  giftSubBtnTxt: { fontSize: 12.5, fontFamily: Fonts.bold, color: '#3A2C0A' },
+  giftSubBtnTxt: { fontSize: 12.5, fontFamily: Fonts.bold, color: Colors.accent },
 
   receivedCard: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 12,

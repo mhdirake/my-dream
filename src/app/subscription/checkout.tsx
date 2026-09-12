@@ -129,7 +129,7 @@ export default function CheckoutScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
-      <AppBar title="تکمیل خرید" back />
+      <AppBar title="تکمیل خرید" back backFallback="/subscription" />
 
       <KeyboardAvoider>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>

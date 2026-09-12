@@ -1,18 +1,17 @@
+import { AppBar } from '@/components/ui/AppBar';
 import { Colors, Fonts, Radius } from '@/constants/colors';
 import { profileCache } from '@/lib/cache/profileCache';
 import { ClientProfile, profileApi } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { toFaDigits } from '@/lib/localization';
-import { LinearGradient } from 'expo-linear-gradient';
-import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowRight, Check, Heart, Sparkles, X } from 'lucide-react-native';
+import { useLocalSearchParams } from 'expo-router';
+import { Check, Heart, Sparkles, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,12 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 function ScoreRing({ score }: { score: number }) {
   return (
     <View style={styles.scoreWrap}>
-      <LinearGradient
-        colors={Colors.gradColors}
-        start={{ x: 0, y: 1 }}
-        end={{ x: 1, y: 0 }}
-        style={styles.scoreRing}
-      />
+      <View style={[styles.scoreRing, { backgroundColor: Colors.accent }]} />
       <View style={styles.scoreInner}>
         <Text style={styles.scoreNum}>{toFaDigits(score)}</Text>
         <Text style={styles.scorePct}>٪</Text>
@@ -76,10 +70,8 @@ export default function CompatibilityScreen() {
 
   if (!profile) {
     return (
-      <SafeAreaView style={styles.root} edges={['top']}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <ArrowRight size={20} color={Colors.ink} strokeWidth={2.5} />
-        </TouchableOpacity>
+      <SafeAreaView style={styles.root}>
+        <AppBar title="تحلیل تطابق" back />
         <View style={styles.center}>
           <Text style={styles.emptyTxt}>پروفایل یافت نشد</Text>
         </View>
@@ -113,17 +105,8 @@ export default function CompatibilityScreen() {
     score >= 40 ? Colors.warn : Colors.muted;
 
   return (
-    <SafeAreaView style={styles.root} edges={['top']}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)' as never)}
-        >
-          <ArrowRight size={20} color={Colors.ink} strokeWidth={2.5} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>تحلیل تطابق</Text>
-        <View style={{ width: 36 }} />
-      </View>
+    <SafeAreaView style={styles.root}>
+      <AppBar title="تحلیل تطابق" back />
 
       {loading ? (
         <View style={styles.center}>
@@ -217,22 +200,6 @@ export default function CompatibilityScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
-
-  header: {
-    height: 54,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.hair,
-    backgroundColor: Colors.surface,
-  },
-  backBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  headerTitle: { fontSize: 16, fontFamily: Fonts.extraBold, color: Colors.ink },
 
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   emptyTxt: { fontSize: 14, color: Colors.muted, fontFamily: Fonts.regular },

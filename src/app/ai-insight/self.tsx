@@ -1,7 +1,9 @@
 import { AppBar } from '@/components/ui/AppBar';
+import { CoinBadge } from '@/components/ui/CoinBadge';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { aiInsightApi, type AiInsightPurchase, type SelfInsight, type SelfInsightUnlocked, type GenerateError } from '@/lib/api/ai-insight';
 import { ApiError } from '@/lib/api/client';
+import { paymentsApi } from '@/lib/api/payments';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { toast } from '@/lib/toast';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -31,6 +33,7 @@ export default function SelfInsightScreen() {
   const [generating, setGenerating] = useState(false);
   const [insight, setInsight] = useState<SelfInsight | null>(null);
   const [purchases, setPurchases] = useState<AiInsightPurchase[]>([]);
+  const [coins, setCoins] = useState<number | null>(null);
 
   const load = async () => {
     if (!session?.accessToken) return;
@@ -49,6 +52,7 @@ export default function SelfInsightScreen() {
   useEffect(() => {
     if (!session?.accessToken) return;
     aiInsightApi.getPurchases(session.accessToken).then(setPurchases).catch(() => {});
+    paymentsApi.getWallet(session.accessToken).then(w => setCoins(w.coin_balance)).catch(() => {});
   }, [session?.accessToken]);
 
   const handleGenerate = async () => {
@@ -104,7 +108,7 @@ export default function SelfInsightScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
-      <AppBar title="آنالیز هوش مصنوعی" back />
+      <AppBar title="آنالیز هوش مصنوعی" back backFallback="/me" right={<CoinBadge count={coins} />} />
 
       {loading ? (
         <View style={styles.center}>
@@ -127,7 +131,7 @@ export default function SelfInsightScreen() {
           {/* Locked state */}
           {isLocked && (
             <>
-              <View style={styles.lockedCard}>
+              <View style={[styles.lockedCard, styles.grow]}>
                 <Brain size={20} color={Colors.muted} strokeWidth={1.8} />
                 <Text style={styles.lockedTitle}>هنوز آنالیز نداری</Text>
                 <Text style={styles.lockedSub}>
@@ -153,17 +157,12 @@ export default function SelfInsightScreen() {
                 onPress={handleGenerate}
                 disabled={generating}
               >
-                <LinearGradient
-                  colors={Colors.gradColors}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.btnGrad}
-                >
+                <View style={styles.btnGrad}>
                   {generating
-                    ? <ActivityIndicator color="#fff" size="small" />
-                    : <><Sparkles size={16} color="#fff" strokeWidth={2} /><Text style={styles.btnTxt}>دریافت آنالیز</Text></>
+                    ? <ActivityIndicator color={Colors.accent} size="small" />
+                    : <><Sparkles size={16} color={Colors.accent} strokeWidth={2} /><Text style={styles.btnTxt}>دریافت آنالیز</Text></>
                   }
-                </LinearGradient>
+                </View>
               </Pressable>
             </>
           )}
@@ -181,7 +180,7 @@ export default function SelfInsightScreen() {
 
               {/* Full result */}
               {unlocked.result && (
-                <View style={styles.resultCard}>
+                <View style={[styles.resultCard, styles.grow]}>
                   <Text style={styles.resultLabel}>تحلیل کامل</Text>
                   <Text style={styles.resultText}>{unlocked.result}</Text>
                 </View>
@@ -240,7 +239,6 @@ export default function SelfInsightScreen() {
             </View>
           )}
 
-          <View style={{ height: 40 }} />
         </ScrollView>
       )}
     </SafeAreaView>
@@ -250,7 +248,8 @@ export default function SelfInsightScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  scroll: { padding: Spacing.lg, gap: 14 },
+  scroll: { padding: Spacing.lg, gap: 14, flexGrow: 1 },
+  grow: { flex: 1 },
 
   hero: {
     borderRadius: Radius.xl, padding: Spacing.xxl, alignItems: 'center', gap: 10,
@@ -270,7 +269,7 @@ const styles = StyleSheet.create({
   lockedCard: {
     backgroundColor: Colors.surface, borderRadius: Radius.xl,
     borderWidth: 1, borderColor: Colors.hair,
-    padding: Spacing.xxl, alignItems: 'center', gap: 8,
+    padding: Spacing.xxl, alignItems: 'center', justifyContent: 'center', gap: 8,
   },
   lockedTitle: { fontSize: 15, fontFamily: Fonts.extraBold, color: Colors.ink },
   lockedSub: {
@@ -286,12 +285,13 @@ const styles = StyleSheet.create({
   cacheMeta: { marginTop: 2 },
   cacheMetaTxt: { fontSize: 11, fontFamily: Fonts.regular, color: Colors.muted },
 
-  btn: { borderRadius: Radius.xl, overflow: 'hidden' },
+  btn: { borderRadius: Radius.xl },
   btnGrad: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 8, paddingVertical: 15,
+    gap: 8, paddingVertical: 15, borderRadius: Radius.xl,
+    backgroundColor: Colors.accentSoft, borderWidth: 1.5, borderColor: Colors.accent,
   },
-  btnTxt: { fontSize: 15, fontFamily: Fonts.bold, color: '#fff' },
+  btnTxt: { fontSize: 15, fontFamily: Fonts.bold, color: Colors.accent },
 
   summaryCard: {
     backgroundColor: Colors.purpleSoft, borderRadius: Radius.xl,

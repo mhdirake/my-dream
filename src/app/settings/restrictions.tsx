@@ -1,10 +1,14 @@
 import { AppBar } from '@/components/ui/AppBar';
 import { Card } from '@/components/ui/Card';
+import { DetailCard } from '@/components/ui/DetailCard';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { profileApi } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { toast } from '@/lib/toast';
-import { AlertTriangle, CheckCircle, Clock, Flag, ShieldOff, XCircle } from 'lucide-react-native';
+import {
+  AlertTriangle, Ban, CheckCircle, Clock, Flag, Lightbulb,
+  MessageCircle, Shield, ShieldOff, XCircle,
+} from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator, ScrollView, StyleSheet, Text, View,
@@ -64,7 +68,7 @@ export default function RestrictionsScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
-      <AppBar title="محدودیت‌ها" back />
+      <AppBar title="محدودیت‌ها" back backFallback="/settings" />
 
       {loading ? (
         <View style={styles.center}>
@@ -75,13 +79,11 @@ export default function RestrictionsScreen() {
 
           {/* Status card */}
           {status === 'clean' && (
-            <View style={[styles.statusCard, styles.statusClean]}>
-              <CheckCircle size={28} color={Colors.ok} strokeWidth={2} />
-              <View style={styles.statusText}>
-                <Text style={styles.statusTitle}>حساب شما سالم است</Text>
-                <Text style={styles.statusSub}>هیچ محدودیت فعالی ندارید</Text>
-              </View>
-            </View>
+            <DetailCard
+              icon={<CheckCircle size={30} color={Colors.ok} strokeWidth={1.8} />}
+              title="حساب شما سالم است"
+              subtitle="هیچ محدودیت فعالی ندارید"
+            />
           )}
 
           {status === 'restricted' && (
@@ -181,20 +183,16 @@ export default function RestrictionsScreen() {
           </View>
 
           {/* Tips */}
-          <Text style={styles.sectionTitle}>چطور از محدودیت جلوگیری کنیم؟</Text>
-          <Card soft style={styles.tipsCard}>
-            {[
-              'با احترام با دیگران صحبت کن',
-              'محتوای نامناسب ارسال نکن',
-              'از ارسال پیام‌های تکراری و مزاحم خودداری کن',
-              'پروفایل واقعی و صادقانه داشته باش',
-            ].map((tip, i) => (
-              <View key={i} style={styles.tipRow}>
-                <View style={styles.tipDot} />
-                <Text style={styles.tipTxt}>{tip}</Text>
-              </View>
-            ))}
-          </Card>
+          <DetailCard
+            icon={<Lightbulb size={26} color={Colors.trust} strokeWidth={1.9} />}
+            title="چطور از محدودیت جلوگیری کنیم؟"
+            items={[
+              { icon: <MessageCircle size={14} color={Colors.trust} strokeWidth={2} />, text: 'با احترام با دیگران صحبت کن' },
+              { icon: <Ban size={14} color={Colors.danger} strokeWidth={2} />, text: 'محتوای نامناسب ارسال نکن' },
+              { icon: <AlertTriangle size={14} color={Colors.gold} strokeWidth={2} />, text: 'از ارسال پیام‌های تکراری و مزاحم خودداری کن' },
+              { icon: <Shield size={14} color={Colors.ok} strokeWidth={2} />, text: 'پروفایل واقعی و صادقانه داشته باش' },
+            ]}
+          />
 
           <View style={{ height: 40 }} />
         </ScrollView>
@@ -213,7 +211,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius.xl, padding: Spacing.xl,
     borderWidth: 1.5,
   },
-  statusClean: { backgroundColor: Colors.okSoft,        borderColor: Colors.ok + '60' },
   statusWarn:  { backgroundColor: Colors.goldSoft,      borderColor: Colors.gold + '80' },
   statusBan:   { backgroundColor: Colors.dangerSoft,     borderColor: Colors.danger + '60' },
 
@@ -246,9 +243,4 @@ const styles = StyleSheet.create({
   scaleInfo: { flex: 1, paddingHorizontal: 12, paddingBottom: 4 },
   scaleLevel: { fontSize: 12, fontFamily: Fonts.semiBold, color: Colors.inkSoft },
   scaleDays: { fontSize: 11, fontFamily: Fonts.bold, marginTop: 1 },
-
-  tipsCard: { gap: 0 },
-  tipRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 10 },
-  tipDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.ok, marginTop: 5 },
-  tipTxt: { flex: 1, fontSize: 12.5, fontFamily: Fonts.regular, color: Colors.inkSoft, lineHeight: 20 },
 });

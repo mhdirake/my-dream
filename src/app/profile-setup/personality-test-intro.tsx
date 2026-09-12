@@ -1,21 +1,90 @@
+import { AppBar } from '@/components/ui/AppBar';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
-import { LinearGradient } from 'expo-linear-gradient';
+import { api } from '@/lib/api/client';
+import { useAuth } from '@/lib/auth/AuthContext';
 import { router } from 'expo-router';
-import { Brain, Sparkles, Star } from 'lucide-react-native';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Brain, CircleCheckBig, Sparkles, Star } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+
+type LatestTest = { result_title?: string | null; completed_at?: string | null } | null;
 
 export default function PersonalityTestIntroScreen() {
   const insets = useSafeAreaInsets();
+  const { session } = useAuth();
+  const [checking, setChecking] = useState(true);
+  const [latestTest, setLatestTest] = useState<LatestTest>(null);
+
+  useEffect(() => {
+    if (!session?.accessToken) { setChecking(false); return; }
+    api
+      .get<{ data: { latest_test: LatestTest } }>('/api/client/profile/personality-test', session.accessToken)
+      .then(res => setLatestTest(res.data.latest_test ?? null))
+      .catch(() => {})
+      .finally(() => setChecking(false));
+  }, [session?.accessToken]);
+
+  const hasResult = !!latestTest?.completed_at;
+
+  if (checking) {
+    return (
+      <SafeAreaView style={styles.root}>
+        <AppBar title="تست شخصیت" back backFallback="/me" />
+        <View style={styles.center}>
+          <ActivityIndicator color={Colors.purple} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (hasResult) {
+    return (
+      <SafeAreaView style={styles.root}>
+        <AppBar title="تست شخصیت" back backFallback="/me" />
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <View style={styles.illustration}>
+            <View style={[styles.illustrationGrad, { backgroundColor: Colors.accent }]}>
+              <CircleCheckBig size={44} color="#fff" strokeWidth={1.5} />
+            </View>
+          </View>
+
+          <Text style={styles.title}>قبلاً این تست رو دادی</Text>
+          <Text style={styles.desc}>
+            {latestTest?.result_title
+              ? `نتیجه‌ت: ${latestTest.result_title}`
+              : 'می‌تونی نتیجه‌ت رو ببینی یا دوباره تست بدی.'}
+          </Text>
+
+          <Card soft style={styles.benefitsCard}>
+            <Text style={styles.resultHint}>
+              با دادن دوباره‌ی تست، نتیجه‌ی جدید جایگزین نتیجه‌ی قبلی می‌شه.
+            </Text>
+          </Card>
+        </ScrollView>
+
+        <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
+          <Button variant="accent" onPress={() => router.push('/profile-setup/personality-test-result' as any)}>
+            مشاهده نتیجه
+          </Button>
+          <Button variant="ghost" onPress={() => router.push('/profile-setup/personality-test-question' as any)}>
+            دوباره امتحان کن
+          </Button>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.root}>
+      <AppBar title="تست شخصیت" back backFallback="/me" />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.illustration}>
-          <LinearGradient colors={Colors.gradColors} style={styles.illustrationGrad}>
+          <View style={[styles.illustrationGrad, { backgroundColor: Colors.accent }]}>
             <Brain size={48} color="#fff" strokeWidth={1.5} />
-          </LinearGradient>
+          </View>
         </View>
 
         <View style={styles.badge}>
@@ -48,16 +117,11 @@ export default function PersonalityTestIntroScreen() {
             این تست تشخیص روانشناسی نیست — فقط برای شناخت سبک ارتباطی و پیشنهادهای بهتر استفاده می‌شود.
           </Text>
         </Card>
-
-        <View style={{ height: 120 }} />
       </ScrollView>
 
       <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <Button variant="accent" onPress={() => router.push('/profile-setup/personality-test-question' as any)}>
           شروع تست
-        </Button>
-        <Button variant="ghost" onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/' as any))}>
-          بعداً
         </Button>
       </View>
     </SafeAreaView>
@@ -66,10 +130,17 @@ export default function PersonalityTestIntroScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
-  content: { padding: Spacing.lg, alignItems: 'center' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  content: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.lg,
+    paddingBottom: 116,
+  },
   illustration: {
     width: 100, height: 100, borderRadius: 50, overflow: 'hidden',
-    marginTop: Spacing.xxl, marginBottom: Spacing.xl, alignSelf: 'center',
+    marginBottom: Spacing.xl, alignSelf: 'center',
     shadowColor: Colors.purple, shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3, shadowRadius: 12, elevation: 8,
   },
@@ -91,6 +162,7 @@ const styles = StyleSheet.create({
   benefitsTitle: { fontSize: 12.5, fontFamily: Fonts.bold, color: Colors.ink, marginBottom: 12 },
   benefit: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
   benefitText: { fontSize: 12.5, fontFamily: Fonts.regular, color: Colors.ink, flex: 1 },
+  resultHint: { fontSize: 12, fontFamily: Fonts.regular, color: Colors.muted, lineHeight: 18 },
   noteCard: { width: '100%' },
   noteText: { fontSize: 11.5, color: Colors.trust, fontFamily: Fonts.regular, lineHeight: 18 },
   bottomBar: {

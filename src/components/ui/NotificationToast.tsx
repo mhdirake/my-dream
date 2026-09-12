@@ -1,5 +1,4 @@
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Bell } from 'lucide-react-native';
 import React, { createContext, useCallback, useContext, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -107,12 +106,7 @@ function ToastView({
         onPress={onPress}
         style={({ pressed }) => [styles.card, pressed && { opacity: 0.92 }]}
       >
-        <LinearGradient
-          colors={Colors.gradColors}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-          style={styles.accentBar}
-        />
+        <View style={[styles.accentBar, { backgroundColor: Colors.accent }]} />
 
         <View style={styles.content}>
           <View style={styles.icon}>
@@ -129,14 +123,7 @@ function ToastView({
         </View>
 
         <View style={styles.progressTrack}>
-          <Animated.View style={[styles.progressFill, progressStyle]}>
-            <LinearGradient
-              colors={Colors.gradColors}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={StyleSheet.absoluteFill}
-            />
-          </Animated.View>
+          <Animated.View style={[styles.progressFill, progressStyle, { backgroundColor: Colors.accent }]} />
         </View>
       </Pressable>
     </Animated.View>

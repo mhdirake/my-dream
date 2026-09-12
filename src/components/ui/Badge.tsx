@@ -1,10 +1,10 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Shield, Sparkles, Check, Star, Brain, Flag, type LucideIcon } from 'lucide-react-native';
 import { Colors, Fonts } from '@/constants/colors';
 
-type BadgeKind = 'check' | 'ai' | 'community' | 'gold' | 'complete' | 'personality' | 'warn';
+export type BadgeKind = 'check' | 'ai' | 'community' | 'gold' | 'complete' | 'personality' | 'warn';
 
-const META: Record<BadgeKind, { label: string; icon: LucideIcon; bg: string; fg: string }> = {
+export const BADGE_META: Record<BadgeKind, { label: string; icon: LucideIcon; bg: string; fg: string }> = {
   check:       { label: 'تأیید پایه',   icon: Shield,   bg: Colors.trustSoft,  fg: Colors.trust   },
   ai:          { label: 'AI Trusted',   icon: Sparkles, bg: Colors.okSoft,     fg: Colors.ok      },
   community:   { label: 'Community',    icon: Check,    bg: Colors.purpleSoft, fg: Colors.purple  },
@@ -17,16 +17,30 @@ const META: Record<BadgeKind, { label: string; icon: LucideIcon; bg: string; fg:
 interface BadgeProps {
   kind?: BadgeKind;
   label?: string;
+  /** Show the badge in its dim, not-yet-earned style (grey pill, muted icon) instead of its kind color. */
+  locked?: boolean;
+  /** Makes the badge tappable — e.g. to open an explainer of what's needed to earn it. */
+  onPress?: () => void;
 }
 
-export function Badge({ kind = 'check', label }: BadgeProps) {
-  const m = META[kind];
+export function Badge({ kind = 'check', label, locked, onPress }: BadgeProps) {
+  const m = BADGE_META[kind];
   const text = label === '' ? null : (label != null ? label : m.label);
-  return (
-    <View style={[styles.pill, { backgroundColor: m.bg, borderColor: m.fg + '33' }]}>
-      <m.icon size={10} color={m.fg} strokeWidth={2.2} />
-      {text && <Text style={[styles.label, { color: m.fg }]}>{text}</Text>}
+  const bg = locked ? Colors.hair : m.bg;
+  const fg = locked ? Colors.muted : m.fg;
+
+  const content = (
+    <View style={[styles.pill, { backgroundColor: bg, borderColor: fg + '33' }]}>
+      <m.icon size={10} color={fg} strokeWidth={2.2} />
+      {text && <Text style={[styles.label, { color: fg }]}>{text}</Text>}
     </View>
+  );
+
+  if (!onPress) return content;
+  return (
+    <Pressable onPress={onPress} hitSlop={6}>
+      {content}
+    </Pressable>
   );
 }
 

@@ -1,3 +1,4 @@
+import { AppBar } from '@/components/ui/AppBar';
 import { Avatar } from '@/components/ui/Avatar';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import {
@@ -11,7 +12,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { toast } from '@/lib/toast';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { ArrowRight, Eye, Lock, Sparkles } from 'lucide-react-native';
+import { Eye, Lock, Sparkles } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -120,13 +121,7 @@ function LockedView({
         activeOpacity={0.85}
         onPress={() => router.push('/subscription' as never)}
       >
-        <LinearGradient
-          colors={Colors.gradColors}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={[StyleSheet.absoluteFill, { borderRadius: Radius.pill }]}
-        />
-        <Sparkles size={16} color="#fff" strokeWidth={2} />
+        <Sparkles size={16} color={Colors.accent} strokeWidth={2} />
         <Text style={styles.upgradeBtnTxt}>فعال‌سازی دسترسی</Text>
       </TouchableOpacity>
     </View>
@@ -228,23 +223,19 @@ export default function ViewedMeScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.root} edges={['top']}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/me' as never)}
-        >
-          <ArrowRight size={20} color={Colors.ink} strokeWidth={2.5} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>کی منو دید؟</Text>
-        {isUnlocked && totalViewers > 0 ? (
-          <View style={styles.countBadge}>
-            <Text style={styles.countTxt}>{toPersianDigits(totalViewers)}</Text>
-          </View>
-        ) : (
-          <View style={{ width: 36 }} />
-        )}
-      </View>
+    <SafeAreaView style={styles.root}>
+      <AppBar
+        title="کی منو دید؟"
+        back
+        backFallback="/me"
+        right={
+          isUnlocked && totalViewers > 0 ? (
+            <View style={styles.countBadge}>
+              <Text style={styles.countTxt}>{toPersianDigits(totalViewers)}</Text>
+            </View>
+          ) : undefined
+        }
+      />
 
       {loading ? (
         <View style={styles.center}>
@@ -299,21 +290,6 @@ export default function ViewedMeScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
 
-  header: {
-    height: 54,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.hair,
-    backgroundColor: Colors.surface,
-  },
-  backBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  headerTitle: { fontSize: 16, fontFamily: Fonts.extraBold, color: Colors.ink },
   countBadge: {
     width: 36, height: 24, borderRadius: 12,
     backgroundColor: Colors.accentSoft,
@@ -420,7 +396,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     marginTop: 24,
-    overflow: 'hidden',
+    backgroundColor: Colors.accentSoft,
+    borderWidth: 1.5,
+    borderColor: Colors.accent,
   },
-  upgradeBtnTxt: { fontSize: 15, fontFamily: Fonts.bold, color: '#fff' },
+  upgradeBtnTxt: { fontSize: 15, fontFamily: Fonts.bold, color: Colors.accent },
 });

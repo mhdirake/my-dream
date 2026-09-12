@@ -453,14 +453,9 @@ function ActiveRow({
           <View style={styles.chatTopRight}>
             <Text style={[styles.chatTime, hasUnread && styles.chatTimeUnread]}>{lastTime}</Text>
             {hasUnread && (
-              <LinearGradient
-                colors={Colors.gradColors}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.unreadBadge}
-              >
+              <View style={[styles.unreadBadge, { backgroundColor: Colors.accent }]}>
                 <Text style={styles.unreadTxt}>{unread > 99 ? '۹۹+' : toFaDigits(unread)}</Text>
-              </LinearGradient>
+              </View>
             )}
           </View>
         </View>
@@ -543,16 +538,10 @@ function PendingRow({
             activeOpacity={0.85}
           >
             {isResponding ? (
-              <ActivityIndicator size="small" color="#fff" />
+              <ActivityIndicator size="small" color={Colors.accent} />
             ) : (
               <>
-                <LinearGradient
-                  colors={Colors.gradColors}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={StyleSheet.absoluteFill}
-                />
-                <Check size={16} color="#fff" strokeWidth={2.5} />
+                <Check size={16} color={Colors.accent} strokeWidth={2.5} />
                 <Text style={styles.acceptTxt}>تأیید</Text>
               </>
             )}
@@ -807,9 +796,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: Colors.accent,
+    backgroundColor: Colors.accentSoft,
   },
-  acceptTxt: { fontSize: 13, fontFamily: Fonts.bold, color: '#fff' },
+  acceptTxt: { fontSize: 13, fontFamily: Fonts.bold, color: Colors.accent },
 
   awaitingRow: {
     flexDirection: 'row',

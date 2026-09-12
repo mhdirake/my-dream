@@ -9,7 +9,7 @@ import { toast } from '@/lib/toast';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
 import { toJalaali } from 'jalaali-js';
-import { ChevronLeft, Coins, Gift, ShoppingBag } from 'lucide-react-native';
+import { ChevronLeft, Coins, Gift, Medal, Shield, ShoppingBag, Star, type LucideIcon } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -22,6 +22,17 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const toPersian = (n: number) => String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
+
+// Same steel-grey "silver" identity introduced on the subscription screen
+// (src/app/subscription/index.tsx) — kept local here too since only these two
+// screens need it.
+const SILVER = '#A9B8CC';
+
+const PLAN_META: Record<string, { label: string; color: string; icon: LucideIcon }> = {
+  gold: { label: 'طلایی', color: Colors.gold, icon: Star },
+  silver: { label: 'نقره‌ای', color: SILVER, icon: Medal },
+  basic: { label: 'پایه', color: Colors.muted, icon: Shield },
+};
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -39,6 +50,7 @@ export default function WalletScreen() {
   const [coins, setCoins] = useState(0);
   const [received, setReceived] = useState<CoinGiftRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
   useFocusEffect(useCallback(() => {
     const token = session?.accessToken;
@@ -56,6 +68,7 @@ export default function WalletScreen() {
         setProfile(p);
         setCoins(w.coin_balance);
         setReceived(r.slice(0, 10));
+        setHasLoadedOnce(true);
       })
       .catch(e => {
         if (active) toast.error(e.message ?? 'خطا در بارگذاری');
@@ -73,39 +86,48 @@ export default function WalletScreen() {
     <SafeAreaView style={styles.root}>
       <AppBar title="کیف پول و سکه" back />
 
-      {loading ? (
+      {loading && !hasLoadedOnce ? (
         <View style={styles.center}>
           <ActivityIndicator color={Colors.gold} />
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           {/* Balance card */}
-          <View style={styles.balanceCard}>
-            <LinearGradient
-              colors={[Colors.surface, Colors.surface2]}
-              style={StyleSheet.absoluteFill}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-            />
-            <View style={styles.balanceTop}>
-              <View style={styles.coinIcon}>
-                <Coins size={22} color={Colors.gold} strokeWidth={2} />
-              </View>
-              <View>
-                <Text style={styles.balanceLabel}>موجودی سکه</Text>
-                <Text style={styles.balanceAmt}>{toPersian(coins)} سکه</Text>
-              </View>
+          <LinearGradient
+            colors={[Colors.trustSoft, Colors.purpleSoft]}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+            style={styles.balanceCard}
+          >
+            <View style={styles.coinIcon}>
+              <Coins size={26} color={Colors.gold} strokeWidth={2} />
             </View>
+            <Text style={styles.balanceAmt}>{toPersian(coins)} سکه</Text>
+            <Text style={styles.balanceLabel}>موجودی سکه</Text>
 
-            {sub && (
-              <View style={styles.subRow}>
-                <Text style={styles.subLabel}>اشتراک فعال:</Text>
-                <Text style={styles.subVal}>
-                  {sub.plan.slug === 'gold' ? 'طلایی' : sub.plan.slug === 'silver' ? 'نقره‌ای' : 'پایه'}
-                </Text>
-                {sub.ends_at && <Text style={styles.subExpiry}> · تا {formatDate(sub.ends_at)}</Text>}
-              </View>
+            {sub ? (() => {
+              const meta = PLAN_META[sub.plan.slug] ?? PLAN_META.basic;
+              return (
+                <View style={styles.subRow}>
+                  <View style={[styles.subIconWrap, { backgroundColor: meta.color + '22' }]}>
+                    <meta.icon size={14} color={meta.color} strokeWidth={2} />
+                  </View>
+                  <View>
+                    <Text style={[styles.subVal, { color: meta.color }]}>پلن {meta.label}</Text>
+                    {sub.ends_at && <Text style={styles.subExpiry}>تا {formatDate(sub.ends_at)}</Text>}
+                  </View>
+                </View>
+              );
+            })() : (
+              <TouchableOpacity
+                style={styles.subUpgradeRow}
+                onPress={() => router.push('/subscription' as any)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.subUpgradeTxt}>پلن پایه · با ارتقا امکانات بیشتری بگیر</Text>
+                <ChevronLeft size={14} color={Colors.muted} strokeWidth={2} />
+              </TouchableOpacity>
             )}
-          </View>
+          </LinearGradient>
 
           {/* Action buttons */}
           <View style={styles.actionRow}>
@@ -135,7 +157,9 @@ export default function WalletScreen() {
 
           {received.length === 0 ? (
             <View style={styles.emptyBox}>
+              <Gift size={28} color={Colors.hair} strokeWidth={1.5} />
               <Text style={styles.emptyTxt}>هنوز سکه‌ای دریافت نکردی</Text>
+              <Text style={styles.emptySub}>وقتی کسی سکه بفرسته اینجا میاد</Text>
             </View>
           ) : (
             received.map(item => (
@@ -169,8 +193,6 @@ export default function WalletScreen() {
               </TouchableOpacity>
             ))
           )}
-
-          <View style={{ height: 40 }} />
         </ScrollView>
       )}
     </SafeAreaView>
@@ -183,28 +205,38 @@ const styles = StyleSheet.create({
   content: { padding: Spacing.lg, gap: 16 },
 
   balanceCard: {
-    borderRadius: Radius.xl, padding: Spacing.xl, overflow: 'hidden',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2, shadowRadius: 12, elevation: 6,
+    borderRadius: Radius.xl, padding: Spacing.xxl,
+    alignItems: 'center', gap: 4,
   },
-  balanceTop: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 14 },
   coinIcon: {
-    width: 48, height: 48, borderRadius: 24,
+    width: 56, height: 56, borderRadius: 28,
     backgroundColor: Colors.gold + '25',
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 1, borderColor: Colors.gold + '44',
+    marginBottom: 6,
   },
-  balanceLabel: { fontSize: 11, color: 'rgba(255,255,255,0.5)', fontFamily: Fonts.regular },
-  balanceAmt: { fontSize: 28, fontFamily: Fonts.extraBold, color: Colors.gold },
+  balanceLabel: { fontSize: 11.5, color: Colors.inkSoft, fontFamily: Fonts.regular },
+  balanceAmt: { fontSize: 30, fontFamily: Fonts.extraBold, color: Colors.gold },
 
   subRow: {
-    flexDirection: 'row', alignItems: 'center',
-    borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)',
-    paddingTop: 12,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+    alignSelf: 'stretch',
+    borderTopWidth: 1, borderTopColor: Colors.hair,
+    paddingTop: 14, marginTop: 12,
   },
-  subLabel: { fontSize: 11.5, color: 'rgba(255,255,255,0.5)', fontFamily: Fonts.regular },
-  subVal: { fontSize: 12, fontFamily: Fonts.bold, color: '#fff', marginLeft: 6 },
-  subExpiry: { fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: Fonts.regular },
+  subIconWrap: {
+    width: 30, height: 30, borderRadius: 15,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  subVal: { fontSize: 13, fontFamily: Fonts.bold, textAlign: 'center' },
+  subExpiry: { fontSize: 11, color: Colors.muted, fontFamily: Fonts.regular, marginTop: 1, textAlign: 'center' },
+  subUpgradeRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    alignSelf: 'stretch',
+    borderTopWidth: 1, borderTopColor: Colors.hair,
+    paddingTop: 14, marginTop: 12,
+  },
+  subUpgradeTxt: { fontSize: 11.5, color: Colors.inkSoft, fontFamily: Fonts.regular },
 
   actionRow: { flexDirection: 'row', gap: 12 },
   actionBtn: {
@@ -218,8 +250,9 @@ const styles = StyleSheet.create({
 
   sectionTitle: { fontSize: 13, fontFamily: Fonts.extraBold, color: Colors.ink },
 
-  emptyBox: { alignItems: 'center', paddingVertical: 32 },
-  emptyTxt: { fontSize: 13, color: Colors.muted, fontFamily: Fonts.regular },
+  emptyBox: { alignItems: 'center', gap: 8, paddingVertical: 20 },
+  emptyTxt: { fontSize: 13, color: Colors.inkSoft, fontFamily: Fonts.semiBold },
+  emptySub: { fontSize: 11.5, color: Colors.muted, fontFamily: Fonts.regular },
 
   txRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,

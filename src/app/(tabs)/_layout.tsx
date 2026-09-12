@@ -13,7 +13,6 @@ import {
   showLocalNotificationFromRealtime,
   subscribeToPushResponses,
 } from '@/lib/notifications/push';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Redirect, router, Tabs } from 'expo-router';
 import { Compass, Gift, Heart, MessageCircle, User } from 'lucide-react-native';
 import { useEffect } from 'react';
@@ -211,25 +210,25 @@ type LucideIcon = React.ComponentType<{ size?: number; color?: string; fill?: st
 function TabIcon({ icon: Icon, focused, fill = false }: { icon: LucideIcon; focused: boolean; fill?: boolean }) {
   if (focused) {
     return (
-      <LinearGradient
-        colors={Colors.gradColors}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+      <View
         style={{
           width: 40,
           height: 28,
           borderRadius: 14,
           justifyContent: 'center',
           alignItems: 'center',
+          backgroundColor: Colors.accentSoft,
+          borderWidth: 1.5,
+          borderColor: Colors.accent,
         }}
       >
         <Icon
           size={18}
-          color={Colors.onAccent}
-          fill={fill ? Colors.onAccent : 'transparent'}
+          color={Colors.accent}
+          fill={fill ? Colors.accent : 'transparent'}
           strokeWidth={2}
         />
-      </LinearGradient>
+      </View>
     );
   }
 

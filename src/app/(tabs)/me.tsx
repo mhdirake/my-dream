@@ -3,14 +3,17 @@ import { Card } from '@/components/ui/Card';
 import { WebImageCropModal } from '@/components/ui/WebImageCropModal';
 import { APP_VERSION_LABEL } from '@/constants/appVersion';
 import { Chip } from '@/components/ui/Chip';
+import { ProfileScoreModal } from '@/components/ProfileScoreModal';
+import { VerificationBadgeModal } from '@/components/VerificationBadgeModal';
 import { Colors, Fonts, Spacing } from '@/constants/colors';
+import { hasBadge, TIERS, type Tier } from '@/constants/verificationTiers';
 import { ApiError } from '@/lib/api/client';
 import { onboardingApi } from '@/lib/api/onboarding';
+import { paymentsApi } from '@/lib/api/payments';
 import type { ClientProfile } from '@/lib/api/profile';
 import { profileApi } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/AuthContext';
 import * as ImagePicker from 'expo-image-picker';
-import { LinearGradient } from 'expo-linear-gradient';
 import {
   AlertTriangle, Bell, Bot, Brain, Camera, ChevronLeft, Coins, Eye, LayoutGrid,
   Pencil, Settings, Shield, Sparkles, Star, User, Users, type LucideIcon,
@@ -31,7 +34,7 @@ const MENU_ITEMS: MenuItem[] = [
   { icon: LayoutGrid,  iconColor: Colors.accent,   label: 'پیش‌نمایش پروفایل', sub: 'درصد تکمیل و موارد ناقص',   route: '/profile-setup/profile-preview' },
   { icon: Brain,       iconColor: Colors.purple,   label: 'تست شخصیت',          sub: 'تست شخصیت · بج طلایی',      route: '/profile-setup/personality-test-intro' },
   { icon: Sparkles,   iconColor: Colors.purple,   label: 'آنالیز هوش مصنوعی', sub: 'تحلیل شخصیتی من',            route: '/ai-insight/self' },
-  { icon: Bot,        iconColor: Colors.accent,   label: 'مربی هوش مصنوعی',  sub: 'گفتگو با AI Coach',            comingSoon: true },
+  { icon: Bot,        iconColor: Colors.accent,   label: 'مربی هوش مصنوعی',  sub: 'گفتگو با مربی هوش مصنوعی',     comingSoon: true },
   { icon: Shield,     iconColor: Colors.trust,    label: 'احراز هویت',         sub: 'تأیید پایه · AI · جامعه',    route: '/verification' },
   { icon: Bell,        iconColor: Colors.trust,    label: 'اعلان‌ها',           sub: 'مدیریت اعلان‌ها',            route: '/notifications' },
   { icon: Shield,      iconColor: Colors.ok,       label: 'حریم خصوصی',        sub: 'حالت امن · کنترل پیام',      route: '/settings/privacy' },
@@ -45,12 +48,7 @@ const MENU_ITEMS: MenuItem[] = [
 function CompletionRing({ value }: { value: number }) {
   return (
     <View style={styles.ring}>
-      <LinearGradient
-        colors={Colors.gradColors}
-        start={{ x: 0, y: 1 }}
-        end={{ x: 1, y: 0 }}
-        style={styles.ringGrad}
-      />
+      <View style={[styles.ringGrad, { backgroundColor: Colors.accent }]} />
       <View style={styles.ringInner}>
         <Text style={styles.ringValue}>{value}٪</Text>
         <Text style={styles.ringLabel}>پروفایل</Text>
@@ -74,6 +72,9 @@ export default function MeScreen() {
   const [localPhotoUri, setLocalPhotoUri] = useState<string | null>(null);
   const [cropUri, setCropUri] = useState<string | null>(null);
   const [photoUploading, setPhotoUploading] = useState(false);
+  const [scoreOpen, setScoreOpen] = useState(false);
+  const [coins, setCoins] = useState<number | null>(null);
+  const [badgeTier, setBadgeTier] = useState<Tier | null>(null);
 
   useEffect(() => {
     if (!session?.accessToken) return;
@@ -81,6 +82,7 @@ export default function MeScreen() {
       .then(setProfile)
       .catch(e => { if (e instanceof ApiError && e.status === 401) logout(); })
       .finally(() => setLoading(false));
+    paymentsApi.getWallet(session.accessToken).then(w => setCoins(w.coin_balance)).catch(() => {});
   }, [logout, session]);
 
   const uploadPhoto = async (uri: string) => {
@@ -208,12 +210,22 @@ export default function MeScreen() {
             <View style={styles.profileInfo}>
               <View style={styles.nameRow}>
                 <Text style={styles.name}>{displayName}</Text>
-                {profile?.badges?.some(b => b.slug?.includes('ai')) && <Badge kind="ai" label="" />}
-                {profile?.badges?.some(b => b.slug?.includes('community')) && <Badge kind="community" label="" />}
-                {profile?.badges?.some(b => b.slug?.includes('gold')) && <Badge kind="gold" label="" />}
+              </View>
+              <View style={styles.badgesRow}>
+                {TIERS.map(tier => (
+                  <Badge
+                    key={tier.slug}
+                    kind={tier.kind}
+                    label=""
+                    locked={!hasBadge(profile, tier.slug)}
+                    onPress={() => setBadgeTier(tier)}
+                  />
+                ))}
+                {hasBadge(profile, 'gold') && <Badge kind="gold" label="" />}
               </View>
               <Text style={styles.sub}>
-                @{user?.username ?? '—'}
+                {/* U+2066/U+2069 LTR isolate: keeps "@<digits>" intact and right-placed in the RTL line */}
+                {`⁦@${user?.username ?? '—'}⁩`}
                 {profile?.city ? ` · ${profile.city}` : ''}
               </Text>
               {profile?.relationship_goal ? (
@@ -238,28 +250,80 @@ export default function MeScreen() {
             </View>
           ) : null}
 
-          <View style={styles.subBadge}>
-            <Text style={styles.subBadgeTxt}>اشتراک: {planLabel}</Text>
-            <TouchableOpacity onPress={() => router.push('/subscription' as never)}>
-              <Text style={styles.upgradeLink}>
-                {profile?.active_subscription ? 'مدیریت اشتراک' : 'ارتقا و خرید اشتراک'}
-              </Text>
+          <View style={styles.walletRow}>
+            <TouchableOpacity
+              style={styles.walletHalf}
+              activeOpacity={0.7}
+              onPress={() => router.push('/gifts/wallet' as never)}
+            >
+              <Coins size={16} color={Colors.goldDeep} strokeWidth={2} />
+              <View>
+                <Text style={styles.walletValue}>
+                  {coins == null ? '—' : toPersian(coins)}
+                </Text>
+                <Text style={styles.walletLabel}>سکه</Text>
+              </View>
+            </TouchableOpacity>
+
+            <View style={styles.walletDivider} />
+
+            <TouchableOpacity
+              style={styles.walletHalf}
+              activeOpacity={0.7}
+              onPress={() => router.push('/subscription' as never)}
+            >
+              <Star size={16} color={Colors.goldDeep} strokeWidth={2} />
+              <View>
+                <Text style={styles.walletValue}>{planLabel}</Text>
+                <Text style={styles.walletLabel}>
+                  {profile?.active_subscription ? 'اشتراک فعال' : 'اشتراک'}
+                </Text>
+              </View>
             </TouchableOpacity>
           </View>
         </Card>
 
         <View style={styles.statsRow}>
-          {[
-            { n: toPersian(profile?.likes_count ?? 0), l: 'لایک دریافتی' },
-            { n: toPersian(profile?.profile_quality_score ?? 0), l: 'امتیاز پروفایل' },
-            { n: toPersian(profile?.profile_completion_percent ?? 0) + '٪', l: 'تکمیل پروفایل' },
-          ].map((s, i, arr) => (
-            <View key={s.l} style={[styles.statItem, i === arr.length - 1 && styles.statItemLast]}>
-              <Text style={styles.statN}>{s.n}</Text>
-              <Text style={styles.statL}>{s.l}</Text>
-            </View>
-          ))}
+          <View style={styles.statItem}>
+            <Text style={styles.statN}>{toPersian(profile?.likes_count ?? 0)}</Text>
+            <Text style={styles.statL}>لایک دریافتی</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <TouchableOpacity
+            style={styles.statItem}
+            activeOpacity={0.7}
+            onPress={() => setScoreOpen(true)}
+          >
+            <Text style={styles.statN}>{toPersian(profile?.profile_quality_score ?? 0)}</Text>
+            <Text style={styles.statL}>امتیاز پروفایل ⓘ</Text>
+          </TouchableOpacity>
+          <View style={styles.statDivider} />
+          <TouchableOpacity
+            style={styles.statItem}
+            activeOpacity={0.7}
+            onPress={() => router.push('/viewed-me' as never)}
+          >
+            <Text style={styles.statN}>{toPersian(profile?.profile_views_count ?? 0)}</Text>
+            <Text style={styles.statL}>بازدید پروفایل</Text>
+          </TouchableOpacity>
         </View>
+
+        <ProfileScoreModal
+          visible={scoreOpen}
+          score={profile?.profile_quality_score ?? 0}
+          breakdown={profile?.quality_breakdown}
+          onClose={() => setScoreOpen(false)}
+          onCompleteProfile={() => {
+            setScoreOpen(false);
+            router.push('/profile-edit' as never);
+          }}
+        />
+
+        <VerificationBadgeModal
+          tier={badgeTier}
+          profile={profile}
+          onClose={() => setBadgeTier(null)}
+        />
 
         <TouchableOpacity
           style={styles.viewedCard}
@@ -308,8 +372,6 @@ export default function MeScreen() {
         <TouchableOpacity style={styles.signOut} onPress={logout}>
           <Text style={styles.signOutTxt}>خروج از حساب</Text>
         </TouchableOpacity>
-
-        <View style={{ height: 100 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -343,18 +405,24 @@ const styles = StyleSheet.create({
 
   profileInfo: { flex: 1, gap: 4 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  badgesRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginVertical: 6 },
   name: { fontSize: 17, fontFamily: Fonts.extraBold, color: Colors.ink },
-  sub: { fontSize: 11.5, color: Colors.muted, fontFamily: Fonts.regular },
+  sub: { fontSize: 11.5, color: Colors.muted, fontFamily: Fonts.regular, textAlign: 'right', writingDirection: 'rtl' },
   goal: { fontSize: 12, color: Colors.accent, fontFamily: Fonts.semiBold },
   bio: { fontSize: 13, color: Colors.inkSoft, lineHeight: 20, fontFamily: Fonts.regular },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
 
-  subBadge: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingTop: 10, borderTopWidth: 1, borderTopColor: Colors.hair,
+  walletRow: {
+    flexDirection: 'row', alignItems: 'center',
+    marginTop: 12, borderTopWidth: 1, borderTopColor: Colors.hair, paddingTop: 12,
   },
-  subBadgeTxt: { fontSize: 11.5, color: Colors.muted, fontFamily: Fonts.regular },
-  upgradeLink: { fontSize: 12, color: Colors.accent, fontFamily: Fonts.bold },
+  walletHalf: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8,
+    justifyContent: 'center',
+  },
+  walletDivider: { width: 1, alignSelf: 'stretch', backgroundColor: Colors.hair, marginVertical: 2 },
+  walletValue: { fontSize: 13.5, fontFamily: Fonts.extraBold, color: Colors.ink },
+  walletLabel: { fontSize: 10, fontFamily: Fonts.regular, color: Colors.muted, marginTop: 1 },
 
   ring: { width: 62, height: 62, alignItems: 'center', justifyContent: 'center' },
   ringGrad: { position: 'absolute', width: 62, height: 62, borderRadius: 31 },
@@ -374,9 +442,10 @@ const styles = StyleSheet.create({
   },
   statItem: {
     flex: 1, alignItems: 'center', paddingVertical: 14,
-    borderRightWidth: 1, borderRightColor: Colors.hair,
   },
-  statItemLast: { borderRightWidth: 0 },
+  // Explicit 1px separator element — direction-agnostic, unlike side borders
+  // whose `left`/`right`/`start`/`end` resolution differs on web vs native RTL.
+  statDivider: { width: 1, backgroundColor: Colors.hair, marginVertical: 10 },
   statN: { fontSize: 18, fontFamily: Fonts.extraBold, color: Colors.ink },
   statL: { fontSize: 10.5, color: Colors.muted, fontFamily: Fonts.regular, marginTop: 2 },
 

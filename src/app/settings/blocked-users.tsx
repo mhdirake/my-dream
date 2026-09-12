@@ -120,6 +120,7 @@ export default function BlockedUsersScreen() {
         title="کاربران مسدود"
         sub={items.length > 0 ? `${items.length} کاربر` : undefined}
         back
+        backFallback="/settings"
       />
 
       {loading ? (

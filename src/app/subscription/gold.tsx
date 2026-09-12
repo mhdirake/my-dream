@@ -1,15 +1,25 @@
 import { AppBar } from '@/components/ui/AppBar';
 import { Button } from '@/components/ui/Button';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import {
   Brain, Eye, MessageCircle, Shield, Sparkles, Star, Zap,
 } from 'lucide-react-native';
 import {
-  ScrollView, StyleSheet, Text, View,
+  Platform, ScrollView, StyleSheet, Text, View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+
+// Small twinkling accents scattered across the hero area — same recipe as the
+// gold plan card on the subscription list page.
+const HERO_SPARKLE_POSITIONS = [
+  { top: 10, left: 40 },
+  { top: 30, right: 50 },
+  { top: 70, left: 70 },
+  { top: 20, right: 110 },
+  { top: 90, right: 60 },
+  { top: 60, left: 110 },
+] as const;
 
 const LIMITS = [
   { label: 'کشف روزانه', basic: '۱۰', silver: '۴۰', gold: 'نامحدود' },
@@ -33,17 +43,17 @@ export default function GoldDetailScreen() {
   const insets = useSafeAreaInsets();
   return (
     <SafeAreaView style={styles.root}>
-      <AppBar title="اشتراک طلایی" back dark />
+      <AppBar title="اشتراک طلایی" back backFallback="/subscription" dark />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Hero */}
         <View style={styles.hero}>
+          {Platform.OS === 'web' && HERO_SPARKLE_POSITIONS.map((pos, i) => (
+            <View key={i} style={[styles.heroSparkle, pos, { animationDelay: `${i * 0.4}s` } as any]} pointerEvents="none">
+              <Sparkles size={12 + (i % 2) * 4} color={Colors.gold} strokeWidth={2} />
+            </View>
+          ))}
           <View style={styles.heroIcon}>
-            <LinearGradient
-              colors={[Colors.gold, Colors.goldDeep]}
-              style={StyleSheet.absoluteFill}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-            />
             <Star size={32} color="#fff" strokeWidth={1.5} fill="#fff" />
           </View>
           <Text style={styles.heroTitle}>طلایی</Text>
@@ -105,12 +115,31 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#0E0B1A' },
   content: { padding: Spacing.lg },
 
-  hero: { alignItems: 'center', paddingVertical: Spacing.xxl, marginBottom: Spacing.xl },
+  hero: { alignItems: 'center', paddingVertical: Spacing.xxl, marginBottom: Spacing.xl, position: 'relative' },
   heroIcon: {
-    width: 80, height: 80, borderRadius: 40, overflow: 'hidden',
+    width: 80, height: 80, borderRadius: 40,
+    backgroundColor: Colors.gold,
     alignItems: 'center', justifyContent: 'center', marginBottom: 16,
     shadowColor: Colors.gold, shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.5, shadowRadius: 16, elevation: 12,
+  },
+  // Web-only: `animationKeyframes` is a react-native-web style property with
+  // no native equivalent, so it's a no-op (dim/static) on native builds.
+  heroSparkle: {
+    position: 'absolute',
+    ...Platform.select({
+      web: {
+        animationKeyframes: {
+          '0%':   { opacity: 0, transform: [{ scale: 0.4 }, { rotate: '0deg' }] },
+          '50%':  { opacity: 0.5, transform: [{ scale: 1 }, { rotate: '30deg' }] },
+          '100%': { opacity: 0, transform: [{ scale: 0.4 }, { rotate: '60deg' }] },
+        },
+        animationDuration: '2.4s',
+        animationIterationCount: 'infinite',
+        animationTimingFunction: 'ease-in-out',
+      },
+      default: {},
+    }),
   },
   heroTitle: { fontSize: 32, fontFamily: Fonts.extraBold, color: Colors.gold, marginBottom: 8 },
   heroSub: {

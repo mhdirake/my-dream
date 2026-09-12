@@ -1,24 +1,33 @@
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
-import { Card } from '@/components/ui/Card';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
+import { DetailCard } from '@/components/ui/DetailCard';
+import { AppMaxWidth, Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import {
   AnonSummary, ReceivedAnonInterest, ReceivedResponse,
   RevealPackage, SentAnonInterest, SentLike, likesApi, mediaUrl,
 } from '@/lib/api/likes';
 import { ApiError } from '@/lib/api/client';
+import { paymentsApi } from '@/lib/api/payments';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { toast } from '@/lib/toast';
 import { router, useFocusEffect } from 'expo-router';
-import { Coins, Eye, Heart, Lock, Sparkles, UserX } from 'lucide-react-native';
+import { Coins, Heart, Lock, Sparkles, UserX, VenetianMask } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator, Modal, Pressable, RefreshControl,
-  Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View,
+  Platform, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const toPersian = (n: number) => String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
+
+// Fixed px gap for the 3-column grid below — percentage widths (`31%` etc.)
+// don't add up to exactly 100% alongside a gap, so the row drifts off the
+// container edges and the gap ends up a different size than the vertical one.
+// Computing an exact pixel width from the real screen width keeps both gaps
+// (row and column) identical and the grid flush with the container.
+const GRID_GAP = 10;
+const GRID_COLUMNS = 3;
 
 function timeAgo(iso: string) {
   const diff = (Date.now() - new Date(iso).getTime()) / 1000;
@@ -44,6 +53,7 @@ export default function LikesScreen() {
   const [purchasing, setPurchasing] = useState(false);
   const [purchaseModalOpen, setPurchaseModalOpen] = useState(false);
   const [coinShortageOpen, setCoinShortageOpen] = useState(false);
+  const [coins, setCoins] = useState<number | null>(null);
 
   const load = useCallback(async (showRefresh = false) => {
     if (!session?.accessToken) return;
@@ -67,6 +77,7 @@ export default function LikesScreen() {
       setLoading(false);
       setRefreshing(false);
     }
+    paymentsApi.getWallet(session.accessToken).then(w => setCoins(w.coin_balance)).catch(() => {});
   }, [session?.accessToken]);
 
   useFocusEffect(useCallback(() => {
@@ -118,12 +129,22 @@ export default function LikesScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>مَچ و لایک</Text>
-          {mutualCount > 0 && (
-            <View style={styles.mutualBadge}>
-              <Heart size={12} color="#fff" strokeWidth={2} fill="#fff" />
-              <Text style={styles.mutualBadgeTxt}>{toPersian(mutualCount)} متقابل</Text>
-            </View>
-          )}
+          <View style={styles.headerRight}>
+            {mutualCount > 0 && (
+              <View style={styles.mutualBadge}>
+                <Heart size={12} color={Colors.accent} strokeWidth={2} fill={Colors.accent} />
+                <Text style={styles.mutualBadgeTxt}>{toPersian(mutualCount)} متقابل</Text>
+              </View>
+            )}
+            <TouchableOpacity
+              style={styles.coinPill}
+              onPress={() => router.push('/gifts/wallet' as never)}
+              activeOpacity={0.75}
+            >
+              <Coins size={13} color={Colors.goldDeep} strokeWidth={2} />
+              <Text style={styles.coinPillTxt}>{coins == null ? '—' : toPersian(coins)}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Tabs */}
@@ -204,7 +225,7 @@ function PurchaseRevealModal({
       <Pressable style={styles.modalOverlay} onPress={onClose}>
         <Pressable style={styles.purchaseDialog}>
           <View style={styles.purchaseIcon}>
-            <Eye size={22} color={Colors.goldDeep} strokeWidth={2} />
+            <VenetianMask size={22} color={Colors.goldDeep} strokeWidth={2} />
           </View>
           <Text style={styles.purchaseTitle}>خرید دسترسی به علاقه ناشناس</Text>
           <Text style={styles.purchaseBody}>
@@ -291,47 +312,48 @@ function ReceivedSection({
   onPurchase: () => void;
 }) {
   const pkg = packages[0];
+  const { width: winWidth } = useWindowDimensions();
+  // #root is capped to AppMaxWidth on web (see +html.tsx) and centered, but
+  // useWindowDimensions() still reports the raw browser window width — on a
+  // wide monitor that made cards blow up far past the actual visible column.
+  const contentWidth = Math.min(winWidth, AppMaxWidth);
+  const cardWidth = (contentWidth - Spacing.lg * 2 - GRID_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS;
 
   if (locked) {
-    const fakeCount = Math.max(count, 3);
     return (
       <>
         {/* Upsell card */}
-        <Card tint="gold" style={styles.upsellCard}>
-          <View style={styles.upsellRow}>
-            <View style={styles.upsellIcon}>
-              <Eye size={20} color={Colors.goldDeep} strokeWidth={2} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.upsellTitle}>
-                {count > 0 ? `${toPersian(count)} علاقه ناشناس برات فرستاده شده` : 'شاید کسی علاقه فرستاده'}
-              </Text>
-              <Text style={styles.upsellSub}>
-                {pkg ? `${toPersian(pkg.coin_price)} سکه · ${toPersian(pkg.duration_days)} روز دسترسی` : 'برای دیدن دسترسی بخر'}
-              </Text>
-            </View>
-          </View>
-          <TouchableOpacity
-            style={styles.upsellBtn}
-            onPress={onPurchase}
-            disabled={purchasing}
-          >
-            {purchasing
-              ? <ActivityIndicator size="small" color="#3A2C0A" />
-              : <>
-                  <Coins size={13} color="#3A2C0A" strokeWidth={2} />
-                  <Text style={styles.upsellBtnTxt}>
-                    {pkg ? `خرید با ${toPersian(pkg.coin_price)} سکه` : 'خرید دسترسی'}
-                  </Text>
-                </>
-            }
-          </TouchableOpacity>
-        </Card>
+        <DetailCard
+          style={styles.upsellCard}
+          icon={<VenetianMask size={26} color={Colors.trust} strokeWidth={1.8} />}
+          title={count > 0 ? `${toPersian(count)} علاقه ناشناس برات فرستاده شده` : 'شاید کسی علاقه فرستاده'}
+          subtitle={pkg ? `${toPersian(pkg.coin_price)} سکه · ${toPersian(pkg.duration_days)} روز دسترسی` : 'برای دیدن دسترسی بخر'}
+          footer={
+            <TouchableOpacity
+              style={styles.upsellBtn}
+              onPress={onPurchase}
+              disabled={purchasing}
+            >
+              {purchasing
+                ? <ActivityIndicator size="small" color={Colors.accent} />
+                : <>
+                    <Coins size={14} color={Colors.accent} strokeWidth={2} />
+                    <Text style={styles.upsellBtnTxt}>
+                      {pkg ? `خرید با ${toPersian(pkg.coin_price)} سکه` : 'خرید دسترسی'}
+                    </Text>
+                  </>
+              }
+            </TouchableOpacity>
+          }
+        />
 
         {/* Blurred placeholder cards */}
         <View style={styles.grid}>
-          {Array.from({ length: Math.min(fakeCount, 6) }).map((_, i) => (
-            <View key={i} style={styles.lockedCard}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <View
+              key={i}
+              style={[styles.lockedCard, { width: cardWidth }]}
+            >
               <View style={styles.lockedAvatar}>
                 <UserX size={28} color={Colors.purple} strokeWidth={1.5} />
               </View>
@@ -359,7 +381,11 @@ function ReceivedSection({
       {items.map(item => (
         <TouchableOpacity
           key={item.id}
-          style={[styles.receivedCard, item.is_mutual && styles.receivedCardMutual]}
+          style={[
+            styles.receivedCard,
+            { width: cardWidth },
+            item.is_mutual && styles.receivedCardMutual,
+          ]}
           onPress={() => router.push({ pathname: '/user/[id]' as any, params: { id: String(item.sender.id) } })}
           activeOpacity={0.85}
         >
@@ -461,12 +487,19 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'space-between', marginBottom: 4,
   },
   headerTitle: { fontSize: 18, fontFamily: Fonts.extraBold, color: Colors.ink },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   mutualBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: Colors.accent, borderRadius: Radius.pill,
+    backgroundColor: Colors.accentSoft, borderWidth: 1.5, borderColor: Colors.accent,
+    borderRadius: Radius.pill, paddingHorizontal: 10, paddingVertical: 4,
+  },
+  mutualBadgeTxt: { fontSize: 11.5, fontFamily: Fonts.bold, color: Colors.accent },
+  coinPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: Colors.goldSoft, borderRadius: Radius.pill,
     paddingHorizontal: 10, paddingVertical: 4,
   },
-  mutualBadgeTxt: { fontSize: 11.5, fontFamily: Fonts.bold, color: '#fff' },
+  coinPillTxt: { fontSize: 11.5, fontFamily: Fonts.bold, color: Colors.goldDeep },
 
   tabRow: {
     flexDirection: 'row', gap: 8, marginBottom: Spacing.lg,
@@ -477,9 +510,9 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill, backgroundColor: Colors.surface,
     borderWidth: 1, borderColor: Colors.hair,
   },
-  tabBtnActive: { backgroundColor: Colors.accent, borderColor: Colors.accent },
+  tabBtnActive: { backgroundColor: Colors.accentSoft, borderColor: Colors.accent },
   tabTxt: { fontSize: 13, fontFamily: Fonts.semiBold, color: Colors.muted },
-  tabTxtActive: { color: Colors.onAccent },
+  tabTxtActive: { color: Colors.accent },
   tabCount: {
     minWidth: 18, height: 18, borderRadius: 9,
     backgroundColor: Colors.accentSoft, alignItems: 'center', justifyContent: 'center',
@@ -492,27 +525,23 @@ const styles = StyleSheet.create({
   center: { paddingVertical: 60, alignItems: 'center' },
 
   // Upsell
-  upsellCard: { gap: 12, marginBottom: Spacing.lg },
-  upsellRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  upsellIcon: {
-    width: 44, height: 44, borderRadius: 13,
-    backgroundColor: Colors.goldSoft, alignItems: 'center', justifyContent: 'center',
-  },
-  upsellTitle: { fontSize: 13.5, fontFamily: Fonts.bold, color: Colors.goldDeep },
-  upsellSub: { fontSize: 11.5, color: Colors.inkSoft, fontFamily: Fonts.regular, marginTop: 2 },
+  upsellCard: { marginBottom: Spacing.lg },
   upsellBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 7,
-    backgroundColor: Colors.gold, borderRadius: Radius.md,
-    paddingHorizontal: 18, paddingVertical: 10, alignSelf: 'flex-start',
+    backgroundColor: Colors.accentSoft, borderWidth: 1.5, borderColor: Colors.accent,
+    borderRadius: Radius.pill, paddingHorizontal: 22, paddingVertical: 12,
   },
-  upsellBtnTxt: { fontSize: 13, fontFamily: Fonts.bold, color: '#3A2C0A' },
+  upsellBtnTxt: { fontSize: 13.5, fontFamily: Fonts.bold, color: Colors.accent },
 
-  // Grid
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  // Grid — column width is computed per-render from the real screen width
+  // (see `cardWidth` in ReceivedSection) so the columns sit flush against the
+  // container edges; CSS `gap` (not per-item margins) spaces the cards, since
+  // logical marginStart/End doesn't apply symmetrically under RTL.
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: GRID_GAP },
 
   // Locked placeholder cards
   lockedCard: {
-    width: '47%', backgroundColor: Colors.surface, borderRadius: Radius.xl,
+    backgroundColor: Colors.surface, borderRadius: Radius.xl,
     padding: 14, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: Colors.hair,
   },
   lockedAvatar: {
@@ -525,7 +554,7 @@ const styles = StyleSheet.create({
 
   // Real received cards
   receivedCard: {
-    width: '47%', backgroundColor: Colors.surface, borderRadius: Radius.xl,
+    backgroundColor: Colors.surface, borderRadius: Radius.xl,
     padding: 12, alignItems: 'center', gap: 6,
     borderWidth: 1.5, borderColor: Colors.hair, overflow: 'hidden',
   },

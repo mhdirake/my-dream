@@ -1,9 +1,9 @@
+import { AppBar } from '@/components/ui/AppBar';
 import { Colors, Fonts, Radius } from '@/constants/colors';
 import { ClientProfile, profileApi } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { router } from 'expo-router';
 import {
-  ArrowRight,
   ChevronLeft,
   Flag,
   Globe,
@@ -23,8 +23,6 @@ import {
   Text,
   TouchableOpacity,
   View,
-  type StyleProp,
-  type ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -123,7 +121,7 @@ function buildSections(profile: ClientProfile): Section[] {
       iconColor: Colors.warn,
       label: 'موقعیت مکانی',
       value: locationPreview,
-      onPress: () => router.push('/profile-setup/location' as any),
+      onPress: () => push('/profile-setup/location', { mode: 'edit' }),
     },
     {
       icon: MessageSquare,
@@ -162,14 +160,8 @@ export default function ProfileEditHub() {
     router.canGoBack() ? router.back() : router.replace('/(tabs)/me' as never);
 
   return (
-    <SafeAreaView style={styles.root} edges={['top']}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={goBack}>
-          <ArrowRight size={20} color={Colors.ink} strokeWidth={2.5} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>ویرایش پروفایل</Text>
-        <View style={{ width: 36 }} />
-      </View>
+    <SafeAreaView style={styles.root}>
+      <AppBar title="ویرایش پروفایل" back backFallback="/me" />
 
       {loading ? (
         <View style={styles.center}>
@@ -203,7 +195,6 @@ export default function ProfileEditHub() {
               </TouchableOpacity>
             ))}
           </View>
-          <View style={{ height: 60 }} />
         </ScrollView>
       )}
     </SafeAreaView>
@@ -213,28 +204,13 @@ export default function ProfileEditHub() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
 
-  header: {
-    height: 54,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.hair,
-    backgroundColor: Colors.surface,
-  },
-  backBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  headerTitle: { fontSize: 16, fontFamily: Fonts.extraBold, color: Colors.ink },
-
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
   emptyTxt: { fontSize: 14, color: Colors.muted, fontFamily: Fonts.regular },
 
-  content: { padding: 16 },
+  content: { padding: 16, flexGrow: 1 },
 
   card: {
+    flex: 1,
     backgroundColor: Colors.surface,
     borderRadius: Radius.lg,
     borderWidth: 1,
@@ -243,11 +219,13 @@ const styles = StyleSheet.create({
   },
 
   row: {
+    flex: 1,
+    minHeight: 58,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 12,
   },
   rowBorder: {
     borderBottomWidth: 1,

@@ -1726,16 +1726,10 @@ export default function ConversationScreen() {
               activeOpacity={0.85}
             >
               {responding ? (
-                <ActivityIndicator size="small" color="#fff" />
+                <ActivityIndicator size="small" color={Colors.accent} />
               ) : (
                 <>
-                  <LinearGradient
-                    colors={Colors.gradColors}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={StyleSheet.absoluteFill}
-                  />
-                  <Check size={16} color="#fff" strokeWidth={2.5} />
+                  <Check size={16} color={Colors.accent} strokeWidth={2.5} />
                   <Text style={styles.reqAcceptTxt}>تأیید</Text>
                 </>
               )}
@@ -1887,8 +1881,7 @@ export default function ConversationScreen() {
             </View>
           ) : voiceRecorder.isRecording ? (
             <TouchableOpacity style={[styles.sendBtn, styles.sendBtnActive]} onPress={handleMicPress} activeOpacity={0.8}>
-              <LinearGradient colors={Colors.gradColors as [string, string]} style={StyleSheet.absoluteFill} />
-              <Check size={18} color="#fff" strokeWidth={2.5} />
+              <Check size={18} color={Colors.accent} strokeWidth={2.5} />
             </TouchableOpacity>
           ) : voiceRecorder.recordedUri ? (
             <TouchableOpacity
@@ -1897,8 +1890,7 @@ export default function ConversationScreen() {
               disabled={sendingVoice}
               activeOpacity={0.8}
             >
-              <LinearGradient colors={Colors.gradColors as [string, string]} style={StyleSheet.absoluteFill} />
-              {sendingVoice ? <ActivityIndicator size="small" color="#fff" /> : <Send size={18} color="#fff" strokeWidth={2} />}
+              {sendingVoice ? <ActivityIndicator size="small" color={Colors.accent} /> : <Send size={18} color={Colors.accent} strokeWidth={2} />}
             </TouchableOpacity>
           ) : (
             <>
@@ -1912,16 +1904,13 @@ export default function ConversationScreen() {
                 activeOpacity={0.8}
               >
                 {uploadingImage ? (
-                  <ActivityIndicator size="small" color="#fff" />
+                  <ActivityIndicator size="small" color={Colors.accent} />
                 ) : (
                   <>
-                    {(!!text.trim() || !!pendingImage) && myId > 0 && (
-                      <LinearGradient colors={Colors.gradColors as [string, string]} style={StyleSheet.absoluteFill} />
-                    )}
                     {editingId
-                      ? <Pencil size={17} color={text.trim() ? '#fff' : Colors.muted} strokeWidth={2} />
+                      ? <Pencil size={17} color={text.trim() ? Colors.accent : Colors.muted} strokeWidth={2} />
                       : (text.trim() || pendingImage) && myId > 0
-                        ? <Send style={[styles.sendBtnIcon]} size={18} color="#fff" strokeWidth={2} />
+                        ? <Send style={[styles.sendBtnIcon]} size={18} color={Colors.accent} strokeWidth={2} />
                         : <Mic size={19} color={Colors.accent} strokeWidth={2} />
                     }
                   </>
@@ -2169,9 +2158,8 @@ export default function ConversationScreen() {
                     onPress={() => handleSendGift(selectedGift, giftNote)}
                     disabled={sendingGiftId != null}
                   >
-                    <LinearGradient colors={Colors.gradColors as [string, string]} style={StyleSheet.absoluteFill} />
                     {sendingGiftId === selectedGift.id ? (
-                      <ActivityIndicator size="small" color="#fff" />
+                      <ActivityIndicator size="small" color={Colors.accent} />
                     ) : (
                       <Text style={styles.giftConfirmTxt}>ارسال هدیه</Text>
                     )}
@@ -2507,10 +2495,11 @@ const styles = StyleSheet.create({
   },
   giftCancelTxt: { fontFamily: Fonts.bold, fontSize: 14, color: Colors.inkSoft },
   giftConfirmBtn: {
-    flex: 2, height: 48, borderRadius: Radius.pill, overflow: 'hidden',
+    flex: 2, height: 48, borderRadius: Radius.pill,
     alignItems: 'center', justifyContent: 'center',
+    backgroundColor: Colors.accentSoft, borderWidth: 1.5, borderColor: Colors.accent,
   },
-  giftConfirmTxt: { fontFamily: Fonts.bold, fontSize: 14, color: '#fff' },
+  giftConfirmTxt: { fontFamily: Fonts.bold, fontSize: 14, color: Colors.accent },
   daySepWrap: {
     alignItems: 'center',
     marginVertical: Spacing.md,
@@ -2770,9 +2759,9 @@ const styles = StyleSheet.create({
   reqAcceptBtn: {
     flex: 2, height: 40, borderRadius: Radius.pill,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    overflow: 'hidden',
+    borderWidth: 1.5, borderColor: Colors.accent, backgroundColor: Colors.accentSoft,
   },
-  reqAcceptTxt: { fontSize: 13, fontFamily: Fonts.bold, color: '#fff' },
+  reqAcceptTxt: { fontSize: 13, fontFamily: Fonts.bold, color: Colors.accent },
   lockedBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     marginHorizontal: 12, marginBottom: 8,
@@ -2832,13 +2821,16 @@ const styles = StyleSheet.create({
   composerAttachBtnActive: { backgroundColor: Colors.accentSoft },
   sendBtn: {
     width: 46, height: 46, borderRadius: 23,
-    overflow: 'hidden', alignItems: 'center', justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
     backgroundColor: Colors.ph2,
   },
   sendBtnIcon: {
     zIndex: 1
   },
-  sendBtnActive: { backgroundColor: 'transparent' },
+  sendBtnActive: {
+    backgroundColor: Colors.accentSoft,
+    borderWidth: 1.5, borderColor: Colors.accent,
+  },
   inputLocked: {
     flex: 1, height: 44, flexDirection: 'row', alignItems: 'center',
     justifyContent: 'center', gap: 8, paddingHorizontal: 16,

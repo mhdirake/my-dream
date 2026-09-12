@@ -8,11 +8,27 @@ import {
   Eye, MessageCircle, Shield, Sparkles, ThumbsUp, Zap,
 } from 'lucide-react-native';
 import {
-  ScrollView, StyleSheet, Text, View,
+  Platform, ScrollView, StyleSheet, Text, View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const toPersian = (n: number) => String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
+
+// "Silver" gets its own steel-grey identity — matches the redesign on the
+// plans list page; the old teal/aqua "trust" gradient read as a verified
+// badge color, not silver, and clashed with the plan's own name.
+const SILVER = '#A9B8CC';
+const SILVER_DEEP = '#7E8FA8';
+
+// Small twinkling accents scattered across the hero area — same recipe as
+// the gold detail page.
+const HERO_SPARKLE_POSITIONS = [
+  { top: 10, left: 40 },
+  { top: 28, right: 46 },
+  { top: 66, left: 66 },
+  { top: 18, right: 100 },
+  { top: 84, right: 56 },
+] as const;
 
 const LIMITS = [
   { label: 'کشف روزانه', basic: '۱۰', silver: '۴۰' },
@@ -35,18 +51,23 @@ export default function SilverDetailScreen() {
   const insets = useSafeAreaInsets();
   return (
     <SafeAreaView style={styles.root}>
-      <AppBar title="اشتراک نقره‌ای" back />
+      <AppBar title="اشتراک نقره‌ای" back backFallback="/subscription" />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Hero */}
         <View style={styles.hero}>
           <LinearGradient
-            colors={[Colors.trust, Colors.ok]}
+            colors={[SILVER, SILVER_DEEP]}
             style={StyleSheet.absoluteFill}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
           />
+          {Platform.OS === 'web' && HERO_SPARKLE_POSITIONS.map((pos, i) => (
+            <View key={i} style={[styles.heroSparkle, pos, { animationDelay: `${i * 0.4}s` } as any]} pointerEvents="none">
+              <Sparkles size={12 + (i % 2) * 4} color="#fff" strokeWidth={2} />
+            </View>
+          ))}
           <View style={styles.heroIcon}>
-            <Zap size={32} color={Colors.trust} strokeWidth={2} fill={Colors.trust} />
+            <Zap size={32} color="#fff" strokeWidth={2} fill="#fff" />
           </View>
           <Text style={styles.heroTitle}>نقره‌ای</Text>
           <Text style={styles.heroSub}>ایده‌آل برای کسایی که جدی دنبال آشنایی هستن</Text>
@@ -113,6 +134,24 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center', justifyContent: 'center', marginBottom: 12,
   },
+  // Web-only: `animationKeyframes` is a react-native-web style property with
+  // no native equivalent, so it's a no-op (dim/static) on native builds.
+  heroSparkle: {
+    position: 'absolute',
+    ...Platform.select({
+      web: {
+        animationKeyframes: {
+          '0%':   { opacity: 0, transform: [{ scale: 0.4 }, { rotate: '0deg' }] },
+          '50%':  { opacity: 0.55, transform: [{ scale: 1 }, { rotate: '30deg' }] },
+          '100%': { opacity: 0, transform: [{ scale: 0.4 }, { rotate: '60deg' }] },
+        },
+        animationDuration: '2.4s',
+        animationIterationCount: 'infinite',
+        animationTimingFunction: 'ease-in-out',
+      },
+      default: {},
+    }),
+  },
   heroTitle: { fontSize: 26, fontFamily: Fonts.extraBold, color: '#fff', marginBottom: 6 },
   heroSub: { fontSize: 13, fontFamily: Fonts.regular, color: 'rgba(255,255,255,0.85)', textAlign: 'center', lineHeight: 20 },
   heroBadge: {
@@ -134,13 +173,13 @@ const styles = StyleSheet.create({
   },
   tableHeaderLabel: { flex: 1 },
   tableHeaderBasic: { width: 60, textAlign: 'center', fontSize: 11, fontFamily: Fonts.bold, color: Colors.muted },
-  tableHeaderSilver: { width: 70, textAlign: 'center', fontSize: 11, fontFamily: Fonts.extraBold, color: Colors.trust },
+  tableHeaderSilver: { width: 70, textAlign: 'center', fontSize: 11, fontFamily: Fonts.extraBold, color: SILVER },
 
   tableRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 9 },
   tableRowBorder: { borderBottomWidth: 1, borderBottomColor: Colors.hair },
   tableRowLabel: { flex: 1, fontSize: 12, fontFamily: Fonts.regular, color: Colors.inkSoft },
   tableRowBasic: { width: 60, textAlign: 'center', fontSize: 12, fontFamily: Fonts.semiBold, color: Colors.muted },
-  tableRowSilver: { width: 70, textAlign: 'center', fontSize: 12, fontFamily: Fonts.extraBold, color: Colors.trust },
+  tableRowSilver: { width: 70, textAlign: 'center', fontSize: 12, fontFamily: Fonts.extraBold, color: SILVER },
 
   bottomBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,

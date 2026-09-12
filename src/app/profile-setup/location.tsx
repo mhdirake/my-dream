@@ -8,7 +8,8 @@ import { locationsApi, onboardingApi } from '@/lib/api/onboarding';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { profileSetupStore } from '@/lib/profileSetupStore';
 import { toast } from '@/lib/toast';
-import { router } from 'expo-router';
+import { useSafeBack } from '@/lib/useSafeBack';
+import { router, useLocalSearchParams } from 'expo-router';
 import { CheckCircle, Shield } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -16,6 +17,9 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 export default function LocationScreen() {
   const insets = useSafeAreaInsets();
+  const { mode } = useLocalSearchParams<{ mode?: string }>();
+  const isEdit = mode === 'edit';
+  const safeBack = useSafeBack('/profile-edit');
   const { session, logout } = useAuth();
   const [provinces, setProvinces] = useState<SelectOption[]>([]);
   const [cities, setCities] = useState<SelectOption[]>([]);
@@ -109,6 +113,10 @@ export default function LocationScreen() {
       };
 
       if (!requiredProfile.first_name || !requiredProfile.birth_date || !requiredProfile.gender) {
+        if (isEdit) {
+          toast.error('اطلاعات پایه کامل نیست.');
+          return;
+        }
         toast.error('اطلاعات پایه کامل نیست؛ لطفاً مرحله قبل را دوباره بررسی کن.');
         router.replace('/profile-setup/basic-info' as any);
         return;
@@ -127,6 +135,12 @@ export default function LocationScreen() {
         city_id: city!.id,
         city_name: city!.name,
       });
+
+      if (isEdit) {
+        toast.success('موقعیت مکانی ذخیره شد');
+        safeBack();
+        return;
+      }
       router.push('/profile-setup/photo' as any);
     } catch (e: any) {
       if (e instanceof ApiError && e.status === 401) { handleTokenExpired(); return; }
@@ -142,7 +156,7 @@ export default function LocationScreen() {
         visible={sessionExpired}
         onLogin={() => router.replace('/onboarding/login' as any)}
       />
-      <Stepper step={2} />
+      {!isEdit && <Stepper step={2} />}
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -174,7 +188,7 @@ export default function LocationScreen() {
           <View style={styles.noteRow}>
             <Shield size={14} color={Colors.trust} strokeWidth={2} />
             <Text style={styles.noteText}>
-              در Safe Mode فقط استان به دیگران نشون داده می‌شود
+              در حالت امن فقط استان به دیگران نشون داده می‌شود
             </Text>
           </View>
         </Card>
@@ -187,11 +201,11 @@ export default function LocationScreen() {
         <View style={styles.btnRow}>
           <Button
             variant="ghost"
-            onPress={() => router.back()}
+            onPress={() => (isEdit ? safeBack() : router.back())}
             full={false}
             style={styles.btnBack}
           >
-            قبلی
+            {isEdit ? 'لغو' : 'قبلی'}
           </Button>
           <Button
             variant="accent"
@@ -200,7 +214,7 @@ export default function LocationScreen() {
             full={false}
             style={styles.btnNext}
           >
-            {submitting ? 'در حال ذخیره…' : 'ادامه'}
+            {submitting ? 'در حال ذخیره…' : isEdit ? 'ذخیره' : 'ادامه'}
           </Button>
         </View>
       </View>

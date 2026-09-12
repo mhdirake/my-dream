@@ -50,8 +50,10 @@ export default function GiftDetailScreen() {
       <View style={styles.content}>
         {/* Glow + Emoji */}
         <View style={styles.glowWrap}>
-          <View style={styles.glow} />
-          <Text style={styles.emoji}>{params.emoji ?? '🎁'}</Text>
+          <View style={[styles.glow, { backgroundColor: meta.color }]} />
+          <View style={[styles.emojiDisc, { backgroundColor: meta.bg, borderColor: meta.color + '33' }]}>
+            <Text style={styles.emoji}>{params.emoji ?? '🎁'}</Text>
+          </View>
         </View>
 
         {/* Type badge */}
@@ -74,8 +76,13 @@ export default function GiftDetailScreen() {
 
         {/* Price card */}
         <View style={styles.priceCard}>
-          <Coins size={24} color={Colors.gold} strokeWidth={2} />
-          <Text style={styles.priceAmt}>{toPersian(coinPrice)} سکه</Text>
+          <View style={styles.priceIcon}>
+            <Coins size={20} color={Colors.gold} strokeWidth={2} />
+          </View>
+          <View>
+            <Text style={styles.priceLabel}>قیمت هدیه</Text>
+            <Text style={styles.priceAmt}>{toPersian(coinPrice)} سکه</Text>
+          </View>
         </View>
 
         <Text style={styles.note}>
@@ -94,17 +101,20 @@ export default function GiftDetailScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#0E0B1A' },
-  content: { flex: 1, alignItems: 'center', paddingHorizontal: Spacing.lg, paddingTop: 20 },
+  content: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.lg },
 
-  glowWrap: { alignItems: 'center', justifyContent: 'center', marginBottom: 20, marginTop: 10 },
+  glowWrap: { alignItems: 'center', justifyContent: 'center', marginBottom: 22 },
   glow: {
     position: 'absolute',
-    width: 140, height: 140, borderRadius: 70,
-    backgroundColor: Colors.gold,
-    opacity: 0.15,
-    transform: [{ scaleX: 1.4 }],
+    width: 168, height: 168, borderRadius: 84,
+    opacity: 0.16,
   },
-  emoji: { fontSize: 80, textAlign: 'center' },
+  emojiDisc: {
+    width: 128, height: 128, borderRadius: 64,
+    borderWidth: 1.5,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  emoji: { fontSize: 62, textAlign: 'center' },
 
   typeBadge: {
     paddingHorizontal: 14, paddingVertical: 5,
@@ -118,13 +128,19 @@ const styles = StyleSheet.create({
   limitedTxt: { fontSize: 12, fontFamily: Fonts.semiBold, color: Colors.accent },
 
   priceCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: Colors.gold + '20', borderRadius: Radius.xl,
-    paddingHorizontal: 32, paddingVertical: 16,
-    borderWidth: 1, borderColor: Colors.gold + '44',
-    marginBottom: 20, marginTop: 14,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: Colors.goldSoft, borderRadius: Radius.xl,
+    paddingHorizontal: 22, paddingVertical: 14,
+    borderWidth: 1.5, borderColor: Colors.gold,
+    marginBottom: 20, marginTop: 14, alignSelf: 'stretch',
   },
-  priceAmt: { fontSize: 22, fontFamily: Fonts.extraBold, color: Colors.gold },
+  priceIcon: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  priceLabel: { fontSize: 11, fontFamily: Fonts.regular, color: 'rgba(255,255,255,0.45)', marginBottom: 2 },
+  priceAmt: { fontSize: 18, fontFamily: Fonts.extraBold, color: Colors.gold },
 
   note: {
     fontSize: 12, fontFamily: Fonts.regular, color: 'rgba(255,255,255,0.4)',

@@ -52,6 +52,10 @@ export type UserProfile = {
   likes_count?: number;
 };
 
+// One signal that feeds `profile_quality_score` (0..100). `max` values are fixed
+// by the backend and sum to 100; rendered as the profile-score breakdown chart.
+export type QualityBreakdownItem = { key: string; earned: number; max: number };
+
 export type ClientProfile = {
   id: number;
   username: string;
@@ -87,7 +91,9 @@ export type ClientProfile = {
   voice_intro_duration_seconds?: number | null;
   prompt_answers?: { id: number; answer: string; prompt: { id: number; text: string; body?: string } }[];
   likes_count?: number;
+  profile_views_count?: number;
   profile_quality_score?: number;
+  quality_breakdown?: QualityBreakdownItem[];
   valid_reports_count?: number;
   is_restricted?: boolean;
   is_banned?: boolean;
@@ -98,7 +104,16 @@ export type ClientProfile = {
 
 export const profileApi = {
   getProfile: (token: string) =>
-    api.get<{ data: ClientProfile }>('/api/client/profile', token).then(r => r.data),
+    api
+      .get<{ data: ClientProfile; quality_breakdown?: QualityBreakdownItem[]; profile_views_count?: number }>(
+        '/api/client/profile',
+        token,
+      )
+      .then(r => ({
+        ...r.data,
+        quality_breakdown: r.quality_breakdown ?? r.data.quality_breakdown,
+        profile_views_count: r.profile_views_count ?? r.data.profile_views_count,
+      })),
 
   getUserProfile: (token: string, userId: number) =>
     api.get<{ data: UserProfile }>(`/api/client/users/${userId}/profile`, token).then(r => r.data),

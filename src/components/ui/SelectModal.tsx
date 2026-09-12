@@ -1,10 +1,10 @@
 import { Colors, Fonts, Radius } from '@/constants/colors';
-import { Check, ChevronDown, Search, X } from 'lucide-react-native';
+import { Sheet } from '@/components/ui/Sheet';
+import { Check, ChevronDown, Search } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import {
   FlatList,
   KeyboardAvoidingView,
-  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -12,7 +12,6 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 export type SelectOption = { id: number; name: string };
 
@@ -61,59 +60,56 @@ export function SelectModal({
         </Pressable>
       </View>
 
-      <Modal visible={open} animationType="slide" presentationStyle="pageSheet">
+      <Sheet
+        visible={open}
+        onClose={() => { setOpen(false); setQuery(''); }}
+        title={label}
+        scroll={false}
+        contentStyle={styles.content}
+      >
         <KeyboardAvoidingView
-          style={styles.sheet}
+          style={styles.kav}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          <SafeAreaView style={styles.sheet}>
-            <View style={styles.header}>
-              <Text style={styles.headerTitle}>{label}</Text>
-              <Pressable onPress={() => { setOpen(false); setQuery(''); }} hitSlop={12}>
-                <X size={20} color={Colors.ink} strokeWidth={2} />
-              </Pressable>
-            </View>
-
-            <View style={styles.searchWrap}>
-              <Search size={16} color={Colors.muted} strokeWidth={2} style={styles.searchIcon} />
-              <TextInput
-                style={styles.searchInput}
-                value={query}
-                onChangeText={setQuery}
-                placeholder="جستجو…"
-                placeholderTextColor={Colors.muted}
-                autoFocus
-              />
-            </View>
-
-            <FlatList
-              data={filtered}
-              keyExtractor={item => String(item.id)}
-              renderItem={({ item }) => (
-                <Pressable
-                  style={styles.item}
-                  onPress={() => {
-                    onSelect(item);
-                    setOpen(false);
-                    setQuery('');
-                  }}
-                >
-                  <Text style={[styles.itemText, value?.id === item.id && styles.itemActive]}>
-                    {item.name}
-                  </Text>
-                  {value?.id === item.id && (
-                    <Check size={16} color={Colors.accent} strokeWidth={2.5} />
-                  )}
-                </Pressable>
-              )}
-              ItemSeparatorComponent={() => <View style={styles.sep} />}
-              contentContainerStyle={{ paddingBottom: 40 }}
-              keyboardShouldPersistTaps="handled"
-              keyboardDismissMode="interactive"
+          <View style={styles.searchWrap}>
+            <Search size={16} color={Colors.muted} strokeWidth={2} style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              value={query}
+              onChangeText={setQuery}
+              placeholder="جستجو…"
+              placeholderTextColor={Colors.muted}
+              autoFocus
             />
-          </SafeAreaView>
+          </View>
+
+          <FlatList
+            data={filtered}
+            keyExtractor={item => String(item.id)}
+            renderItem={({ item }) => (
+              <Pressable
+                style={styles.item}
+                onPress={() => {
+                  onSelect(item);
+                  setOpen(false);
+                  setQuery('');
+                }}
+              >
+                <Text style={[styles.itemText, value?.id === item.id && styles.itemActive]}>
+                  {item.name}
+                </Text>
+                {value?.id === item.id && (
+                  <Check size={16} color={Colors.accent} strokeWidth={2.5} />
+                )}
+              </Pressable>
+            )}
+            ItemSeparatorComponent={() => <View style={styles.sep} />}
+            contentContainerStyle={styles.listContent}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+          />
         </KeyboardAvoidingView>
-      </Modal>
+      </Sheet>
     </>
   );
 }
@@ -135,17 +131,9 @@ const styles = StyleSheet.create({
   triggerDisabled: { opacity: 0.5 },
   triggerText: { fontSize: 14, fontFamily: Fonts.regular, color: Colors.ink, flex: 1 },
   placeholder: { color: Colors.muted },
-  sheet: { flex: 1, backgroundColor: Colors.bg },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.lineSoft,
-  },
-  headerTitle: { fontSize: 15, fontFamily: Fonts.bold, color: Colors.ink },
+  content: { padding: 0 },
+  kav: { flexShrink: 1 },
+  listContent: { paddingBottom: 24 },
   searchWrap: {
     flexDirection: 'row',
     alignItems: 'center',

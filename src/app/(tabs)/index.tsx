@@ -7,7 +7,6 @@ import { Colors, Fonts } from '@/constants/colors';
 import { DailySuggestionProfile, DailySuggestionsMeta, DiscoverProfile, MutualUser, SwipePoolMeta, discoverApi } from '@/lib/api/discover';
 import { MatchCelebrationModal } from '@/components/MatchCelebrationModal';
 import { isGroupMessageNotification, notificationsApi } from '@/lib/api/notifications';
-import { profileApi } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { profileCache } from '@/lib/cache/profileCache';
 import { formatPersianDate, formatPersianTime } from '@/lib/date/persian';
@@ -16,7 +15,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
 import {
-  Bell, Bot, Clock, Gift, Heart, MessageCircle,
+  Bell, Clock, Gift, Heart, MessageCircle,
   Search, ShieldCheck, Sparkles, User, X,
 } from 'lucide-react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -89,13 +88,7 @@ function LikeButton({ onPress, liked }: { onPress: () => void; liked: boolean })
       onPressOut={() => { scale.value = withSpring(1, { damping: 10, stiffness: 200 }); }}
     >
       <Animated.View style={[styles.actionLike, animStyle]}>
-        <LinearGradient
-          colors={Colors.gradColors}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
-        <Heart style={styles.actionLikeIcon} size={30} color="#fff" fill={liked ? '#fff' : 'none'} strokeWidth={liked ? 0 : 2} />
+        <Heart style={styles.actionLikeIcon} size={30} color={Colors.accent} fill={liked ? Colors.accent : 'none'} strokeWidth={liked ? 0 : 2} />
       </Animated.View>
     </Pressable>
   );
@@ -189,16 +182,11 @@ function SwipeCard({
           pointerEvents="none"
         />
       ) : (
-        <LinearGradient
-          colors={Colors.gradColors}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        >
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: Colors.accent }]}>
           <View style={styles.cardPhInitial}>
             <Text style={styles.cardPhInitialTxt}>{profile.first_name[0]}</Text>
           </View>
-        </LinearGradient>
+        </View>
       )}
 
       {checking && (
@@ -619,115 +607,16 @@ function DailyView({ profiles, loading, meta }: { profiles: DiscoverProfile[]; l
 }
 
 // ── AiView ───────────────────────────────────────────────────────────────────
-function AiView({ plan, profiles, loading }: { plan: string; profiles: DailySuggestionProfile[]; loading: boolean; token: string }) {
-  if (plan !== 'gold') {
-    return (
-      <View style={styles.listCenter}>
-        <Sparkles size={52} color={Colors.purple} strokeWidth={1.3} />
-        <Text style={styles.aiTitle}>دستیار مچ هوشمند</Text>
-        <Text style={styles.aiSub}>این قابلیت فقط برای کاربران طلایی فعال است</Text>
-        <TouchableOpacity
-          style={styles.goldBtn}
-          onPress={() => router.push('/subscription' as never)}
-        >
-          <LinearGradient
-            colors={Colors.gradColors}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.goldBtnInner}
-          >
-            <Text style={styles.goldBtnTxt}>ارتقا به طلایی</Text>
-          </LinearGradient>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  if (loading)
-    return (
-      <View style={styles.listCenter}>
-        <ActivityIndicator color={Colors.purple} />
-      </View>
-    );
-
-  const sorted = [...profiles].sort(
-    (a, b) => (b.compatibility_score ?? 0) - (a.compatibility_score ?? 0),
-  );
-
+// The whole smart-match assistant is still in development — show a plain
+// "coming soon" state for every user instead of gating it behind a gold
+// upgrade prompt (it isn't actually available to anyone yet).
+function AiView() {
   return (
-    <ScrollView contentContainerStyle={styles.dailyContent} showsVerticalScrollIndicator={false}>
-      <View style={[styles.aiChatBtn, styles.aiChatBtnDisabled]}>
-        <Bot size={17} color="#fff" strokeWidth={2} />
-        <Text style={styles.aiChatBtnTxt}>گفتگو با دستیار مچ</Text>
-        <View style={styles.aiChatBtnBadge}>
-          <Text style={styles.aiChatBtnBadgeTxt}>به زودی</Text>
-        </View>
-      </View>
-      <View style={styles.aiHeaderRow}>
-        <Sparkles size={16} color={Colors.purple} strokeWidth={2} />
-        <Text style={styles.aiHeaderTxt}>مچ‌های هوشمند امروز بر اساس امتیاز سازگاری</Text>
-      </View>
-      {sorted.map(p => {
-        const exp = p.compatibility?.explanation;
-        return (
-          <TouchableOpacity
-            key={p.id}
-            activeOpacity={0.85}
-            onPress={() => {
-              profileCache.set(p);
-              router.push(`/user/${p.id}` as never);
-            }}
-          >
-            <Card style={styles.dailyCard}>
-              <View style={styles.dailyRow}>
-                <View style={styles.dailyAvatar}>
-                  {p.profile_photo?.urls.medium ? (
-                    <Image
-                      source={{ uri: p.profile_photo.urls.medium }}
-                      style={[StyleSheet.absoluteFill, { borderRadius: 16 }]}
-                      contentFit="cover"
-                      transition={200}
-                    />
-                  ) : (
-                    <User size={36} color="rgba(150,140,170,0.6)" strokeWidth={1.3} />
-                  )}
-                </View>
-                <View style={styles.dailyInfo}>
-                  <View style={styles.dailyNameRow}>
-                    <Text style={styles.dailyName}>
-                      {p.first_name}، {calcAge(p.birth_date)}
-                    </Text>
-                    {p.compatibility_score != null && (
-                      <View style={styles.aiScorePill}>
-                        <Sparkles size={11} color={Colors.purple} strokeWidth={2} />
-                        <Text style={styles.aiScoreTxt}>{toPersianDigits(p.compatibility_score)}٪ سازگاری</Text>
-                      </View>
-                    )}
-                  </View>
-                  {p.city && <Text style={styles.dailyCity}>{p.city}</Text>}
-                  {exp != null && (
-                    <View style={styles.aiExpRow}>
-                      {(exp.shared_lifestyle_tags ?? 0) > 0 && (
-                        <Chip small tone="purple">{toPersianDigits(exp.shared_lifestyle_tags!)} سبک زندگی مشترک</Chip>
-                      )}
-                      {(exp.shared_languages ?? 0) > 0 && (
-                        <Chip small tone="trust">{toPersianDigits(exp.shared_languages!)} زبان مشترک</Chip>
-                      )}
-                    </View>
-                  )}
-                </View>
-              </View>
-            </Card>
-          </TouchableOpacity>
-        );
-      })}
-      {sorted.length === 0 && (
-        <View style={styles.listCenter}>
-          <Text style={styles.emptyTxtDark}>هنوز مچ هوشمندی برای امروز نیست</Text>
-        </View>
-      )}
-      <View style={{ height: 100 }} />
-    </ScrollView>
+    <View style={styles.listCenter}>
+      <Sparkles size={52} color={Colors.purple} strokeWidth={1.3} />
+      <Text style={styles.aiTitle}>دستیار مچ هوشمند</Text>
+      <Text style={styles.aiSub}>به زودی</Text>
+    </View>
   );
 }
 
@@ -792,7 +681,7 @@ function FloatingHeader({
               {m.id === 'ai' && (
                 <Sparkles
                   size={12}
-                  color={on ? Colors.onAccent : Colors.purple}
+                  color={on ? Colors.accent : Colors.purple}
                   strokeWidth={2}
                 />
               )}
@@ -814,7 +703,6 @@ export default function DiscoverScreen() {
   const [loading, setLoading] = useState(true);
   const [safeMode, setSafeMode] = useState(false);
   const [hasUnread, setHasUnread] = useState(false);
-  const [planSlug, setPlanSlug] = useState<string>('basic');
   const [daily, setDaily] = useState<DailySuggestionProfile[]>([]);
   const [dailyMeta, setDailyMeta] = useState<DailySuggestionsMeta | null>(null);
   const [dailyLoading, setDailyLoading] = useState(false);
@@ -864,13 +752,6 @@ export default function DiscoverScreen() {
     setProfiles(prev => prev.map(profile => profile.id === userId ? { ...profile, ...patch } : profile));
     setDaily(prev => prev.map(profile => profile.id === userId ? { ...profile, ...patch } : profile));
   }, []);
-
-  useEffect(() => {
-    if (!session?.accessToken) return;
-    profileApi.getProfile(session.accessToken)
-      .then(p => setPlanSlug(p.active_subscription?.plan?.slug ?? 'basic'))
-      .catch(() => {});
-  }, [session?.accessToken]);
 
   const fetchDaily = useCallback(() => {
     if (!session?.accessToken) return;
@@ -946,7 +827,7 @@ export default function DiscoverScreen() {
         />
         )}
         {mode === 'daily' && <DailyView profiles={daily} loading={dailyLoading} meta={dailyMeta} />}
-        {mode === 'ai' && <AiView plan={planSlug} profiles={daily} loading={dailyLoading} token={session?.accessToken ?? ''} />}
+        {mode === 'ai' && <AiView />}
       </View>
 
       <MatchCelebrationModal
@@ -1004,15 +885,15 @@ const styles = StyleSheet.create({
   modeBtn: {
     paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999,
     backgroundColor: 'rgba(36,33,42,0.06)',
+    borderWidth: 1.5, borderColor: 'transparent',
     flexDirection: 'row', alignItems: 'center', gap: 5,
   },
   modeBtnActive: {
-    backgroundColor: Colors.accent,
-    shadowColor: Colors.accent, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4, shadowRadius: 8, elevation: 5,
+    backgroundColor: Colors.accentSoft,
+    borderWidth: 1.5, borderColor: Colors.accent,
   },
   modeTxt: { fontFamily: Fonts.semiBold, fontSize: 13, color: Colors.muted },
-  modeTxtActive: { color: Colors.onAccent, fontFamily: Fonts.extraBold },
+  modeTxtActive: { color: Colors.accent, fontFamily: Fonts.extraBold },
 
   // ── Swipe layout ────────────────────────────────────────────────────────────
   swipeContainer: { flex: 1 },
@@ -1126,14 +1007,14 @@ const styles = StyleSheet.create({
     elevation: 6,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.8)',
   },
-  // Like — gradient, size 64 (handled by LikeButton)
+  // Like — soft accent, size 64 (handled by LikeButton)
   actionLike: {
     width: 64, height: 64, borderRadius: 32,
     alignItems: 'center', justifyContent: 'center',
-    overflow: 'hidden',
-    backgroundColor: Colors.accent,
+    backgroundColor: Colors.accentSoft,
+    borderWidth: 1.5, borderColor: Colors.accent,
     shadowColor: Colors.accent, shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5, shadowRadius: 16, elevation: 12,
+    shadowOpacity: 0.3, shadowRadius: 16, elevation: 12,
   },
 
   actionLikeIcon: {
@@ -1243,34 +1124,8 @@ const styles = StyleSheet.create({
     fontSize: 12.5, color: Colors.muted, fontFamily: Fonts.regular,
     textAlign: 'center', marginTop: 6, lineHeight: 20,
   },
-  goldBtn: { marginTop: 24, borderRadius: 999, overflow: 'hidden', alignSelf: 'stretch' },
   dailyMetaTxt: {
     fontSize: 12, fontFamily: Fonts.semiBold, color: Colors.muted,
     textAlign: 'center', marginBottom: 10,
   },
-  aiHeaderRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 6, marginBottom: 12,
-  },
-  aiHeaderTxt: { fontSize: 12.5, fontFamily: Fonts.semiBold, color: Colors.purple },
-  aiChatBtn: {
-    alignSelf: 'stretch', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
-    backgroundColor: Colors.purple, borderRadius: 999, paddingVertical: 12, marginBottom: 12,
-  },
-  aiChatBtnTxt: { fontSize: 13.5, fontFamily: Fonts.bold, color: '#fff' },
-  aiChatBtnDisabled: { opacity: 0.6 },
-  aiChatBtnBadge: {
-    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.22)',
-  },
-  aiChatBtnBadgeTxt: { fontSize: 10.5, fontFamily: Fonts.semiBold, color: '#fff' },
-  aiScorePill: {
-    flexDirection: 'row', alignItems: 'center', gap: 3,
-    backgroundColor: Colors.purple + '12',
-    borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3,
-  },
-  aiScoreTxt: { fontSize: 10.5, fontFamily: Fonts.bold, color: Colors.purple },
-  aiExpRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 },
-  goldBtnInner: { paddingVertical: 14, alignItems: 'center' },
-  goldBtnTxt: { fontSize: 15, fontFamily: Fonts.bold, color: '#fff' },
 });

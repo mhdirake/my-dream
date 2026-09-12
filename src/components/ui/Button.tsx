@@ -1,5 +1,4 @@
 import { Colors, Fonts } from '@/constants/colors';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet, Text, ViewStyle } from 'react-native';
 
 type Variant = 'accent' | 'primary' | 'outline' | 'ghost' | 'soft' | 'trust' | 'gold' | 'danger';
@@ -15,7 +14,7 @@ interface ButtonProps {
 }
 
 const variantStyles: Record<Variant, { bg: string; color: string; border?: string }> = {
-  accent:  { bg: Colors.accent,   color: Colors.onAccent },
+  accent:  { bg: Colors.accentSoft, color: Colors.accent, border: Colors.accent },
   primary: { bg: Colors.surface3, color: Colors.ink, border: Colors.lineSoft },
   outline: { bg: 'transparent',   color: Colors.ink, border: Colors.lineSoft },
   ghost:   { bg: 'rgba(255,255,255,0.04)', color: Colors.ink },
@@ -27,11 +26,10 @@ const variantStyles: Record<Variant, { bg: string; color: string; border?: strin
 
 export function Button({ children, variant = 'accent', full = true, small, onPress, style, disabled }: ButtonProps) {
   const v = variantStyles[variant];
-  const isAccent = variant === 'accent';
 
   const containerStyle = [
     styles.base,
-    !isAccent && { backgroundColor: v.bg, borderColor: v.border || 'transparent', borderWidth: v.border ? 1 : 0 },
+    { backgroundColor: v.bg, borderColor: v.border || 'transparent', borderWidth: v.border ? 1 : 0 },
     full && styles.full,
     small && styles.small,
     disabled && styles.disabled,
@@ -43,21 +41,6 @@ export function Button({ children, variant = 'accent', full = true, small, onPre
       {children}
     </Text>
   );
-
-  if (isAccent) {
-    return (
-      <Pressable onPress={onPress} disabled={disabled} style={({ pressed }) => [full && styles.full, style, pressed && styles.pressed, disabled && styles.disabled]}>
-        <LinearGradient
-          colors={Colors.gradColors}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={[styles.base, styles.full, small && styles.small]}
-        >
-          {label}
-        </LinearGradient>
-      </Pressable>
-    );
-  }
 
   return (
     <Pressable

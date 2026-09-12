@@ -1,18 +1,16 @@
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
+import { Sheet } from '@/components/ui/Sheet';
 import { profileApi, type BioTone } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { RefreshCw, Sparkles, X } from 'lucide-react-native';
+import { RefreshCw } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Modal,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 type Props = {
   visible: boolean;
@@ -68,69 +66,13 @@ export function BioHelperModal({ visible, currentBio, onSelect, onClose }: Props
   };
 
   return (
-    <Modal
+    <Sheet
       visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
-    >
-      <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Sparkles size={16} color={Colors.purple} strokeWidth={2} />
-            <Text style={styles.headerTxt}>پیشنهاد بیو با هوش مصنوعی</Text>
-          </View>
-          <TouchableOpacity style={styles.closeBtn} onPress={onClose} activeOpacity={0.7}>
-            <X size={18} color={Colors.muted} strokeWidth={2.5} />
-          </TouchableOpacity>
-        </View>
-
-        <Text style={styles.sub}>یکی از پیشنهادها رو انتخاب کن یا رفرش کن</Text>
-
-        <View style={styles.toneRow}>
-          {TONES.map(t => (
-            <TouchableOpacity
-              key={t.value}
-              style={[styles.toneChip, tone === t.value && styles.toneChipActive]}
-              onPress={() => handleTone(t.value)}
-              disabled={loading}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.toneTxt, tone === t.value && styles.toneTxtActive]}>{t.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          {loading ? (
-            <View style={styles.center}>
-              <ActivityIndicator color={Colors.purple} />
-              <Text style={styles.loadingTxt}>در حال ساخت پیشنهادها…</Text>
-            </View>
-          ) : suggestions.length === 0 ? (
-            <View style={styles.center}>
-              <Text style={styles.errorTxt}>پیشنهادی دریافت نشد. دوباره امتحان کن.</Text>
-            </View>
-          ) : (
-            suggestions.map((s, i) => (
-              <TouchableOpacity
-                key={i}
-                style={[styles.card, selected === s && styles.cardSelected]}
-                onPress={() => setSelected(s)}
-                activeOpacity={0.8}
-              >
-                <View style={styles.cardCheck}>
-                  {selected === s && <View style={styles.checkDot} />}
-                </View>
-                <Text style={[styles.cardTxt, selected === s && styles.cardTxtSelected]}>{s}</Text>
-              </TouchableOpacity>
-            ))
-          )}
-        </ScrollView>
-
-        {/* Footer */}
-        <View style={styles.footer}>
+      onClose={onClose}
+      title="پیشنهاد بیو با هوش مصنوعی"
+      contentStyle={styles.content}
+      footer={
+        <View style={styles.footerRow}>
           <TouchableOpacity style={styles.refreshBtn} onPress={() => fetch()} disabled={loading} activeOpacity={0.8}>
             <RefreshCw size={14} color={loading ? Colors.muted : Colors.inkSoft} strokeWidth={2} />
             <Text style={[styles.refreshTxt, loading && { color: Colors.muted }]}>رفرش</Text>
@@ -144,39 +86,64 @@ export function BioHelperModal({ visible, currentBio, onSelect, onClose }: Props
             <Text style={styles.useTxt}>استفاده از این بیو</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
-    </Modal>
+      }
+    >
+      <Text style={styles.sub}>یکی از پیشنهادها رو انتخاب کن یا رفرش کن</Text>
+
+      <View style={styles.toneRow}>
+        {TONES.map(t => (
+          <TouchableOpacity
+            key={t.value}
+            style={[styles.toneChip, tone === t.value && styles.toneChipActive]}
+            onPress={() => handleTone(t.value)}
+            disabled={loading}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.toneTxt, tone === t.value && styles.toneTxtActive]}>{t.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator color={Colors.purple} />
+          <Text style={styles.loadingTxt}>در حال ساخت پیشنهادها…</Text>
+        </View>
+      ) : suggestions.length === 0 ? (
+        <View style={styles.center}>
+          <Text style={styles.errorTxt}>پیشنهادی دریافت نشد. دوباره امتحان کن.</Text>
+        </View>
+      ) : (
+        suggestions.map((s, i) => (
+          <TouchableOpacity
+            key={i}
+            style={[styles.card, selected === s && styles.cardSelected]}
+            onPress={() => setSelected(s)}
+            activeOpacity={0.8}
+          >
+            <View style={styles.cardCheck}>
+              {selected === s && <View style={styles.checkDot} />}
+            </View>
+            <Text style={[styles.cardTxt, selected === s && styles.cardTxtSelected]}>{s}</Text>
+          </TouchableOpacity>
+        ))
+      )}
+    </Sheet>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: Colors.bg },
   center: { alignItems: 'center', justifyContent: 'center', paddingVertical: 48, gap: 12 },
-
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg, paddingVertical: 14,
-    borderBottomWidth: 1, borderBottomColor: Colors.hair,
-  },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  headerTxt: { fontSize: 16, fontFamily: Fonts.bold, color: Colors.ink },
-  closeBtn: {
-    width: 32, height: 32, borderRadius: 16,
-    backgroundColor: Colors.hair,
-    alignItems: 'center', justifyContent: 'center',
-  },
 
   sub: {
     fontSize: 12, fontFamily: Fonts.regular, color: Colors.muted,
-    paddingHorizontal: Spacing.lg, paddingTop: 12, paddingBottom: 4,
-    textAlign: 'right',
+    paddingBottom: 4, textAlign: 'right',
   },
 
-  content: { padding: Spacing.lg, gap: 10 },
+  content: { gap: 10 },
 
   toneRow: {
-    flexDirection: 'row', gap: 8,
-    paddingHorizontal: Spacing.lg, paddingTop: 10,
+    flexDirection: 'row', gap: 8, paddingTop: 4,
   },
   toneChip: {
     borderWidth: 1.5, borderColor: Colors.hair,
@@ -212,10 +179,8 @@ const styles = StyleSheet.create({
   loadingTxt: { fontSize: 13, fontFamily: Fonts.regular, color: Colors.muted },
   errorTxt: { fontSize: 13, fontFamily: Fonts.semiBold, color: Colors.inkSoft, textAlign: 'center' },
 
-  footer: {
+  footerRow: {
     flexDirection: 'row', gap: 10,
-    padding: Spacing.lg, borderTopWidth: 1, borderTopColor: Colors.hair,
-    backgroundColor: Colors.surface,
   },
   refreshBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 5,

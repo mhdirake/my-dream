@@ -1,8 +1,9 @@
 import { AppBar } from '@/components/ui/AppBar';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
+import { Colors, Fonts, Spacing } from '@/constants/colors';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { onboardingApi, type OnboardingStatus } from '@/lib/api/onboarding';
 import { profileApi, type ClientProfile } from '@/lib/api/profile';
@@ -21,6 +22,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Circle } from 'react-native-svg';
 
 const BASE = process.env.EXPO_PUBLIC_API_URL ?? '';
 
@@ -30,6 +32,38 @@ function absoluteUrl(path: string | null | undefined) {
 }
 
 const toPersian = (n: number) => String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
+
+/** Matches a verification/badge slug by its prefix (e.g. 'basic', 'ai', 'community', 'gold'). */
+const hasBadge = (p: ClientProfile | null, prefix: string) =>
+  !!p?.badges?.some(b => (b.slug ?? '').includes(prefix));
+
+function CompletionRing({ pct, color }: { pct: number; color: string }) {
+  const size = 58;
+  const stroke = 6;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const v = Math.max(0, Math.min(100, pct));
+  return (
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
+        <Circle cx={size / 2} cy={size / 2} r={r} stroke={Colors.lineSoft} strokeWidth={stroke} fill="none" />
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          stroke={color}
+          strokeWidth={stroke}
+          fill="none"
+          strokeDasharray={`${c}`}
+          strokeDashoffset={c * (1 - v / 100)}
+          strokeLinecap="round"
+          transform={`rotate(-90, ${size / 2}, ${size / 2})`}
+        />
+      </Svg>
+      <Text style={[styles.ringPct, { color }]}>{toPersian(Math.round(v))}٪</Text>
+    </View>
+  );
+}
 
 function calcAge(dateStr: string | null | undefined): number | null {
   if (!dateStr) return null;
@@ -74,7 +108,6 @@ export default function ProfilePreviewScreen() {
   const missing = status?.missing_completion_items ?? [];
   const photoUrl = absoluteUrl(profile?.profile_photo?.urls?.medium);
   const tags = profile?.lifestyle_tags ?? [];
-  const badges = profile?.badges ?? [];
   const goal = profile?.relationship_goal;
   const age = calcAge(user?.birth_date);
   const barColor = pct >= 80 ? Colors.ok : pct >= 50 ? Colors.gold : Colors.accent;
@@ -91,22 +124,21 @@ export default function ProfilePreviewScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
-      <AppBar title="پیش‌نمایش پروفایل" back right={EditButton} />
+      <AppBar title="پیش‌نمایش پروفایل" back backFallback="/me" right={EditButton} />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Completion card */}
         <Card soft style={styles.completionCard}>
           <View style={styles.completionRow}>
-            <View style={{ flex: 1 }}>
+            <CompletionRing pct={pct} color={barColor} />
+            <View style={styles.completionInfo}>
               <Text style={styles.completionLabel}>تکمیل پروفایل</Text>
-              <Text style={styles.completionPct}>{toPersian(pct)}٪</Text>
+              <Text style={styles.completionSub}>
+                {missing.length > 0
+                  ? `${toPersian(missing.length)} مورد برای تکمیل مونده`
+                  : 'پروفایلت کامله'}
+              </Text>
             </View>
-            <View style={[styles.pctCircle, { borderColor: barColor }]}>
-              <Text style={[styles.pctCircleText, { color: barColor }]}>{toPersian(pct)}</Text>
-            </View>
-          </View>
-          <View style={styles.progTrack}>
-            <View style={[styles.progFill, { width: `${pct}%` as any, backgroundColor: barColor }]} />
           </View>
         </Card>
 
@@ -127,14 +159,13 @@ export default function ProfilePreviewScreen() {
           </Text>
           {!!user?.city && <Text style={styles.city}>📍 {user.city}</Text>}
 
-          {/* Badges */}
-          {badges.length > 0 && (
+          {/* Verification badges */}
+          {(hasBadge(profile, 'basic') || hasBadge(profile, 'ai') || hasBadge(profile, 'community') || hasBadge(profile, 'gold')) && (
             <View style={styles.badgeRow}>
-              {badges.slice(0, 3).map((b, i) => (
-                <View key={i} style={styles.badge}>
-                  <Text style={styles.badgeText}>{b.label ?? b.title ?? ''}</Text>
-                </View>
-              ))}
+              {hasBadge(profile, 'basic') && <Badge kind="check" />}
+              {hasBadge(profile, 'ai') && <Badge kind="ai" />}
+              {hasBadge(profile, 'community') && <Badge kind="community" />}
+              {hasBadge(profile, 'gold') && <Badge kind="gold" />}
             </View>
           )}
         </View>
@@ -190,8 +221,8 @@ export default function ProfilePreviewScreen() {
       </ScrollView>
 
       <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
-        <Button variant="accent" onPress={() => router.replace('/(tabs)/' as any)}>
-          ورود به اپ
+        <Button variant="accent" onPress={() => router.replace('/(tabs)/me' as any)}>
+          رفتن به پروفایل
         </Button>
       </View>
     </SafeAreaView>
@@ -205,16 +236,11 @@ const styles = StyleSheet.create({
   editTxt: { fontSize: 12.5, fontFamily: Fonts.semiBold, color: Colors.accent },
   content: { padding: Spacing.lg },
   completionCard: { marginBottom: Spacing.lg },
-  completionRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  completionLabel: { fontSize: 11, color: Colors.muted, fontFamily: Fonts.regular, marginBottom: 4 },
-  completionPct: { fontSize: 22, fontFamily: Fonts.extraBold, color: Colors.ink },
-  pctCircle: {
-    width: 52, height: 52, borderRadius: 26, borderWidth: 3,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  pctCircleText: { fontSize: 14, fontFamily: Fonts.extraBold },
-  progTrack: { height: 8, borderRadius: 4, backgroundColor: 'rgba(36,33,42,0.08)' },
-  progFill: { height: 8, borderRadius: 4 },
+  completionRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  completionInfo: { flex: 1 },
+  completionLabel: { fontSize: 13.5, color: Colors.ink, fontFamily: Fonts.bold, marginBottom: 3 },
+  completionSub: { fontSize: 11.5, color: Colors.muted, fontFamily: Fonts.regular },
+  ringPct: { fontSize: 13, fontFamily: Fonts.extraBold },
   profileHead: { alignItems: 'center', marginBottom: Spacing.xl },
   photoWrap: {
     width: 90, height: 90, borderRadius: 45, overflow: 'hidden',
@@ -227,11 +253,6 @@ const styles = StyleSheet.create({
   name: { fontSize: 20, fontFamily: Fonts.extraBold, color: Colors.ink, marginBottom: 4 },
   city: { fontSize: 12, color: Colors.muted, fontFamily: Fonts.regular, marginBottom: 10 },
   badgeRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', justifyContent: 'center', marginTop: 4 },
-  badge: {
-    backgroundColor: Colors.accentSoft, paddingHorizontal: 10,
-    paddingVertical: 4, borderRadius: Radius.pill,
-  },
-  badgeText: { fontSize: 10.5, fontFamily: Fonts.semiBold, color: Colors.accent },
   section: { marginBottom: Spacing.lg },
   goalSection: { marginBottom: Spacing.lg },
   sectionLabel: { fontSize: 11, color: Colors.muted, fontFamily: Fonts.regular, marginBottom: 8 },

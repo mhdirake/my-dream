@@ -1,13 +1,13 @@
 import { AppBar } from '@/components/ui/AppBar';
 import { Button } from '@/components/ui/Button';
+import { DetailCard } from '@/components/ui/DetailCard';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { paymentsApi, type CoinPackage } from '@/lib/api/payments';
 import { payAndWait } from '@/lib/payments/payAndWait';
 import { toast } from '@/lib/toast';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { Coins } from 'lucide-react-native';
+import { Coins, Gift, Lightbulb, Sparkles, Star, VenetianMask } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View,
@@ -78,14 +78,12 @@ export default function BuyCoinsScreen() {
         <>
           <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
             {/* Header */}
-            <View style={styles.header}>
-              <View style={styles.coinWrap}>
-                <LinearGradient colors={[Colors.gold, Colors.goldDeep]} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
-                <Coins size={28} color="#fff" strokeWidth={2} />
-              </View>
-              <Text style={styles.headerTitle}>بسته سکه انتخاب کن</Text>
-              <Text style={styles.headerSub}>سکه‌ها برای ارسال هدیه، بج طلایی و AI Insight استفاده می‌شن</Text>
-            </View>
+            <DetailCard
+              style={styles.header}
+              icon={<Coins size={30} color={Colors.gold} strokeWidth={1.8} />}
+              title="بسته سکه انتخاب کن"
+              subtitle="سکه‌ها برای ارسال هدیه، بج طلایی و آنالیز هوش مصنوعی استفاده می‌شن"
+            />
 
             {/* Packages */}
             {packages.map(p => {
@@ -130,6 +128,18 @@ export default function BuyCoinsScreen() {
               </View>
             )}
 
+            {/* What coins are used for */}
+            <DetailCard
+              icon={<Lightbulb size={26} color={Colors.trust} strokeWidth={1.9} />}
+              title="چرا سکه بخرم؟"
+              items={[
+                { icon: <Gift size={14} color={Colors.accent} strokeWidth={2} />, text: 'ارسال هدیه به دوستات' },
+                { icon: <Star size={14} color={Colors.goldDeep} strokeWidth={2} />, text: 'اهدای بج طلایی' },
+                { icon: <Sparkles size={14} color={Colors.purple} strokeWidth={2} />, text: 'دریافت آنالیز هوش مصنوعی' },
+                { icon: <VenetianMask size={14} color={Colors.purple} strokeWidth={2} />, text: 'ارسال علاقه ناشناس' },
+              ]}
+            />
+
             <View style={{ height: 110 }} />
           </ScrollView>
 
@@ -150,13 +160,7 @@ const styles = StyleSheet.create({
   content: { padding: Spacing.lg, gap: 12 },
   emptyTxt: { fontSize: 13, color: Colors.muted, fontFamily: Fonts.regular, textAlign: 'center', paddingVertical: 20 },
 
-  header: { alignItems: 'center', marginBottom: 8 },
-  coinWrap: {
-    width: 60, height: 60, borderRadius: 30, overflow: 'hidden',
-    alignItems: 'center', justifyContent: 'center', marginBottom: 12,
-  },
-  headerTitle: { fontSize: 18, fontFamily: Fonts.extraBold, color: Colors.ink, marginBottom: 4 },
-  headerSub: { fontSize: 12, color: Colors.muted, fontFamily: Fonts.regular, textAlign: 'center' },
+  header: { marginBottom: 8 },
 
   pkgCard: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -186,6 +190,7 @@ const styles = StyleSheet.create({
   summaryLabel: { fontSize: 12.5, color: Colors.inkSoft, fontFamily: Fonts.regular },
   summaryVal: { fontSize: 12.5, fontFamily: Fonts.bold, color: Colors.ink },
   summaryPrice: { fontSize: 14, fontFamily: Fonts.extraBold, color: Colors.accent },
+
 
   bottomBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,

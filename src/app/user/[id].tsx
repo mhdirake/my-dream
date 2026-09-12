@@ -1,13 +1,19 @@
 import { GiftModal } from '@/components/GiftModal';
 import { MatchCelebrationModal } from '@/components/MatchCelebrationModal';
 import { TemplateMessageModal } from '@/components/TemplateMessageModal';
+import { Sheet } from '@/components/ui/Sheet';
+import { AppBar } from '@/components/ui/AppBar';
 import { Badge } from '@/components/ui/Badge';
+import { SimpleBadgeInfoModal } from '@/components/SimpleBadgeInfoModal';
+import { UserBadgeInfoModal } from '@/components/UserBadgeInfoModal';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
+import { hasBadge, TIERS, type Tier } from '@/constants/verificationTiers';
 import { blockApi, type BlockStatus } from '@/lib/api/block';
 import { chatApi, type Conversation } from '@/lib/api/chat';
 import { confirmSheet } from '@/lib/confirmSheet';
 import { discoverApi, type MutualUser } from '@/lib/api/discover';
 import { giftsApi, giftDisplayTitle, type SentGift } from '@/lib/api/gifts';
+import { paymentsApi } from '@/lib/api/payments';
 import { toast } from '@/lib/toast';
 import { toFaDigits } from '@/lib/localization';
 import { profileApi, type ClientProfile, type UserProfile } from '@/lib/api/profile';
@@ -15,14 +21,12 @@ import { profileCache } from '@/lib/cache/profileCache';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { Image } from 'expo-image';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
   AlertTriangle,
-  ArrowRight,
   Brain,
   Briefcase,
-  Eye,
+  Coins,
   Flag,
   Gift,
   GraduationCap,
@@ -35,19 +39,18 @@ import {
   MoreVertical,
   Pause,
   Play,
-  Share2,
   ShieldAlert,
   Sparkles,
   Star,
   Target,
   User,
   UserX,
+  VenetianMask,
   X,
 } from 'lucide-react-native';
-import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Animated,
   Modal,
   Platform,
   Pressable,
@@ -86,14 +89,25 @@ function calcAge(birth: string) {
   return Math.floor((Date.now() - new Date(birth).getTime()) / (1000 * 60 * 60 * 24 * 365.25));
 }
 
-function badgeKind(slug: string): 'ai' | 'community' | 'gold' | 'complete' | 'personality' | 'check' {
-  if (slug === 'ai_trusted' || slug === 'ai-trusted') return 'ai';
-  if (slug === 'community_verified' || slug === 'community-verified') return 'community';
-  if (slug === 'gold_badge' || slug === 'gold-badge') return 'gold';
-  if (slug === 'complete_profile' || slug === 'complete-profile') return 'complete';
-  if (slug === 'psychology_test_completed' || slug === 'psychology-test-completed') return 'personality';
-  return 'check';
+/**
+ * Classifies a badge slug for the "other badges" row (gold / complete-profile /
+ * personality-test — the three verification tiers are rendered separately from
+ * `TIERS` and excluded here). Returns `null` for anything unrecognized instead
+ * of falling back to `'check'`, which would render as an extra, non-clickable
+ * copy of the basic-verification pill.
+ */
+function badgeKind(slug: string): 'gold' | 'complete' | 'personality' | null {
+  if (slug.includes('gold')) return 'gold';
+  if (slug.includes('complete')) return 'complete';
+  if (slug.includes('psychology') || slug.includes('personality')) return 'personality';
+  return null;
 }
+
+const OTHER_BADGE_DESC: Record<'gold' | 'complete' | 'personality', string> = {
+  gold: 'این کاربر نشان طلایی گرفته — یعنی کاربرهای دیگه با سکه بهش این نشان رو هدیه دادن.',
+  complete: 'این کاربر پروفایلش رو صددرصد تکمیل کرده.',
+  personality: 'این کاربر تست شخصیت رو کامل کرده.',
+};
 
 function formatVoiceDuration(totalSeconds: number) {
   const safeSeconds = Number.isFinite(totalSeconds) ? Math.max(0, Math.floor(totalSeconds)) : 0;
@@ -228,11 +242,12 @@ function TraitBar({ label, value }: { label: string; value: number }) {
 // ── ProfileActionsSheet ───────────────────────────────────────────────────────
 
 function ProfileActionsSheet({
-  visible, firstName, isBlocked, onClose, onGift, onGoldBadge, onAnon, onInsight, onBlock, onReport, onShare,
+  visible, firstName, isBlocked, coins, onClose, onGift, onGoldBadge, onAnon, onInsight, onBlock, onReport,
 }: {
   visible: boolean;
   firstName: string;
   isBlocked: boolean;
+  coins: number | null;
   onClose: () => void;
   onGift: () => void;
   onGoldBadge: () => void;
@@ -240,58 +255,61 @@ function ProfileActionsSheet({
   onInsight: () => void;
   onBlock: () => void;
   onReport: () => void;
-  onShare: () => void;
 }) {
-  const slideY = useRef(new Animated.Value(500)).current;
-
-  useEffect(() => {
-    if (visible) {
-      Animated.spring(slideY, { toValue: 0, useNativeDriver: true, tension: 80, friction: 12 }).start();
-    } else {
-      Animated.timing(slideY, { toValue: 500, duration: 220, useNativeDriver: true }).start();
-    }
-  }, [visible, slideY]);
-
-  const rows: { icon: React.ReactNode; label: string; sub?: string; danger?: boolean; onPress: () => void }[] = [
-    { icon: <Share2 size={18} color={Colors.trust} strokeWidth={2} />, label: 'اشتراک‌گذاری پروفایل', onPress: onShare },
+  const rows: { icon: React.ReactNode; label: string; sub?: string; danger?: boolean; comingSoon?: boolean; onPress: () => void }[] = [
     { icon: <Gift size={18} color={Colors.goldDeep} strokeWidth={2} />, label: 'فرستادن هدیه', sub: 'با سکه', onPress: onGift },
     { icon: <Star size={18} color={Colors.goldDeep} strokeWidth={2} />, label: 'اهدای نشان طلایی', sub: 'با سکه', onPress: onGoldBadge },
-    { icon: <Eye size={18} color={Colors.purple} strokeWidth={2} />, label: 'علاقه ناشناس', onPress: onAnon },
-    { icon: <Sparkles size={18} color={Colors.purple} strokeWidth={2} />, label: `AI Insight ${firstName}`, sub: '۵۰ سکه', onPress: onInsight },
+    { icon: <VenetianMask size={18} color={Colors.purple} strokeWidth={2} />, label: 'علاقه ناشناس', onPress: onAnon },
+    {
+      icon: <Sparkles size={18} color={Colors.purple} strokeWidth={2} />,
+      label: `آنالیز هوش مصنوعی ${firstName}`,
+      sub: 'تحلیل شخصیتی و سازگاری',
+      comingSoon: true,
+      onPress: onInsight,
+    },
     { icon: <UserX size={18} color={Colors.danger} strokeWidth={2} />, label: isBlocked ? 'رفع مسدودیت' : 'مسدود کردن', danger: true, onPress: onBlock },
     { icon: <Flag size={18} color={Colors.danger} strokeWidth={2} />, label: 'گزارش', danger: true, onPress: onReport },
   ];
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
-      <View style={styles.sheetContainer}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <Animated.View style={[styles.sheet, { transform: [{ translateY: slideY }] }]}>
-        <View style={styles.sheetHandle} />
-        <Text style={styles.sheetTitle}>{firstName}</Text>
-        <Text style={styles.sheetSub}>عملیات پروفایل</Text>
-        <View style={styles.sheetRows}>
-          {rows.map((r, i) => (
-            <TouchableOpacity
-              key={r.label}
-              style={[styles.sheetRow, i === rows.length - 1 && { borderBottomWidth: 0 }]}
-              onPress={() => { onClose(); setTimeout(r.onPress, 240); }}
-              activeOpacity={0.7}
-            >
-              <View style={styles.sheetRowIcon}>{r.icon}</View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.sheetRowLabel, r.danger && { color: Colors.danger }]}>{r.label}</Text>
-                {r.sub && <Text style={styles.sheetRowSub}>{r.sub}</Text>}
-              </View>
-            </TouchableOpacity>
-          ))}
+    <Sheet visible={visible} onClose={onClose} contentStyle={styles.sheetContent}>
+      <View style={styles.sheetHeader}>
+        <View style={styles.sheetHeaderText}>
+          <Text style={styles.sheetHeaderTitle}>{firstName}</Text>
+          <Text style={styles.sheetHeaderSub}>عملیات پروفایل</Text>
         </View>
-        <TouchableOpacity style={styles.sheetCancel} onPress={onClose} activeOpacity={0.7}>
-          <Text style={styles.sheetCancelTxt}>انصراف</Text>
-        </TouchableOpacity>
-        </Animated.View>
+        <View style={styles.sheetCoinPill}>
+          <Coins size={13} color={Colors.goldDeep} strokeWidth={2} />
+          <Text style={styles.sheetCoinTxt}>{coins == null ? '—' : toFaDigits(coins)}</Text>
+        </View>
       </View>
-    </Modal>
+      <View style={styles.sheetRows}>
+        {rows.map((r, i) => (
+          <TouchableOpacity
+            key={r.label}
+            style={[styles.sheetRow, i === rows.length - 1 && { borderBottomWidth: 0 }]}
+            onPress={() => { if (r.comingSoon) return; onClose(); setTimeout(r.onPress, 240); }}
+            activeOpacity={r.comingSoon ? 1 : 0.7}
+          >
+            <View style={[styles.sheetRowIcon, r.comingSoon && { opacity: 0.5 }]}>{r.icon}</View>
+            <View style={{ flex: 1 }}>
+              <View style={styles.sheetRowLabelRow}>
+                <Text style={[styles.sheetRowLabel, r.danger && { color: Colors.danger }, r.comingSoon && { color: Colors.muted }]}>{r.label}</Text>
+                {r.comingSoon && (
+                  <View style={styles.comingSoonBadge}>
+                    <Text style={styles.comingSoonBadgeTxt}>به زودی</Text>
+                  </View>
+                )}
+              </View>
+              {r.sub && <Text style={styles.sheetRowSub}>{r.sub}</Text>}
+            </View>
+          </TouchableOpacity>
+        ))}
+      </View>
+      <TouchableOpacity style={styles.sheetCancel} onPress={onClose} activeOpacity={0.7}>
+        <Text style={styles.sheetCancelTxt}>انصراف</Text>
+      </TouchableOpacity>
+    </Sheet>
   );
 }
 
@@ -305,43 +323,26 @@ function AnonConfirmSheet({
   onClose: () => void;
   onConfirm: () => void;
 }) {
-  const insets = useSafeAreaInsets();
-  const slideY = useRef(new Animated.Value(500)).current;
-
-  useEffect(() => {
-    if (visible) {
-      Animated.spring(slideY, { toValue: 0, useNativeDriver: true, tension: 80, friction: 12 }).start();
-    } else {
-      Animated.timing(slideY, { toValue: 500, duration: 220, useNativeDriver: true }).start();
-    }
-  }, [visible, slideY]);
-
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
-      <View style={styles.sheetContainer}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <Animated.View style={[styles.sheet, { paddingBottom: 16 + insets.bottom, transform: [{ translateY: slideY }] }]}>
-          <View style={styles.sheetHandle} />
-          <View style={styles.anonIconWrap}>
-            <Eye size={22} color={Colors.purple} strokeWidth={2} />
-          </View>
-          <Text style={styles.sheetTitle}>علاقه ناشناس</Text>
-          <Text style={[styles.sheetSub, { marginBottom: 20 }]}>
-            علاقه ناشناس به {firstName} فرستاده می‌شه. هویتت فاش نمی‌شه.
-          </Text>
-          <TouchableOpacity
-            style={styles.anonConfirmBtn}
-            onPress={() => { onClose(); setTimeout(onConfirm, 240); }}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.anonConfirmTxt}>ارسال</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.sheetCancel} onPress={onClose} activeOpacity={0.7}>
-            <Text style={styles.sheetCancelTxt}>لغو</Text>
-          </TouchableOpacity>
-        </Animated.View>
+    <Sheet visible={visible} onClose={onClose} contentStyle={styles.sheetContent}>
+      <View style={styles.anonIconWrap}>
+        <VenetianMask size={22} color={Colors.purple} strokeWidth={2} />
       </View>
-    </Modal>
+      <Text style={styles.sheetTitle}>علاقه ناشناس</Text>
+      <Text style={[styles.sheetSub, { marginBottom: 20 }]}>
+        علاقه ناشناس به {firstName} فرستاده می‌شه. هویتت فاش نمی‌شه.
+      </Text>
+      <TouchableOpacity
+        style={styles.anonConfirmBtn}
+        onPress={() => { onClose(); setTimeout(onConfirm, 240); }}
+        activeOpacity={0.85}
+      >
+        <Text style={styles.anonConfirmTxt}>ارسال</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.sheetCancel} onPress={onClose} activeOpacity={0.7}>
+        <Text style={styles.sheetCancelTxt}>لغو</Text>
+      </TouchableOpacity>
+    </Sheet>
   );
 }
 
@@ -364,7 +365,7 @@ function GoldLockedCard() {
     <View style={styles.goldLockCard}>
       <Star size={16} color={Colors.goldDeep} fill={Colors.goldDeep} strokeWidth={0} />
       <Text style={styles.goldLockTxt}>
-        Personality · Trust score · پاسخ آشنایی · Red Flag check
+        شخصیت‌شناسی · امتیاز اعتماد · پاسخ آشنایی · تشخیص هشدار
       </Text>
       <TouchableOpacity onPress={() => router.push('/subscription' as never)} activeOpacity={0.8}>
         <Text style={styles.goldLockCta}>طلایی ←</Text>
@@ -530,9 +531,10 @@ export default function ProfileViewScreen() {
   const [existingConversation, setExistingConversation] = useState<Conversation | null>(null);
   const [avatarViewerOpen, setAvatarViewerOpen] = useState(false);
   const [liked, setLiked] = useState(false);
-  const [passed, setPassed] = useState(false);
-  const [reactionSubmitting, setReactionSubmitting] = useState<'like' | 'pass' | null>(null);
-  const ignorePassUntilRef = useRef(0);
+  const [reactionSubmitting, setReactionSubmitting] = useState<'like' | null>(null);
+  const [badgeTier, setBadgeTier] = useState<Tier | null>(null);
+  const [otherBadgeKind, setOtherBadgeKind] = useState<'gold' | 'complete' | 'personality' | null>(null);
+  const [coins, setCoins] = useState<number | null>(null);
 
   const goBack = () => {
     if (router.canGoBack()) router.back();
@@ -570,6 +572,7 @@ export default function ProfileViewScreen() {
     } finally {
       setLoading(false);
     }
+    paymentsApi.getWallet(session.accessToken).then(w => setCoins(w.coin_balance)).catch(() => {});
   }, [session, userId, cached]);
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
@@ -578,11 +581,7 @@ export default function ProfileViewScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.root}>
-        <View style={styles.loadingHeader}>
-          <TouchableOpacity style={styles.backBtnDark} onPress={goBack}>
-            <ArrowRight size={20} color={Colors.ink} strokeWidth={2.5} />
-          </TouchableOpacity>
-        </View>
+        <AppBar title="" back onBack={goBack} />
         <View style={styles.center}>
           <ActivityIndicator color={Colors.accent} size="large" />
         </View>
@@ -593,11 +592,7 @@ export default function ProfileViewScreen() {
   if (error || !profile) {
     return (
       <SafeAreaView style={styles.root}>
-        <View style={styles.loadingHeader}>
-          <TouchableOpacity style={styles.backBtnDark} onPress={goBack}>
-            <ArrowRight size={20} color={Colors.ink} strokeWidth={2.5} />
-          </TouchableOpacity>
-        </View>
+        <AppBar title="" back onBack={goBack} />
         <View style={styles.center}>
           <Text style={styles.emptyTxt}>پروفایل یافت نشد</Text>
           <Text style={[styles.emptyTxt, { fontSize: 12, color: Colors.muted }]}>
@@ -623,6 +618,10 @@ export default function ProfileViewScreen() {
   const plan = (myProfile?.active_subscription?.plan?.slug ?? 'basic').toLowerCase() as 'basic' | 'silver' | 'gold';
   const isAtLeastSilver = plan === 'silver' || plan === 'gold';
   const isGold = plan === 'gold';
+  // Badges already rendered from TIERS above (basic/AI/community) — the rest
+  // (gold, complete-profile, psychology test, ...) are shown as earned-only.
+  const tierPrefixes = TIERS.map(t => t.slug.split('_')[0]);
+  const otherBadges = profile.badges.filter(b => !tierPrefixes.some(p => (b.slug ?? '').includes(p)));
 
   const myDealbreakers = myProfile?.dealbreakers?.map(d => d.body) ?? [];
   const redFlags = myDealbreakers.filter(d =>
@@ -655,7 +654,6 @@ export default function ProfileViewScreen() {
   const handleLike = async () => {
     if (!session) return;
     if (reactionSubmitting) return;
-    ignorePassUntilRef.current = Date.now() + 1500;
     setReactionSubmitting('like');
     const previousLiked = liked;
     const previousCount = profile.likes_count ?? 0;
@@ -701,15 +699,6 @@ export default function ProfileViewScreen() {
     } finally {
       setReactionSubmitting(null);
     }
-  };
-  const handlePass = async () => {
-    if (!session) return;
-    if (Date.now() < ignorePassUntilRef.current) return;
-    if (reactionSubmitting) return;
-    setPassed(true);
-    setReactionSubmitting('pass');
-    await discoverApi.interact(session.accessToken, profile.id, 'pass').catch(() => {});
-    goBack();
   };
   const handleAnon = () => {
     if (!session || !profile) return;
@@ -772,9 +761,6 @@ export default function ProfileViewScreen() {
       params: { userId: String(profile.id), userName: profile.first_name },
     });
   };
-  const handleShare = () => {
-    confirmSheet.show('اشتراک‌گذاری', 'این قابلیت به زودی اضافه می‌شه.', [{ text: 'باشه' }]);
-  };
   const handleMessagePress = () => {
     if (!profile) return;
     if (existingConversation) {
@@ -818,25 +804,42 @@ export default function ProfileViewScreen() {
   return (
     <View style={styles.root}>
       <View style={styles.heroWrap}>
-        <SafeAreaView style={styles.profileHeader} edges={['top']}>
-          <TouchableOpacity style={styles.profileHeaderBtn} onPress={goBack}>
-            <ArrowRight size={20} color={Colors.ink} strokeWidth={2.5} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.profileHeaderBtn} onPress={() => setActionsOpen(true)}>
-            <MoreVertical size={20} color={Colors.ink} strokeWidth={2} />
-          </TouchableOpacity>
+        <SafeAreaView edges={['top']}>
+          <AppBar
+            title=""
+            back
+            onBack={goBack}
+            right={
+              <TouchableOpacity style={styles.profileHeaderBtn} onPress={() => setActionsOpen(true)} hitSlop={8}>
+                <MoreVertical size={20} color={Colors.ink} strokeWidth={2} />
+              </TouchableOpacity>
+            }
+          />
         </SafeAreaView>
 
         {/* ── Profile card ────────────────────────────────────────────────── */}
         <View style={styles.profileCard}>
           <View style={styles.profileInfoSide}>
-            {profile.badges.length > 0 && (
-              <View style={styles.badgeRow}>
-                {profile.badges.map(b => (
-                  <Badge key={b.id} kind={badgeKind(b.slug)} label="" />
-                ))}
-              </View>
-            )}
+            <View style={styles.badgeRow}>
+              {TIERS.map(tier => {
+                const earned = hasBadge(profile, tier.slug);
+                return (
+                  <Badge
+                    key={tier.slug}
+                    kind={tier.kind}
+                    label=""
+                    locked={!earned}
+                    onPress={earned ? () => setBadgeTier(tier) : undefined}
+                  />
+                );
+              })}
+              {otherBadges.map(b => {
+                const kind = badgeKind(b.slug ?? '');
+                return kind ? (
+                  <Badge key={b.id} kind={kind} label="" onPress={() => setOtherBadgeKind(kind)} />
+                ) : null;
+              })}
+            </View>
             <View style={styles.metaRow}>
               {(profile.city || profile.province) && (
                 <View style={styles.metaChip}>
@@ -950,7 +953,7 @@ export default function ProfileViewScreen() {
 
             {/* Locked rows */}
             <View style={styles.lockedList}>
-              <Text style={styles.infoBlockLabel}>قفل در Basic</Text>
+              <Text style={styles.infoBlockLabel}>قفل در پلن پایه</Text>
               {['تطابق سبک زندگی', 'سبک زندگی', 'تست شخصیت', 'پاسخ آشنایی', 'معرفی صوتی'].map(l => (
                 <LockedRow key={l} label={l} />
               ))}
@@ -1027,7 +1030,7 @@ export default function ProfileViewScreen() {
                     <Badge kind="gold" label="طلایی" />
                   </View>
                   <Text style={styles.compatSubTxt}>
-                    هدف، سبک زندگی و سبک ارتباطی{redFlags.length === 0 ? ' · بدون Red Flag' : ''}
+                    هدف، سبک زندگی و سبک ارتباطی{redFlags.length === 0 ? ' · بدون هشدار' : ''}
                   </Text>
                   <Text style={[styles.compatSubTxt, { color: Colors.purple, marginTop: 4 }]}>
                     جزئیات تطابق ←
@@ -1140,17 +1143,6 @@ export default function ProfileViewScreen() {
 
       {/* ── Action Bar ───────────────────────────────────────────────────── */}
       <View style={[styles.actions, { paddingBottom: insets.bottom + 8 }]}>
-        <TouchableOpacity
-          style={[styles.passBtn, passed && styles.passBtnActive]}
-          onPress={handlePass}
-          disabled={!!reactionSubmitting}
-          activeOpacity={0.82}
-        >
-          {reactionSubmitting === 'pass'
-            ? <ActivityIndicator size="small" color={passed ? '#fff' : Colors.danger} />
-            : <X size={19} color={passed ? '#fff' : Colors.danger} strokeWidth={2.5} />
-          }
-        </TouchableOpacity>
         <TouchableOpacity style={styles.giftBtn} onPress={() => setGiftOpen(true)}>
           <Gift size={18} color={Colors.goldDeep} strokeWidth={2} />
         </TouchableOpacity>
@@ -1161,21 +1153,15 @@ export default function ProfileViewScreen() {
           accessibilityRole="button"
           accessibilityLabel="ارسال علاقه ناشناس"
         >
-          <Eye size={18} color={Colors.purple} strokeWidth={2.2} />
+          <VenetianMask size={18} color={Colors.purple} strokeWidth={2.2} />
         </TouchableOpacity>
         <TouchableOpacity
-          style={styles.chatGradBtn}
+          style={styles.chatBtn}
           onPress={handleMessagePress}
           activeOpacity={0.85}
         >
-          <LinearGradient
-            colors={Colors.gradColors}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-            style={styles.chatGradInner}
-          >
-            <MessageCircle size={15} color="#fff" strokeWidth={2} />
-            <Text style={styles.chatGradTxt}>{existingConversation ? 'برو به چت' : 'پیام بفرست'}</Text>
-          </LinearGradient>
+          <MessageCircle size={15} color={Colors.accent} strokeWidth={2.2} />
+          <Text style={styles.chatBtnTxt}>{existingConversation ? 'برو به چت' : 'پیام بفرست'}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.likeBtn, reactionSubmitting === 'like' && styles.reactionBtnLoading]}
@@ -1184,8 +1170,8 @@ export default function ProfileViewScreen() {
           activeOpacity={0.82}
         >
           {reactionSubmitting === 'like'
-            ? <ActivityIndicator size="small" color="#fff" />
-            : <Heart size={22} color="#fff" fill={liked ? '#fff' : 'none'} strokeWidth={liked ? 0 : 2.3} />
+            ? <ActivityIndicator size="small" color={Colors.accent} />
+            : <Heart size={18} color={Colors.accent} fill={liked ? Colors.accent : 'none'} strokeWidth={liked ? 0 : 2} />
           }
         </TouchableOpacity>
       </View>
@@ -1210,6 +1196,7 @@ export default function ProfileViewScreen() {
         visible={actionsOpen}
         firstName={profile.first_name}
         isBlocked={blockStatus?.blocked_by_me ?? false}
+        coins={coins}
         onClose={() => setActionsOpen(false)}
         onGift={() => setGiftOpen(true)}
         onGoldBadge={() => router.push({ pathname: '/subscription/gold-badge', params: { userId: String(userId), userName: profile.first_name } } as never)}
@@ -1217,13 +1204,22 @@ export default function ProfileViewScreen() {
         onInsight={handleInsight}
         onBlock={handleBlock}
         onReport={handleReport}
-        onShare={handleShare}
       />
       <AnonConfirmSheet
         visible={anonConfirmOpen}
         firstName={profile.first_name}
         onClose={() => setAnonConfirmOpen(false)}
         onConfirm={confirmAnon}
+      />
+      <UserBadgeInfoModal
+        tier={badgeTier}
+        firstName={profile.first_name}
+        onClose={() => setBadgeTier(null)}
+      />
+      <SimpleBadgeInfoModal
+        kind={otherBadgeKind}
+        description={otherBadgeKind ? OTHER_BADGE_DESC[otherBadgeKind] : ''}
+        onClose={() => setOtherBadgeKind(null)}
       />
       <MatchCelebrationModal
         visible={!!matchInfo}
@@ -1270,15 +1266,6 @@ const styles = StyleSheet.create({
   // ── Banner + Profile card ────────────────────────────────────────────────
   heroWrap: { position: 'relative' },
   heroPh: { backgroundColor: Colors.purpleSoft, alignItems: 'center', justifyContent: 'center' },
-  profileHeader: {
-    minHeight: 54,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingBottom: 6,
-    backgroundColor: Colors.surface,
-  },
   profileHeaderBtn: {
     width: 36,
     height: 36,
@@ -1300,8 +1287,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 14,
     minHeight: 116,
+    marginTop: 10,
     paddingTop: 14, paddingBottom: 14, paddingHorizontal: 18,
-    borderBottomLeftRadius: 28, borderBottomRightRadius: 28,
+    borderRadius: 28,
   },
   profileInfoSide: { flex: 1, alignItems: 'flex-start', minWidth: 0 },
   profileIdentitySide: { width: 96, alignItems: 'center', gap: 6 },
@@ -1547,13 +1535,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(16,19,26,0.96)',
     borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Colors.lineSoft,
   },
-  passBtn: {
-    width: 42, height: 42, borderRadius: 21,
-    backgroundColor: Colors.dangerSoft, alignItems: 'center', justifyContent: 'center',
-  },
-  passBtnActive: {
-    backgroundColor: Colors.danger,
-  },
   giftBtn: {
     width: 42, height: 42, borderRadius: 21,
     backgroundColor: Colors.goldSoft, alignItems: 'center', justifyContent: 'center',
@@ -1562,35 +1543,38 @@ const styles = StyleSheet.create({
     width: 42, height: 42, borderRadius: 21,
     backgroundColor: Colors.purpleSoft, alignItems: 'center', justifyContent: 'center',
   },
-  chatGradBtn: {
-    flex: 1, height: 42, borderRadius: 21, overflow: 'hidden',
+  chatBtn: {
+    flex: 1, height: 42, borderRadius: 21,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
+    backgroundColor: Colors.accentSoft,
+    borderWidth: 1.5, borderColor: Colors.accent,
+    shadowColor: Colors.accent, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25, shadowRadius: 10, elevation: 3,
   },
-  chatGradInner: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
-  },
-  chatGradTxt: { fontSize: 12.5, fontFamily: Fonts.bold, color: '#fff' },
+  chatBtnTxt: { fontSize: 12.5, fontFamily: Fonts.bold, color: Colors.accent },
   likeBtn: {
-    width: 46, height: 46, borderRadius: 23,
-    backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center',
+    width: 42, height: 42, borderRadius: 21,
+    backgroundColor: Colors.accentSoft, alignItems: 'center', justifyContent: 'center',
   },
   reactionBtnLoading: { opacity: 0.82 },
 
   // ── Profile Actions Sheet ─────────────────────────────────────────────────
-  sheetContainer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.42)',
-  },
-  sheet: {
-    backgroundColor: Colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28,
-    paddingBottom: 36, paddingHorizontal: 16, paddingTop: 12,
-  },
-  sheetHandle: {
-    width: 40, height: 4, borderRadius: 2,
-    backgroundColor: Colors.line, alignSelf: 'center', marginBottom: 16,
-  },
+  sheetContent: { gap: 0, paddingTop: 4, paddingBottom: 24 },
   sheetTitle: { fontSize: 16, fontFamily: Fonts.extraBold, color: Colors.ink, textAlign: 'center' },
   sheetSub: { fontSize: 12, fontFamily: Fonts.regular, color: Colors.muted, textAlign: 'center', marginTop: 2, marginBottom: 14 },
+  sheetHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  sheetHeaderText: { flex: 1 },
+  sheetHeaderTitle: { fontSize: 16, fontFamily: Fonts.extraBold, color: Colors.ink, textAlign: 'right' },
+  sheetHeaderSub: { fontSize: 12, fontFamily: Fonts.regular, color: Colors.muted, textAlign: 'right', marginTop: 2 },
+  sheetCoinPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.pill,
+    backgroundColor: Colors.goldSoft,
+  },
+  sheetCoinTxt: { fontSize: 12, fontFamily: Fonts.bold, color: Colors.goldDeep },
   sheetRows: {
     backgroundColor: Colors.ph2, borderRadius: 16, overflow: 'hidden',
     borderWidth: 1, borderColor: Colors.lineSoft,
@@ -1604,8 +1588,14 @@ const styles = StyleSheet.create({
     width: 36, height: 36, borderRadius: 10,
     backgroundColor: Colors.surface, alignItems: 'center', justifyContent: 'center',
   },
+  sheetRowLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   sheetRowLabel: { fontSize: 14, fontFamily: Fonts.semiBold, color: Colors.ink },
   sheetRowSub: { fontSize: 11, fontFamily: Fonts.regular, color: Colors.muted, marginTop: 2 },
+  comingSoonBadge: {
+    paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8,
+    backgroundColor: Colors.hair,
+  },
+  comingSoonBadgeTxt: { fontSize: 10, fontFamily: Fonts.semiBold, color: Colors.muted },
   sheetCancel: {
     marginTop: 10, paddingVertical: 14,
     backgroundColor: Colors.ph2, borderRadius: 16,

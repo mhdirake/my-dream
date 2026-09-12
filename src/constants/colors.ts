@@ -92,3 +92,10 @@ export const Spacing = {
   xxl: 24,
   xxxl: 32,
 } as const;
+
+/**
+ * Width of the app frame on wide screens. Mirrors `#root { max-width }` in
+ * `src/app/+html.tsx` — keep the two in sync. Overlays that render outside
+ * `#root` (React Native `Modal`) should cap their content to this.
+ */
+export const AppMaxWidth = 600;

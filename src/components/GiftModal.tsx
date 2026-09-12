@@ -1,18 +1,16 @@
 import { Colors, Fonts } from '@/constants/colors';
+import { Sheet } from '@/components/ui/Sheet';
 import { BackendGift, discoverApi } from '@/lib/api/discover';
 import { giftDisplayTitle } from '@/lib/api/gifts';
 import { toast } from '@/lib/toast';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Modal,
-  Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Props = {
   visible: boolean;
@@ -31,7 +29,6 @@ const SLUG_EMOJI: Record<string, string> = {
 };
 
 export function GiftModal({ visible, userId, firstName, token, onClose }: Props) {
-  const insets = useSafeAreaInsets();
   const [gifts, setGifts] = useState<BackendGift[]>([]);
   const [selected, setSelected] = useState<number | null>(null);
   const [sending, setSending] = useState(false);
@@ -64,80 +61,64 @@ export function GiftModal({ visible, userId, firstName, token, onClose }: Props)
   const displayGifts = gifts.length > 0 ? gifts : [];
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
-      <Pressable style={styles.backdrop} onPress={handleClose} />
-      <View style={[styles.sheet, { paddingBottom: 40 + insets.bottom }]}>
-        <View style={styles.handle} />
-        <>
-            <Text style={styles.title}>ارسال هدیه به {firstName}</Text>
-            <Text style={styles.sub}>هر هدیه از موجودی سکه شما کسر می‌شود</Text>
+    <Sheet
+      visible={visible}
+      onClose={handleClose}
+      title={`ارسال هدیه به ${firstName}`}
+      contentStyle={styles.content}
+      footer={
+        <TouchableOpacity
+          style={[styles.sendBtn, (selected == null || sending) && styles.sendBtnDisabled]}
+          onPress={handleSend}
+          disabled={selected == null || sending}
+        >
+          {sending ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.sendTxt}>ارسال هدیه</Text>
+          )}
+        </TouchableOpacity>
+      }
+    >
+      <Text style={styles.sub}>هر هدیه از موجودی سکه شما کسر می‌شود</Text>
 
-            {displayGifts.length === 0 ? (
-              <View style={styles.loadingBox}>
-                <ActivityIndicator color={Colors.accent} />
-              </View>
-            ) : (
-              <View style={styles.grid}>
-                {displayGifts.map(g => {
-                  const emoji = SLUG_EMOJI[g.slug] ?? '🎁';
-                  return (
-                    <TouchableOpacity
-                      key={g.id}
-                      style={[styles.giftCard, selected === g.id && styles.giftCardSelected]}
-                      onPress={() => setSelected(g.id)}
-                      activeOpacity={0.75}
-                    >
-                      <Text style={styles.giftEmoji}>{emoji}</Text>
-                      <Text style={styles.giftLabel}>{giftDisplayTitle(g.title)}</Text>
-                      <View style={styles.coinRow}>
-                        <Text style={styles.coinIcon}>🪙</Text>
-                        <Text style={styles.coinTxt}>{g.coin_price}</Text>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            )}
-
-            <TouchableOpacity
-              style={[styles.sendBtn, (selected == null || sending) && styles.sendBtnDisabled]}
-              onPress={handleSend}
-              disabled={selected == null || sending}
-            >
-              {sending ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.sendTxt}>ارسال هدیه</Text>
-              )}
-            </TouchableOpacity>
-        </>
-      </View>
-    </Modal>
+      {displayGifts.length === 0 ? (
+        <View style={styles.loadingBox}>
+          <ActivityIndicator color={Colors.accent} />
+        </View>
+      ) : (
+        <View style={styles.grid}>
+          {displayGifts.map(g => {
+            const emoji = SLUG_EMOJI[g.slug] ?? '🎁';
+            return (
+              <TouchableOpacity
+                key={g.id}
+                style={[styles.giftCard, selected === g.id && styles.giftCardSelected]}
+                onPress={() => setSelected(g.id)}
+                activeOpacity={0.75}
+              >
+                <Text style={styles.giftEmoji}>{emoji}</Text>
+                <Text style={styles.giftLabel}>{giftDisplayTitle(g.title)}</Text>
+                <View style={styles.coinRow}>
+                  <Text style={styles.coinIcon}>🪙</Text>
+                  <Text style={styles.coinTxt}>{g.coin_price}</Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
+    </Sheet>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1, backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-  sheet: {
-    backgroundColor: Colors.bg,
-    borderTopLeftRadius: 28, borderTopRightRadius: 28,
-    padding: 24,
-    alignItems: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.12, shadowRadius: 16, elevation: 20,
-  },
-  handle: {
-    width: 40, height: 4, borderRadius: 2,
-    backgroundColor: Colors.lineSoft, marginBottom: 20,
-  },
-  title: { fontSize: 17, fontFamily: Fonts.extraBold, color: Colors.ink, marginBottom: 4 },
-  sub: { fontSize: 12, fontFamily: Fonts.regular, color: Colors.muted, marginBottom: 24 },
+  content: { alignItems: 'center' },
+  sub: { fontSize: 12, fontFamily: Fonts.regular, color: Colors.muted },
 
-  loadingBox: { height: 100, justifyContent: 'center', marginBottom: 24 },
+  loadingBox: { height: 100, justifyContent: 'center' },
 
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24, justifyContent: 'center' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'center' },
   giftCard: {
     width: 110, alignItems: 'center', paddingVertical: 14, paddingHorizontal: 8,
     borderRadius: 18, backgroundColor: Colors.surface,

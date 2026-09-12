@@ -42,7 +42,7 @@ export default function SettingsScreen() {
         {
           icon: Shield, iconColor: Colors.ok,
           label: 'حریم خصوصی و حالت امن',
-          sub: 'Safe Mode، کنترل پیام',
+          sub: 'حالت امن، کنترل پیام',
           route: '/settings/privacy',
         },
         {
@@ -93,7 +93,7 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
-      <AppBar title="تنظیمات" back />
+      <AppBar title="تنظیمات" back backFallback="/me" />
 
       <Modal visible={deleteConfirm} transparent animationType="fade" onRequestClose={() => setDeleteConfirm(false)}>
         <Pressable style={styles.overlay} onPress={() => setDeleteConfirm(false)}>

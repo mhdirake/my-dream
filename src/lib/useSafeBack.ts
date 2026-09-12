@@ -1,9 +1,8 @@
-import { router, useRootNavigationState } from 'expo-router';
+import { Href, router } from 'expo-router';
 
-export function useSafeBack(fallback: string = '/') {
-  const navState = useRootNavigationState();
+export function useSafeBack(fallback: Href = '/') {
   return () => {
-    if ((navState?.index ?? 0) > 0) router.back();
-    else router.replace(fallback as any);
+    if (router.canGoBack()) router.back();
+    else router.replace(fallback);
   };
 }

@@ -1,7 +1,9 @@
+import { AppBar } from '@/components/ui/AppBar';
 import { Button } from '@/components/ui/Button';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { api } from '@/lib/api/client';
+import { confirmSheet } from '@/lib/confirmSheet';
 import { toast } from '@/lib/toast';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -47,6 +49,23 @@ export default function PersonalityTestQuestionScreen() {
   const isLast = currentIdx === total - 1;
   const answeredAll = total > 0 && Object.keys(answers).length === total;
 
+  const exit = () => (router.canGoBack() ? router.back() : router.replace('/profile-setup/personality-test-intro' as any));
+
+  const handleExit = () => {
+    if (Object.keys(answers).length === 0) {
+      exit();
+      return;
+    }
+    confirmSheet.show(
+      'خروج از تست؟',
+      'پاسخ‌هایی که تا الان دادی ذخیره نمی‌شه.',
+      [
+        { text: 'خروج از تست', style: 'destructive', onPress: exit },
+        { text: 'ادامه‌ی تست', style: 'cancel' },
+      ]
+    );
+  };
+
   const handleSelect = (ans: 'A' | 'B') => {
     if (!question) return;
     setAnswers(prev => ({ ...prev, [question.id]: ans }));
@@ -80,6 +99,7 @@ export default function PersonalityTestQuestionScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.root}>
+        <AppBar title="تست شناخت شخصیت" back onBack={handleExit} backFallback="/me" />
         <View style={styles.center}>
           <ActivityIndicator color={Colors.purple} />
         </View>
@@ -94,70 +114,65 @@ export default function PersonalityTestQuestionScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
-      <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <View style={styles.badgeWrap}>
-            <Text style={styles.badgeText}>تست شناخت شخصیت</Text>
-          </View>
-          <Text style={styles.stepText}>{toPersian(currentIdx + 1)} از {toPersian(total)}</Text>
-        </View>
-        <View style={styles.progressTrack}>
-          <View style={[styles.progressFill, { width: `${progress * 100}%` as any }]} />
-        </View>
-      </View>
+      <AppBar title="تست شناخت شخصیت" back onBack={handleExit} backFallback="/me" />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        <Text style={styles.questionNum}>سوال {toPersian(currentIdx + 1)}</Text>
-        <Text style={styles.question}>{question.question}</Text>
-
-        <Pressable
-          style={[styles.option, currentAnswer === 'A' && styles.optionSelected]}
-          onPress={() => handleSelect('A')}
-        >
-          <View style={[styles.optionCircle, currentAnswer === 'A' && styles.optionCircleSelected]}>
-            {currentAnswer === 'A' && <View style={styles.optionDot} />}
+        <View style={styles.progress}>
+          <View style={styles.progressHead}>
+            <Text style={styles.progressStep}>سوال {toPersian(currentIdx + 1)} از {toPersian(total)}</Text>
+            <Text style={styles.progressPct}>{toPersian(Math.round(progress * 100))}٪</Text>
           </View>
-          <Text style={[styles.optionLabel, currentAnswer === 'A' && styles.optionLabelSelected]}>
-            {question.option_a}
-          </Text>
-        </Pressable>
-
-        <Pressable
-          style={[styles.option, currentAnswer === 'B' && styles.optionSelected]}
-          onPress={() => handleSelect('B')}
-        >
-          <View style={[styles.optionCircle, currentAnswer === 'B' && styles.optionCircleSelected]}>
-            {currentAnswer === 'B' && <View style={styles.optionDot} />}
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressFill, { width: `${progress * 100}%` as any }]} />
           </View>
-          <Text style={[styles.optionLabel, currentAnswer === 'B' && styles.optionLabelSelected]}>
-            {question.option_b}
-          </Text>
-        </Pressable>
+        </View>
 
-        <View style={{ height: 110 }} />
+        <View style={styles.card}>
+          <Text style={styles.question}>{question.question}</Text>
+
+          <Pressable
+            style={[styles.option, currentAnswer === 'A' && styles.optionSelected]}
+            onPress={() => handleSelect('A')}
+          >
+            <View style={[styles.optionCircle, currentAnswer === 'A' && styles.optionCircleSelected]}>
+              {currentAnswer === 'A' && <View style={styles.optionDot} />}
+            </View>
+            <Text style={[styles.optionLabel, currentAnswer === 'A' && styles.optionLabelSelected]}>
+              {question.option_a}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={[styles.option, currentAnswer === 'B' && styles.optionSelected]}
+            onPress={() => handleSelect('B')}
+          >
+            <View style={[styles.optionCircle, currentAnswer === 'B' && styles.optionCircleSelected]}>
+              {currentAnswer === 'B' && <View style={styles.optionDot} />}
+            </View>
+            <Text style={[styles.optionLabel, currentAnswer === 'B' && styles.optionLabelSelected]}>
+              {question.option_b}
+            </Text>
+          </Pressable>
+
+          <Text style={styles.cardHint}>جوابی که اول به ذهنت می‌رسه رو انتخاب کن — درست و غلط نداره</Text>
+        </View>
       </ScrollView>
 
       <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
-        <View style={styles.btnRow}>
-          <Button
-            variant="ghost"
-            onPress={() => setCurrentIdx(i => i - 1)}
-            disabled={currentIdx === 0}
-            full={false}
-            style={styles.btnBack}
-          >
-            قبلی
-          </Button>
-          <Button
-            variant="accent"
-            onPress={handleNext}
-            disabled={!canGoNext || submitting}
-            full={false}
-            style={styles.btnNext}
-          >
-            {submitting ? 'در حال ارسال…' : isLast ? 'ارسال تست' : 'سؤال بعدی'}
-          </Button>
-        </View>
+        <Button
+          variant="accent"
+          onPress={handleNext}
+          disabled={!canGoNext || submitting}
+        >
+          {submitting ? 'در حال ارسال…' : isLast ? 'ارسال تست' : 'سؤال بعدی'}
+        </Button>
+        <Button
+          variant="ghost"
+          onPress={() => setCurrentIdx(i => i - 1)}
+          disabled={currentIdx === 0}
+        >
+          قبلی
+        </Button>
       </View>
     </SafeAreaView>
   );
@@ -166,33 +181,41 @@ export default function PersonalityTestQuestionScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  header: {
-    paddingHorizontal: Spacing.lg, paddingTop: 6, paddingBottom: 12,
-    backgroundColor: Colors.surface,
+
+  progress: { gap: 8 },
+  progressHead: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
   },
-  headerTop: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'center', marginBottom: 8,
+  progressStep: { fontSize: 12, fontFamily: Fonts.semiBold, color: Colors.ink },
+  progressPct: { fontSize: 11, fontFamily: Fonts.bold, color: Colors.purple },
+  progressTrack: {
+    height: 6, borderRadius: Radius.pill,
+    backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden',
   },
-  badgeWrap: {
-    backgroundColor: Colors.purpleSoft, paddingHorizontal: 10,
-    paddingVertical: 4, borderRadius: Radius.pill,
+  progressFill: { height: 6, borderRadius: Radius.pill, backgroundColor: Colors.purple },
+
+  content: {
+    padding: Spacing.lg, paddingBottom: 150,
+    flexGrow: 1, justifyContent: 'center', gap: 16,
   },
-  badgeText: { fontSize: 10.5, fontFamily: Fonts.extraBold, color: Colors.purple },
-  stepText: { fontSize: 11, color: Colors.muted, fontFamily: Fonts.regular },
-  progressTrack: { height: 5, borderRadius: Radius.pill, backgroundColor: 'rgba(36,33,42,0.08)' },
-  progressFill: { height: 5, borderRadius: Radius.pill, backgroundColor: Colors.purple },
-  content: { padding: Spacing.lg, paddingTop: 24 },
-  questionNum: { fontSize: 11, color: Colors.muted, fontFamily: Fonts.regular, marginBottom: 8 },
+  card: {
+    backgroundColor: Colors.surface, borderRadius: Radius.xl,
+    borderWidth: 1, borderColor: Colors.hair,
+    padding: Spacing.xl, gap: 12,
+  },
   question: {
-    fontSize: 17, fontFamily: Fonts.bold, color: Colors.ink,
-    lineHeight: 28, marginBottom: 24, letterSpacing: -0.2,
+    fontSize: 18, fontFamily: Fonts.bold, color: Colors.ink,
+    lineHeight: 29, letterSpacing: -0.2, textAlign: 'right',
   },
   option: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
-    backgroundColor: Colors.surface, borderRadius: Radius.lg,
+    backgroundColor: Colors.surface2, borderRadius: Radius.lg,
     borderWidth: 1.5, borderColor: Colors.lineSoft,
-    padding: Spacing.lg, marginBottom: 12,
+    padding: Spacing.lg,
+  },
+  cardHint: {
+    fontSize: 11, fontFamily: Fonts.regular, color: Colors.muted,
+    textAlign: 'center', marginTop: 2, lineHeight: 17,
   },
   optionSelected: { borderColor: Colors.purple, backgroundColor: Colors.purpleSoft },
   optionCircle: {
@@ -208,12 +231,11 @@ const styles = StyleSheet.create({
     color: Colors.ink, lineHeight: 22,
   },
   optionLabelSelected: { fontFamily: Fonts.semiBold, color: Colors.purple },
+
   bottomBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    padding: Spacing.lg, borderTopWidth: 1, borderTopColor: Colors.lineSoft,
+    padding: Spacing.lg, gap: 8,
+    borderTopWidth: 1, borderTopColor: Colors.lineSoft,
     backgroundColor: Colors.surface,
   },
-  btnRow: { flexDirection: 'row', gap: 8 },
-  btnBack: { flex: 1 },
-  btnNext: { flex: 2 },
 });

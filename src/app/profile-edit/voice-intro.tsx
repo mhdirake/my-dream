@@ -84,7 +84,7 @@ export default function VoiceIntroScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <AppBar title="معرفی صوتی" back />
+      <AppBar title="معرفی صوتی" back backFallback="/profile-edit" />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.hint}>
           یک معرفی صوتی کوتاه (بین ۳۰ تا ۶۰ ثانیه) ضبط کن تا کاربران دیگر صدات رو بشنون.
@@ -115,7 +115,6 @@ export default function VoiceIntroScreen() {
           )}
         </View>
 
-        <View style={{ height: 100 }} />
       </ScrollView>
 
       {recorder.recordedUri && !recorder.isRecording && (
@@ -133,7 +132,7 @@ export default function VoiceIntroScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
-  content: { padding: Spacing.lg, paddingBottom: 140 },
+  content: { padding: Spacing.lg, paddingBottom: 140, flexGrow: 1, justifyContent: 'center' },
   hint: {
     fontSize: 13, fontFamily: Fonts.regular, color: Colors.inkSoft,
     textAlign: 'center', lineHeight: 21, marginBottom: Spacing.xxl,

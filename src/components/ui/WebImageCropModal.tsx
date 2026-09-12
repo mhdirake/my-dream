@@ -1,9 +1,9 @@
 import { Button } from '@/components/ui/Button';
-import { Colors, Fonts, Spacing } from '@/constants/colors';
+import { Sheet } from '@/components/ui/Sheet';
+import { Colors, Fonts } from '@/constants/colors';
 import { Image } from 'expo-image';
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -138,91 +138,73 @@ export function WebImageCropModal({ visible, uri, onCancel, onComplete }: Props)
   if (Platform.OS !== 'web') return null;
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
-      <View style={styles.backdrop}>
-        <View style={styles.sheet}>
-          <Text style={styles.title}>تنظیم کادر عکس</Text>
-          <View style={styles.cropFrame}>
-            {uri ? (
-              <Image
-                source={{ uri }}
-                style={[
-                  styles.previewImage,
-                  {
-                    width: renderedSize.width,
-                    height: renderedSize.height,
-                    transform: [{ translateX: offset.x }, { translateY: offset.y }],
-                  },
-                ]}
-                contentFit="cover"
-              />
-            ) : null}
-          </View>
-          <View style={styles.zoomRow}>
-            <Pressable style={styles.zoomButton} onPress={() => adjustZoom(-0.1)}>
-              <Text style={styles.zoomText}>-</Text>
-            </Pressable>
-            <Text style={styles.zoomLabel}>{Math.round(zoom * 100)}%</Text>
-            <Pressable style={styles.zoomButton} onPress={() => adjustZoom(0.1)}>
-              <Text style={styles.zoomText}>+</Text>
-            </Pressable>
-          </View>
-          <View style={styles.moveGrid}>
-            <View style={styles.moveRow}>
-              <Pressable style={styles.moveButton} onPress={() => adjustOffset(0, 16)}>
-                <Text style={styles.moveText}>↑</Text>
-              </Pressable>
-            </View>
-            <View style={styles.moveRow}>
-              <Pressable style={styles.moveButton} onPress={() => adjustOffset(16, 0)}>
-                <Text style={styles.moveText}>←</Text>
-              </Pressable>
-              <Pressable style={styles.moveButton} onPress={() => adjustOffset(-16, 0)}>
-                <Text style={styles.moveText}>→</Text>
-              </Pressable>
-            </View>
-            <View style={styles.moveRow}>
-              <Pressable style={styles.moveButton} onPress={() => adjustOffset(0, -16)}>
-                <Text style={styles.moveText}>↓</Text>
-              </Pressable>
-            </View>
-          </View>
-          <View style={styles.actions}>
-            <Button variant="ghost" full={false} style={styles.actionButton} onPress={onCancel}>
-              لغو
-            </Button>
-            <Button variant="accent" full={false} style={styles.actionButton} onPress={handleComplete} disabled={saving}>
-              {saving ? 'در حال آماده‌سازی...' : 'تایید کادر'}
-            </Button>
-          </View>
+    <Sheet
+      visible={visible}
+      onClose={onCancel}
+      title="تنظیم کادر عکس"
+      contentStyle={styles.content}
+      footer={
+        <View style={styles.actions}>
+          <Button variant="ghost" full={false} style={styles.actionButton} onPress={onCancel}>
+            لغو
+          </Button>
+          <Button variant="accent" full={false} style={styles.actionButton} onPress={handleComplete} disabled={saving}>
+            {saving ? 'در حال آماده‌سازی...' : 'تایید کادر'}
+          </Button>
+        </View>
+      }
+    >
+      <View style={styles.cropFrame}>
+        {uri ? (
+          <Image
+            source={{ uri }}
+            style={[
+              styles.previewImage,
+              {
+                width: renderedSize.width,
+                height: renderedSize.height,
+                transform: [{ translateX: offset.x }, { translateY: offset.y }],
+              },
+            ]}
+            contentFit="cover"
+          />
+        ) : null}
+      </View>
+      <View style={styles.zoomRow}>
+        <Pressable style={styles.zoomButton} onPress={() => adjustZoom(-0.1)}>
+          <Text style={styles.zoomText}>-</Text>
+        </Pressable>
+        <Text style={styles.zoomLabel}>{Math.round(zoom * 100)}%</Text>
+        <Pressable style={styles.zoomButton} onPress={() => adjustZoom(0.1)}>
+          <Text style={styles.zoomText}>+</Text>
+        </Pressable>
+      </View>
+      <View style={styles.moveGrid}>
+        <View style={styles.moveRow}>
+          <Pressable style={styles.moveButton} onPress={() => adjustOffset(0, 16)}>
+            <Text style={styles.moveText}>↑</Text>
+          </Pressable>
+        </View>
+        <View style={styles.moveRow}>
+          <Pressable style={styles.moveButton} onPress={() => adjustOffset(16, 0)}>
+            <Text style={styles.moveText}>←</Text>
+          </Pressable>
+          <Pressable style={styles.moveButton} onPress={() => adjustOffset(-16, 0)}>
+            <Text style={styles.moveText}>→</Text>
+          </Pressable>
+        </View>
+        <View style={styles.moveRow}>
+          <Pressable style={styles.moveButton} onPress={() => adjustOffset(0, -16)}>
+            <Text style={styles.moveText}>↓</Text>
+          </Pressable>
         </View>
       </View>
-    </Modal>
+    </Sheet>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.72)',
-    padding: Spacing.lg,
-  },
-  sheet: {
-    width: '100%',
-    maxWidth: 380,
-    alignItems: 'center',
-    borderRadius: 18,
-    backgroundColor: Colors.surface,
-    padding: Spacing.lg,
-  },
-  title: {
-    color: Colors.ink,
-    fontFamily: Fonts.bold,
-    fontSize: 16,
-    marginBottom: 14,
-  },
+  content: { alignItems: 'center' },
   cropFrame: {
     width: CROP_SIZE,
     height: CROP_SIZE,

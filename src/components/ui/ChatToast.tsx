@@ -1,7 +1,6 @@
 import { Avatar } from '@/components/ui/Avatar';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { Conversation, ConversationUser } from '@/lib/api/chat';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { createContext, useCallback, useContext, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -128,12 +127,7 @@ function ToastView({
         style={({ pressed }) => [styles.card, pressed && { opacity: 0.92 }]}
       >
         {/* Right accent bar */}
-        <LinearGradient
-          colors={Colors.gradColors}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-          style={styles.accentBar}
-        />
+        <View style={[styles.accentBar, { backgroundColor: Colors.accent }]} />
 
         {/* Content */}
         <View style={styles.content}>
@@ -158,14 +152,7 @@ function ToastView({
 
         {/* Progress bar */}
         <View style={styles.progressTrack}>
-          <Animated.View style={[styles.progressFill, progressStyle]}>
-            <LinearGradient
-              colors={Colors.gradColors}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={StyleSheet.absoluteFill}
-            />
-          </Animated.View>
+          <Animated.View style={[styles.progressFill, progressStyle, { backgroundColor: Colors.accent }]} />
         </View>
       </Pressable>
     </Animated.View>
