@@ -16,6 +16,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  type ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { BounceIn, FadeInDown, ZoomIn } from 'react-native-reanimated';
@@ -349,6 +350,8 @@ const styles = StyleSheet.create({
   popularBadgePulseWrap: { position: 'relative' },
   // A continuous little wobble on the badge itself, layered on top of the
   // pulse ring, so the "most popular" tag reads as actively alive.
+  // `animationKeyframes` is a react-native-web-only style property with no
+  // native equivalent, so its TS types don't cover it — cast to bypass that.
   popularBadgeWiggle: Platform.select({
     web: {
       animationKeyframes: {
@@ -362,7 +365,7 @@ const styles = StyleSheet.create({
       animationTimingFunction: 'ease-in-out',
     },
     default: {},
-  }),
+  }) as ViewStyle,
   // A "radar ping" ring behind the badge — expands and fades on a loop to draw
   // the eye without being distracting. Web-only: `animationKeyframes` is a
   // react-native-web style property with no native equivalent.
@@ -398,7 +401,7 @@ const styles = StyleSheet.create({
       animationTimingFunction: 'ease-in-out',
     },
     default: {},
-  }),
+  }) as ViewStyle,
   silverCard: { borderColor: SILVER + '80', borderWidth: 1.5, backgroundColor: SILVER_SOFT },
   silverBtn: {
     marginTop: 'auto', paddingVertical: 9, borderRadius: Radius.md,
@@ -430,7 +433,7 @@ const styles = StyleSheet.create({
       animationTimingFunction: 'ease-in-out',
     },
     default: {},
-  }),
+  }) as ViewStyle,
   goldCard: {
     backgroundColor: Colors.surface2, borderColor: Colors.gold, borderWidth: 1.5,
     overflow: 'hidden', position: 'relative',
@@ -477,6 +480,8 @@ const styles = StyleSheet.create({
   },
   goldTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   // Gentle up/down float on the gold star to keep the header feeling alive.
+  // `animationKeyframes` is a react-native-web-only style property with no
+  // native equivalent, so its TS types don't cover it — cast to bypass that.
   goldStarFloat: Platform.select({
     web: {
       animationKeyframes: {
@@ -489,7 +494,7 @@ const styles = StyleSheet.create({
       animationTimingFunction: 'ease-in-out',
     },
     default: {},
-  }),
+  }) as ViewStyle,
   goldName: { fontSize: 15.5, fontFamily: Fonts.extraBold, color: '#fff' },
   goldPrice: { fontSize: 13, fontFamily: Fonts.extraBold, color: Colors.gold, textAlign: 'right' },
   goldPerMonth: { fontSize: 9.5, color: 'rgba(245,184,75,0.6)', fontFamily: Fonts.regular, textAlign: 'right', marginTop: 1 },
