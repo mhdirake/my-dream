@@ -551,6 +551,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Spacing.lg,
+    marginTop: Spacing.lg,
     gap: 8,
     justifyContent: 'space-between',
     marginBottom: 4,

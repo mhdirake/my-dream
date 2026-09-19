@@ -852,7 +852,7 @@ const styles = StyleSheet.create({
   content: { flex: 1 },
 
   // ── Floating header ─────────────────────────────────────────────────────────
-  floatingHeader: { backgroundColor: Colors.bg },
+  floatingHeader: { backgroundColor: Colors.bg, paddingTop: Spacing.lg },
   headerRow: {
     height: 54,
     flexDirection: 'row',
