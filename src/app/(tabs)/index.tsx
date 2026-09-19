@@ -3,7 +3,7 @@ import { Chip } from '@/components/ui/Chip';
 import { Card } from '@/components/ui/Card';
 import { GiftModal } from '@/components/GiftModal';
 import { TemplateMessageModal } from '@/components/TemplateMessageModal';
-import { Colors, Fonts } from '@/constants/colors';
+import { Colors, Fonts, Spacing } from '@/constants/colors';
 import { DailySuggestionProfile, DailySuggestionsMeta, DiscoverProfile, MutualUser, SwipePoolMeta, discoverApi } from '@/lib/api/discover';
 import { MatchCelebrationModal } from '@/components/MatchCelebrationModal';
 import { isGroupMessageNotification, notificationsApi } from '@/lib/api/notifications';
