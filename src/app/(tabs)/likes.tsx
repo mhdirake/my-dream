@@ -1,6 +1,6 @@
 import { Avatar } from '@/components/ui/Avatar';
-import { Badge } from '@/components/ui/Badge';
 import { DetailCard } from '@/components/ui/DetailCard';
+import { SegmentedTabs } from '@/components/ui/SegmentedTabs';
 import { AppMaxWidth, Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import {
   AnonSummary, ReceivedAnonInterest, ReceivedResponse,
@@ -11,7 +11,7 @@ import { paymentsApi } from '@/lib/api/payments';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { toast } from '@/lib/toast';
 import { router, useFocusEffect } from 'expo-router';
-import { Coins, Heart, Lock, Sparkles, UserX, VenetianMask } from 'lucide-react-native';
+import { Coins, Heart, Sparkles, UserX, VenetianMask } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator, Modal, Pressable, RefreshControl,
@@ -40,6 +40,7 @@ type Tab = 'received' | 'sent';
 
 export default function LikesScreen() {
   const { session } = useAuth();
+  const accessToken = session?.accessToken;
   const { bottom } = useSafeAreaInsets();
 
   const [tab, setTab] = useState<Tab>('received');
@@ -56,15 +57,19 @@ export default function LikesScreen() {
   const [coins, setCoins] = useState<number | null>(null);
 
   const load = useCallback(async (showRefresh = false) => {
-    if (!session?.accessToken) return;
-    showRefresh ? setRefreshing(true) : setLoading(true);
+    if (!accessToken) return;
+    if (showRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
     try {
       const [sumRes, recRes, likedRes, sentRes, pkgRes] = await Promise.all([
-        likesApi.summary(session.accessToken),
-        likesApi.received(session.accessToken),
-        likesApi.listSentLikes(session.accessToken),
-        likesApi.listSentAnonInterests(session.accessToken, 'active'),
-        likesApi.revealPackages(session.accessToken),
+        likesApi.summary(accessToken),
+        likesApi.received(accessToken),
+        likesApi.listSentLikes(accessToken),
+        likesApi.listSentAnonInterests(accessToken, 'active'),
+        likesApi.revealPackages(accessToken),
       ]);
       setSummary(sumRes.data);
       setReceived(recRes.data);
@@ -77,8 +82,8 @@ export default function LikesScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-    paymentsApi.getWallet(session.accessToken).then(w => setCoins(w.coin_balance)).catch(() => {});
-  }, [session?.accessToken]);
+    paymentsApi.getWallet(accessToken).then(w => setCoins(w.coin_balance)).catch(() => {});
+  }, [accessToken]);
 
   useFocusEffect(useCallback(() => {
     load();
@@ -147,28 +152,14 @@ export default function LikesScreen() {
           </View>
         </View>
 
-        {/* Tabs */}
-        <View style={styles.tabRow}>
-          <TouchableOpacity
-            style={[styles.tabBtn, tab === 'received' && styles.tabBtnActive]}
-            onPress={() => setTab('received')}
-          >
-            <Text style={[styles.tabTxt, tab === 'received' && styles.tabTxtActive]}>دریافتی</Text>
-            {receivedCount > 0 && (
-              <View style={[styles.tabCount, tab === 'received' && styles.tabCountActive]}>
-                <Text style={[styles.tabCountTxt, tab === 'received' && styles.tabCountTxtActive]}>
-                  {toPersian(receivedCount)}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tabBtn, tab === 'sent' && styles.tabBtnActive]}
-            onPress={() => setTab('sent')}
-          >
-            <Text style={[styles.tabTxt, tab === 'sent' && styles.tabTxtActive]}>فرستاده‌شده</Text>
-          </TouchableOpacity>
-        </View>
+        <SegmentedTabs
+          value={tab}
+          onChange={setTab}
+          items={[
+            { key: 'received', label: 'دریافتی', count: receivedCount },
+            { key: 'sent', label: 'فرستاده‌شده' },
+          ]}
+        />
 
         {loading ? (
           <View style={styles.center}>
@@ -500,27 +491,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 4,
   },
   coinPillTxt: { fontSize: 11.5, fontFamily: Fonts.bold, color: Colors.goldDeep },
-
-  tabRow: {
-    flexDirection: 'row', gap: 8, marginBottom: Spacing.lg,
-  },
-  tabBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 16, paddingVertical: 8,
-    borderRadius: Radius.pill, backgroundColor: Colors.surface,
-    borderWidth: 1, borderColor: Colors.hair,
-  },
-  tabBtnActive: { backgroundColor: Colors.accentSoft, borderColor: Colors.accent },
-  tabTxt: { fontSize: 13, fontFamily: Fonts.semiBold, color: Colors.muted },
-  tabTxtActive: { color: Colors.accent },
-  tabCount: {
-    minWidth: 18, height: 18, borderRadius: 9,
-    backgroundColor: Colors.accentSoft, alignItems: 'center', justifyContent: 'center',
-    paddingHorizontal: 5,
-  },
-  tabCountActive: { backgroundColor: Colors.accent },
-  tabCountTxt: { fontSize: 10, fontFamily: Fonts.bold, color: Colors.accent },
-  tabCountTxtActive: { color: Colors.onAccent },
 
   center: { paddingVertical: 60, alignItems: 'center' },
 

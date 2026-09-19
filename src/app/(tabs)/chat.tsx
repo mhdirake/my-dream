@@ -1,11 +1,12 @@
 import { Avatar } from '@/components/ui/Avatar';
 import { useChatToast } from '@/components/ui/ChatToast';
 import { KeyboardAvoider } from '@/components/ui/KeyboardAvoider';
+import { SegmentedTabs } from '@/components/ui/SegmentedTabs';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { Conversation, ConversationUser, chatApi, conversationPeer } from '@/lib/api/chat';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useConversations } from '@/lib/chat/useConversations';
-import { formatPersianTime } from '@/lib/date/persian';
+import { formatPersianDate, formatPersianTime } from '@/lib/date/persian';
 import { toFaDigits } from '@/lib/localization';
 import { toast } from '@/lib/toast';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -34,11 +35,18 @@ function photoUrl(user: ConversationUser | null | undefined) {
 function timeAgo(iso: string | null | undefined) {
   if (!iso) return '';
   const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
   const diff = (Date.now() - d.getTime()) / 1000;
-  if (diff < 60) return 'همین الان';
-  if (diff < 3600) return `${Math.floor(diff / 60)} دقیقه`;
-  if (diff < 86400) return formatPersianTime(iso);
-  return 'دیروز';
+  if (diff >= 0 && diff < 60) return 'همین الان';
+  if (diff >= 0 && diff < 3600) return `${toFaDigits(Math.floor(diff / 60))} دقیقه`;
+
+  const now = new Date();
+  const startOfDay = (value: Date) => new Date(value.getFullYear(), value.getMonth(), value.getDate()).getTime();
+  const diffDays = Math.round((startOfDay(now) - startOfDay(d)) / 86400000);
+
+  if (diffDays === 0) return formatPersianTime(iso);
+  if (diffDays === 1) return 'دیروز';
+  return formatPersianDate(iso, { year: d.getFullYear() !== now.getFullYear() });
 }
 
 type Tab = 'all' | 'requests';
@@ -220,32 +228,15 @@ export default function ChatScreen() {
       </View>
 
       <KeyboardAvoider>
-      {/* Tabs */}
-      <View style={styles.tabs}>
-        <TouchableOpacity
-          style={[styles.tabBtn, tab === 'all' && styles.tabBtnActive]}
-          onPress={() => setTab('all')}
-          activeOpacity={0.8}
-        >
-          <Text style={[styles.tabTxt, tab === 'all' && styles.tabTxtActive]}>همه</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tabBtn, tab === 'requests' && styles.tabBtnActive]}
-          onPress={() => setTab('requests')}
-          activeOpacity={0.8}
-        >
-          <Text style={[styles.tabTxt, tab === 'requests' && styles.tabTxtActive]}>
-            درخواست‌ها
-          </Text>
-          {pendingCount > 0 && (
-            <View style={[styles.tabBadge, tab === 'requests' && styles.tabBadgeActive]}>
-              <Text style={[styles.tabBadgeTxt, tab === 'requests' && styles.tabBadgeTxtActive]}>
-                {pendingCount}
-              </Text>
-            </View>
-          )}
-        </TouchableOpacity>
-      </View>
+      <SegmentedTabs
+        value={tab}
+        onChange={setTab}
+        style={styles.tabs}
+        items={[
+          { key: 'all', label: 'همه' },
+          { key: 'requests', label: 'درخواست‌ها', count: pendingCount },
+        ]}
+      />
 
       {loading ? (
         <View style={styles.center}>
@@ -559,9 +550,10 @@ const styles = StyleSheet.create({
     height: 54,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: Spacing.lg,
     gap: 8,
     justifyContent: 'space-between',
+    marginBottom: 4,
   },
   headerTitle: { fontSize: 18, fontFamily: Fonts.extraBold, color: Colors.ink },
   searchInput: {
@@ -587,35 +579,10 @@ const styles = StyleSheet.create({
   },
 
   tabs: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 16,
+    paddingHorizontal: Spacing.lg,
     paddingBottom: 10,
+    marginBottom: 0,
   },
-  tabBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: Radius.pill,
-    backgroundColor: Colors.surface,
-  },
-  tabBtnActive: { backgroundColor: Colors.accent },
-  tabTxt: { fontSize: 13, fontFamily: Fonts.semiBold, color: Colors.muted },
-  tabTxtActive: { color: Colors.onAccent },
-  tabBadge: {
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: Colors.accentSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 5,
-  },
-  tabBadgeActive: { backgroundColor: Colors.accent },
-  tabBadgeTxt: { fontSize: 10, fontFamily: Fonts.bold, color: Colors.accent },
-  tabBadgeTxtActive: { color: Colors.onAccent },
 
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
   emptyEmoji: { fontSize: 40 },

@@ -857,10 +857,11 @@ const styles = StyleSheet.create({
     height: 54,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: Spacing.lg,
     justifyContent: 'space-between',
+    marginBottom: 4,
   },
-  headerTitle: { fontSize: 20, fontFamily: Fonts.extraBold, color: Colors.ink },
+  headerTitle: { fontSize: 18, fontFamily: Fonts.extraBold, color: Colors.ink },
   headerActions: { flexDirection: 'row', gap: 8 },
   iconBtn: {
     width: 36, height: 36, borderRadius: 18,
@@ -881,7 +882,7 @@ const styles = StyleSheet.create({
   },
   safeBannerTxt: { fontSize: 12, fontFamily: Fonts.bold, color: Colors.ok },
   modeScrollWrap: { flexGrow: 0 },
-  modeScroll: { paddingHorizontal: 16, paddingVertical: 6, gap: 7, flexDirection: 'row', alignItems: 'center' },
+  modeScroll: { paddingHorizontal: Spacing.lg, paddingVertical: 6, gap: 7, flexDirection: 'row', alignItems: 'center' },
   modeBtn: {
     paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999,
     backgroundColor: 'rgba(36,33,42,0.06)',
