@@ -8,7 +8,7 @@ export type SegmentedTabItem<T extends string> = {
 };
 
 type Props<T extends string> = {
-  items: SegmentedTabItem<T>[];
+  items: readonly SegmentedTabItem<T>[];
   value: T;
   onChange: (value: T) => void;
   style?: ViewStyle;
@@ -47,50 +47,51 @@ export function SegmentedTabs<T extends string>({ items, value, onChange, style 
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
-    gap: 8,
+    backgroundColor: Colors.ph2,
+    borderRadius: Radius.md,
+    padding: 4,
     marginBottom: Spacing.lg,
   },
   tab: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: Radius.pill,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.hair,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    borderRadius: Radius.sm - 2,
   },
   tabActive: {
-    backgroundColor: Colors.accentSoft,
-    borderColor: Colors.accent,
+    backgroundColor: Colors.surface,
   },
   label: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontFamily: Fonts.semiBold,
     color: Colors.muted,
+    textAlign: 'center',
   },
   labelActive: {
-    color: Colors.accent,
+    color: Colors.ink,
   },
   count: {
     minWidth: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: Colors.accentSoft,
+    backgroundColor: Colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 5,
   },
   countActive: {
-    backgroundColor: Colors.accent,
+    backgroundColor: Colors.accentSoft,
   },
   countText: {
     fontSize: 10,
     fontFamily: Fonts.bold,
-    color: Colors.accent,
+    color: Colors.muted,
   },
   countTextActive: {
-    color: Colors.onAccent,
+    color: Colors.accent,
   },
 });
