@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { KeyboardAvoider } from '@/components/ui/KeyboardAvoider';
 import { KeyboardStickyBar } from '@/components/ui/KeyboardStickyBar';
-import { SegmentedTabs } from '@/components/ui/SegmentedTabs';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { api } from '@/lib/api/client';
@@ -259,12 +258,17 @@ export default function GiftSubScreen() {
       ) : (
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           {/* Tabs */}
-          <SegmentedTabs
-            value={tab}
-            onChange={setTab}
-            items={TABS}
-            style={styles.tabRow}
-          />
+          <View style={styles.tabRow}>
+            {TABS.map(t => (
+              <TouchableOpacity
+                key={t.key}
+                style={[styles.tabBtn, tab === t.key && styles.tabBtnActive]}
+                onPress={() => setTab(t.key)}
+              >
+                <Text style={[styles.tabTxt, tab === t.key && styles.tabTxtActive]}>{t.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
           {/* Recipient */}
           {!hasUserId ? (
@@ -394,15 +398,20 @@ export default function GiftSubScreen() {
             <Text style={styles.historyTitle}>
               {tab === 'sub' ? 'تاریخچه هدایای اشتراک' : 'تاریخچه هدایای سکه'}
             </Text>
-            <SegmentedTabs
-              value={historyDir}
-              onChange={setHistoryDir}
-              items={[
-                { key: 'sent', label: 'ارسال‌شده' },
-                { key: 'received', label: 'دریافت‌شده' },
-              ]}
-              style={styles.historySeg}
-            />
+            <View style={styles.historySeg}>
+              {(['sent', 'received'] as const).map(dir => (
+                <TouchableOpacity
+                  key={dir}
+                  style={[styles.historySegBtn, historyDir === dir && styles.historySegBtnActive]}
+                  onPress={() => setHistoryDir(dir)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.historySegTxt, historyDir === dir && styles.historySegTxtActive]}>
+                    {dir === 'sent' ? 'ارسال‌شده' : 'دریافت‌شده'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
             {historyLoading ? (
               <ActivityIndicator color={Colors.accent} style={{ paddingVertical: 16 }} />
             ) : tab === 'sub' ? (
@@ -498,7 +507,17 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
   historySection: { marginTop: 8, gap: 10 },
   historyTitle: { fontSize: 13, fontFamily: Fonts.bold, color: Colors.ink },
-  historySeg: { marginBottom: 0 },
+  historySeg: {
+    flexDirection: 'row', backgroundColor: Colors.ph2,
+    borderRadius: Radius.pill, padding: 3, gap: 4,
+  },
+  historySegBtn: {
+    flex: 1, alignItems: 'center', paddingVertical: 7,
+    borderRadius: Radius.pill,
+  },
+  historySegBtnActive: { backgroundColor: Colors.surface },
+  historySegTxt: { fontSize: 12, fontFamily: Fonts.semiBold, color: Colors.muted },
+  historySegTxtActive: { color: Colors.ink },
   historyRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     paddingVertical: 10,
@@ -515,7 +534,14 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { padding: Spacing.lg, gap: 14 },
 
-  tabRow: { marginBottom: 0 },
+  tabRow: {
+    flexDirection: 'row', backgroundColor: Colors.ph2,
+    borderRadius: Radius.md, padding: 4,
+  },
+  tabBtn: { flex: 1, paddingVertical: 9, borderRadius: Radius.sm - 2, alignItems: 'center' },
+  tabBtnActive: { backgroundColor: Colors.surface },
+  tabTxt: { fontSize: 12.5, fontFamily: Fonts.semiBold, color: Colors.muted },
+  tabTxtActive: { color: Colors.ink },
 
   fieldLabel: { fontSize: 10.5, color: Colors.muted, fontFamily: Fonts.regular, marginBottom: 6 },
   input: {

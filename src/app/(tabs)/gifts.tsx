@@ -336,16 +336,20 @@ const styles = StyleSheet.create({
   screenTabTxt: { fontSize: 12.5, fontFamily: Fonts.semiBold, color: Colors.muted },
   screenTabTxtActive: { color: Colors.ink },
 
-  filterScroll: { marginBottom: Spacing.md },
-  filterRow: { gap: 8, paddingVertical: 2 },
+  filterScroll: { flexGrow: 0, marginBottom: Spacing.md },
+  filterRow: { gap: 7, paddingVertical: 6, flexDirection: 'row', alignItems: 'center' },
   filterChip: {
-    paddingHorizontal: 14, paddingVertical: 7,
-    backgroundColor: Colors.surface, borderRadius: Radius.pill,
-    borderWidth: 1, borderColor: Colors.hair,
+    paddingHorizontal: 16, paddingVertical: 8,
+    backgroundColor: 'rgba(36,33,42,0.06)', borderRadius: 999,
+    borderWidth: 1.5, borderColor: 'transparent',
+    flexDirection: 'row', alignItems: 'center', gap: 5,
   },
-  filterChipActive: { backgroundColor: Colors.accent, borderColor: Colors.accent },
-  filterTxt: { fontSize: 12, fontFamily: Fonts.semiBold, color: Colors.inkSoft },
-  filterTxtActive: { color: Colors.onAccent },
+  filterChipActive: {
+    backgroundColor: Colors.accentSoft,
+    borderWidth: 1.5, borderColor: Colors.accent,
+  },
+  filterTxt: { fontSize: 13, fontFamily: Fonts.semiBold, color: Colors.muted },
+  filterTxtActive: { color: Colors.accent, fontFamily: Fonts.extraBold },
 
   loadingBox: { height: 120, alignItems: 'center', justifyContent: 'center' },
   emptyBox: { paddingVertical: 48, alignItems: 'center', gap: 8 },
