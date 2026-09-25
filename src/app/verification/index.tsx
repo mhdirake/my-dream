@@ -30,7 +30,7 @@ export default function VerificationScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
-      <AppBar title="احراز هویت و تأیید" back backFallback="/me" />
+      <AppBar title="احراز هویت و تأیید" back backFallback="/me" contentGap />
 
       {loading ? (
         <View style={styles.center}>

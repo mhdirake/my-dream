@@ -2846,7 +2846,7 @@ const styles = StyleSheet.create({
 
   // More menu
   menuOverlay: {
-    flex: 1, backgroundColor: 'rgba(0,0,0,0.4)',
+    flex: 1, backgroundColor: Colors.modalBackdrop,
     justifyContent: 'flex-end',
   },
   menuSheet: {

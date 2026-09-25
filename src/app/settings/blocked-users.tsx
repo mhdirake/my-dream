@@ -121,6 +121,7 @@ export default function BlockedUsersScreen() {
         sub={items.length > 0 ? `${items.length} کاربر` : undefined}
         back
         backFallback="/settings"
+        contentGap
       />
 
       {loading ? (

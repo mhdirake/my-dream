@@ -1,32 +1,40 @@
 import { Colors, Fonts, Radius } from '@/constants/colors';
 import { router } from 'expo-router';
-import { Coins } from 'lucide-react-native';
-import { StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { Coins, Wallet } from 'lucide-react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const toPersian = (n: number | string) =>
   String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
 
-/** Coin balance pill — tap goes to the buy-coins screen. Meant for an AppBar `right` slot. */
+/** Shared header balance and wallet action, matching the Gifts header. */
 export function CoinBadge({ count }: { count: number | null | undefined }) {
   return (
-    <TouchableOpacity
-      style={styles.badge}
-      onPress={() => router.push('/gifts/buy-coins' as never)}
-      activeOpacity={0.75}
-      hitSlop={6}
-    >
-      <Coins size={13} color={Colors.goldDeep} strokeWidth={2.2} />
-      <Text style={styles.txt}>{count == null ? '—' : toPersian(count)}</Text>
-    </TouchableOpacity>
+    <View style={styles.row}>
+      <View style={styles.balance}>
+        <Coins size={14} color={Colors.goldDeep} strokeWidth={2} />
+        <Text style={styles.balanceText}>{count == null ? '…' : toPersian(count)}</Text>
+      </View>
+      <TouchableOpacity
+        style={styles.walletButton}
+        onPress={() => router.push('/gifts/wallet' as never)}
+        activeOpacity={0.75}
+      >
+        <Wallet size={14} color={Colors.goldDeep} strokeWidth={2} />
+        <Text style={styles.walletText}>کیف پول</Text>
+      </TouchableOpacity>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  badge: {
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  balance: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  balanceText: { fontSize: 13, fontFamily: Fonts.bold, color: Colors.goldDeep },
+  walletButton: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     backgroundColor: Colors.goldSoft,
-    paddingHorizontal: 10, paddingVertical: 5,
+    paddingHorizontal: 12, paddingVertical: 5,
     borderRadius: Radius.pill,
   },
-  txt: { fontSize: 12.5, fontFamily: Fonts.bold, color: Colors.goldDeep },
+  walletText: { fontSize: 11.5, fontFamily: Fonts.bold, color: Colors.goldDeep },
 });

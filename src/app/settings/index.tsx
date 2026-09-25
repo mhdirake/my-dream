@@ -93,7 +93,7 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
-      <AppBar title="تنظیمات" back backFallback="/me" />
+      <AppBar title="تنظیمات" back backFallback="/me" contentGap />
 
       <Modal visible={deleteConfirm} transparent animationType="fade" onRequestClose={() => setDeleteConfirm(false)}>
         <Pressable style={styles.overlay} onPress={() => setDeleteConfirm(false)}>
@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
   },
 
   overlay: {
-    flex: 1, backgroundColor: 'rgba(0,0,0,0.45)',
+    flex: 1, backgroundColor: Colors.modalBackdrop,
     alignItems: 'center', justifyContent: 'center', padding: Spacing.xl,
   },
   dialog: {

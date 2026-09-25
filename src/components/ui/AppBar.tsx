@@ -1,4 +1,4 @@
-import { Colors, Fonts } from '@/constants/colors';
+import { Colors, Fonts, Spacing } from '@/constants/colors';
 import { Href, router } from 'expo-router';
 import { ChevronRight } from 'lucide-react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -13,9 +13,10 @@ interface AppBarProps {
   onBack?: () => void;
   right?: React.ReactNode;
   dark?: boolean;
+  contentGap?: boolean;
 }
 
-export function AppBar({ title, sub, back, backFallback = '/', onBack, right, dark }: AppBarProps) {
+export function AppBar({ title, sub, back, backFallback = '/', onBack, right, dark, contentGap }: AppBarProps) {
   const color = dark ? '#fff' : Colors.ink;
 
   const handleBack = () => {
@@ -31,7 +32,7 @@ export function AppBar({ title, sub, back, backFallback = '/', onBack, right, da
   };
 
   return (
-    <View style={[styles.bar, dark && styles.barDark]}>
+    <View style={[styles.bar, dark && styles.barDark, contentGap && styles.contentGap]}>
 
       {back && (
         <Pressable onPress={handleBack} style={styles.backBtn} hitSlop={8}>
@@ -66,6 +67,7 @@ const styles = StyleSheet.create({
     zIndex: 4,
   },
   barDark: { backgroundColor: 'transparent' },
+  contentGap: { marginBottom: Spacing.md },
   backBtn: {
     width: 36,
     height: 36,

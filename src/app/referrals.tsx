@@ -63,7 +63,7 @@ export default function ReferralsScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
-      <AppBar title="معرفی به دوستان" back backFallback="/me" />
+      <AppBar title="معرفی به دوستان" back backFallback="/me" contentGap />
 
       {loading ? (
         <View style={styles.center}><ActivityIndicator color={Colors.accent} /></View>

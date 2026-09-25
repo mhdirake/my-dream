@@ -110,7 +110,7 @@ export default function PersonalityTestResultScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.root}>
-        <AppBar title="نتیجه تست شخصیت" back backFallback="/me" />
+        <AppBar title="نتیجه تست شخصیت" back backFallback="/me" contentGap />
         <View style={styles.center}>
           <ActivityIndicator color={Colors.purple} />
         </View>
@@ -122,7 +122,7 @@ export default function PersonalityTestResultScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
-      <AppBar title="نتیجه تست شخصیت" back backFallback="/me" />
+      <AppBar title="نتیجه تست شخصیت" back backFallback="/me" contentGap />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>

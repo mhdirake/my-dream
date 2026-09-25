@@ -632,7 +632,7 @@ const styles = StyleSheet.create({
   lockPillTxt: { fontSize: 10, fontFamily: Fonts.bold, color: Colors.accent },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.38)',
+    backgroundColor: Colors.modalBackdrop,
     alignItems: 'center',
     justifyContent: 'center',
     padding: Spacing.xl,

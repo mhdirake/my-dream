@@ -133,7 +133,7 @@ export default function PrivacyScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
-      <AppBar title="حریم خصوصی" back backFallback="/settings" />
+      <AppBar title="حریم خصوصی" back backFallback="/settings" contentGap />
 
       {loading ? (
         <View style={styles.center}>

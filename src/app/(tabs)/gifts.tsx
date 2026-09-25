@@ -1,5 +1,6 @@
 import { DetailCard } from '@/components/ui/DetailCard';
 import { Avatar } from '@/components/ui/Avatar';
+import { CoinBadge } from '@/components/ui/CoinBadge';
 import { AppMaxWidth, Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { giftDisplayTitle, giftUserPhotoUrl, giftsApi, SentGift } from '@/lib/api/gifts';
 import { BackendGift } from '@/lib/api/discover';
@@ -7,7 +8,7 @@ import { paymentsApi } from '@/lib/api/payments';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { toast } from '@/lib/toast';
 import { router, useLocalSearchParams } from 'expo-router';
-import { CheckCircle, ChevronLeft, Coins, Gift, Package, Star, Wallet } from 'lucide-react-native';
+import { CheckCircle, ChevronLeft, Coins, Gift, Package, Star } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator, ScrollView, StyleSheet, Text,
@@ -134,18 +135,7 @@ export default function GiftsScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>هدایا</Text>
-          <View style={styles.headerRight}>
-            <View style={styles.wallet}>
-              <Coins size={14} color={Colors.goldDeep} strokeWidth={2} />
-              <Text style={styles.walletTxt}>
-                {coins == null ? '…' : toPersian(coins)}
-              </Text>
-            </View>
-            <TouchableOpacity style={styles.walletBtn} onPress={() => router.push('/gifts/wallet' as any)}>
-              <Wallet size={14} color={Colors.goldDeep} strokeWidth={2} />
-              <Text style={styles.walletBtnTxt}>کیف پول</Text>
-            </TouchableOpacity>
-          </View>
+          <CoinBadge count={coins} />
         </View>
 
         {/* Screen tabs */}
@@ -317,15 +307,6 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'space-between', marginBottom: 4,
   },
   headerTitle: { fontSize: 18, fontFamily: Fonts.extraBold, color: Colors.ink },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  wallet: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  walletTxt: { fontSize: 13, fontFamily: Fonts.bold, color: Colors.goldDeep },
-  walletBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: Colors.goldSoft, borderRadius: Radius.pill,
-    paddingHorizontal: 12, paddingVertical: 5,
-  },
-  walletBtnTxt: { fontSize: 11.5, fontFamily: Fonts.bold, color: Colors.goldDeep },
 
   screenTabRow: {
     flexDirection: 'row', backgroundColor: Colors.ph2,

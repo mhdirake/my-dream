@@ -32,7 +32,7 @@ export default function PersonalityTestIntroScreen() {
   if (checking) {
     return (
       <SafeAreaView style={styles.root}>
-        <AppBar title="تست شخصیت" back backFallback="/me" />
+        <AppBar title="تست شخصیت" back backFallback="/me" contentGap />
         <View style={styles.center}>
           <ActivityIndicator color={Colors.purple} />
         </View>
@@ -43,7 +43,7 @@ export default function PersonalityTestIntroScreen() {
   if (hasResult) {
     return (
       <SafeAreaView style={styles.root}>
-        <AppBar title="تست شخصیت" back backFallback="/me" />
+        <AppBar title="تست شخصیت" back backFallback="/me" contentGap />
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.illustration}>
             <View style={[styles.illustrationGrad, { backgroundColor: Colors.accent }]}>
@@ -79,7 +79,7 @@ export default function PersonalityTestIntroScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
-      <AppBar title="تست شخصیت" back backFallback="/me" />
+      <AppBar title="تست شخصیت" back backFallback="/me" contentGap />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.illustration}>
           <View style={[styles.illustrationGrad, { backgroundColor: Colors.accent }]}>

@@ -57,6 +57,7 @@ export const Colors = {
   line: 'rgba(255,255,255,0.14)',
   lineSoft: 'rgba(255,255,255,0.08)',
   hair: 'rgba(255,255,255,0.08)',
+  modalBackdrop: 'rgba(0,0,0,0.56)',
 
   // ── Dark surfaces ────────────────────────────────────────────────
   dark: BrandPalette.bg,

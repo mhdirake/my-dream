@@ -124,7 +124,7 @@ export default function ProfilePreviewScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
-      <AppBar title="پیش‌نمایش پروفایل" back backFallback="/me" right={EditButton} />
+      <AppBar title="پیش‌نمایش پروفایل" back backFallback="/me" right={EditButton} contentGap />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Completion card */}

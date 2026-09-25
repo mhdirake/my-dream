@@ -108,7 +108,7 @@ export default function SelfInsightScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
-      <AppBar title="آنالیز هوش مصنوعی" back backFallback="/me" right={<CoinBadge count={coins} />} />
+      <AppBar title="آنالیز هوش مصنوعی" back backFallback="/me" right={<CoinBadge count={coins} />} contentGap />
 
       {loading ? (
         <View style={styles.center}>

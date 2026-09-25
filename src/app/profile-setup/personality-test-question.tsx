@@ -99,7 +99,7 @@ export default function PersonalityTestQuestionScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.root}>
-        <AppBar title="تست شناخت شخصیت" back onBack={handleExit} backFallback="/me" />
+        <AppBar title="تست شناخت شخصیت" back onBack={handleExit} backFallback="/me" contentGap />
         <View style={styles.center}>
           <ActivityIndicator color={Colors.purple} />
         </View>
@@ -114,7 +114,7 @@ export default function PersonalityTestQuestionScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
-      <AppBar title="تست شناخت شخصیت" back onBack={handleExit} backFallback="/me" />
+      <AppBar title="تست شناخت شخصیت" back onBack={handleExit} backFallback="/me" contentGap />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={styles.progress}>

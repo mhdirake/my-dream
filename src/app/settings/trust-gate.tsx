@@ -122,7 +122,7 @@ export default function TrustGateScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
-      <AppBar title="کنترل دریافت پیام" back backFallback="/settings/privacy" />
+      <AppBar title="کنترل دریافت پیام" back backFallback="/settings/privacy" contentGap />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.intro}>

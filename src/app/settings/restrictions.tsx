@@ -68,7 +68,7 @@ export default function RestrictionsScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
-      <AppBar title="محدودیت‌ها" back backFallback="/settings" />
+      <AppBar title="محدودیت‌ها" back backFallback="/settings" contentGap />
 
       {loading ? (
         <View style={styles.center}>

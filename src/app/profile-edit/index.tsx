@@ -161,7 +161,7 @@ export default function ProfileEditHub() {
 
   return (
     <SafeAreaView style={styles.root}>
-      <AppBar title="ویرایش پروفایل" back backFallback="/me" />
+      <AppBar title="ویرایش پروفایل" back backFallback="/me" contentGap />
 
       {loading ? (
         <View style={styles.center}>

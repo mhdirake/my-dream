@@ -55,7 +55,7 @@ export default function ChangePasswordScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <AppBar title="تغییر رمز عبور" back backFallback="/settings" />
+      <AppBar title="تغییر رمز عبور" back backFallback="/settings" contentGap />
       <KeyboardAvoider>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Field

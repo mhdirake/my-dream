@@ -62,7 +62,7 @@ export default function NotificationSettingsScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
-      <AppBar title="اعلان‌ها" back backFallback="/settings" />
+      <AppBar title="اعلان‌ها" back backFallback="/settings" contentGap />
       <View style={styles.content}>
         <Card style={styles.card}>
           <View style={styles.iconWrap}>

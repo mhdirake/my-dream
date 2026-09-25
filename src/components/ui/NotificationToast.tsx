@@ -104,7 +104,7 @@ function ToastView({
     <Animated.View style={[styles.wrapper, { top: insets.top + 10 }, animStyle]}>
       <Pressable
         onPress={onPress}
-        style={({ pressed }) => [styles.card, pressed && { opacity: 0.92 }]}
+        style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
       >
         <View style={[styles.accentBar, { backgroundColor: Colors.accent }]} />
 
@@ -150,6 +150,7 @@ const styles = StyleSheet.create({
     elevation: 16,
     flexDirection: 'column',
   },
+  cardPressed: { backgroundColor: Colors.surface2 },
   accentBar: {
     position: 'absolute',
     right: 0,

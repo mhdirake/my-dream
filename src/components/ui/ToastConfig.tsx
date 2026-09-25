@@ -1,14 +1,14 @@
 import { Colors, Fonts, Radius } from '@/constants/colors';
 import { CheckCircle, Info, XCircle } from 'lucide-react-native';
 import { StyleSheet, Text, View } from 'react-native';
-import { BaseToast, type BaseToastProps } from 'react-native-toast-message';
+import { type BaseToastProps } from 'react-native-toast-message';
 
 type ToastVariant = 'success' | 'error' | 'info';
 
 const VARIANT = {
-  success: { icon: CheckCircle, color: Colors.ok,     bg: 'rgba(118,157,150,0.5)' },
-  error:   { icon: XCircle,     color: Colors.danger,  bg: 'rgba(240,122,140,0.5)' },
-  info:    { icon: Info,        color: Colors.trust,   bg: 'rgba(124,226,209,0.5)' },
+  success: { icon: CheckCircle, color: Colors.ok,     bg: '#263634' },
+  error:   { icon: XCircle,     color: Colors.danger,  bg: '#3B252D' },
+  info:    { icon: Info,        color: Colors.trust,   bg: '#24413D' },
 } as const;
 
 function AppToast({ type, text1, text2 }: BaseToastProps & { type: ToastVariant }) {

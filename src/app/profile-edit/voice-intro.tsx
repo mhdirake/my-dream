@@ -84,7 +84,7 @@ export default function VoiceIntroScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <AppBar title="معرفی صوتی" back backFallback="/profile-edit" />
+      <AppBar title="معرفی صوتی" back backFallback="/profile-edit" contentGap />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.hint}>
           یک معرفی صوتی کوتاه (بین ۳۰ تا ۶۰ ثانیه) ضبط کن تا کاربران دیگر صدات رو بشنون.

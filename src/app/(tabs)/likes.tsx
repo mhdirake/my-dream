@@ -1,4 +1,5 @@
 import { Avatar } from '@/components/ui/Avatar';
+import { CoinBadge } from '@/components/ui/CoinBadge';
 import { DetailCard } from '@/components/ui/DetailCard';
 import { SegmentedTabs } from '@/components/ui/SegmentedTabs';
 import { AppMaxWidth, Colors, Fonts, Radius, Spacing } from '@/constants/colors';
@@ -134,23 +135,15 @@ export default function LikesScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>مَچ و لایک</Text>
-          <View style={styles.headerRight}>
-            {mutualCount > 0 && (
-              <View style={styles.mutualBadge}>
-                <Heart size={12} color={Colors.accent} strokeWidth={2} fill={Colors.accent} />
-                <Text style={styles.mutualBadgeTxt}>{toPersian(mutualCount)} متقابل</Text>
-              </View>
-            )}
-            <TouchableOpacity
-              style={styles.coinPill}
-              onPress={() => router.push('/gifts/wallet' as never)}
-              activeOpacity={0.75}
-            >
-              <Coins size={13} color={Colors.goldDeep} strokeWidth={2} />
-              <Text style={styles.coinPillTxt}>{coins == null ? '—' : toPersian(coins)}</Text>
-            </TouchableOpacity>
-          </View>
+          <CoinBadge count={coins} />
         </View>
+
+        {mutualCount > 0 && (
+          <View style={styles.mutualBadge}>
+            <Heart size={12} color={Colors.accent} strokeWidth={2} fill={Colors.accent} />
+            <Text style={styles.mutualBadgeTxt}>{toPersian(mutualCount)} متقابل</Text>
+          </View>
+        )}
 
         <SegmentedTabs
           value={tab}
@@ -478,19 +471,13 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'space-between', marginBottom: 4,
   },
   headerTitle: { fontSize: 18, fontFamily: Fonts.extraBold, color: Colors.ink },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   mutualBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
+    alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 5,
     backgroundColor: Colors.accentSoft, borderWidth: 1.5, borderColor: Colors.accent,
     borderRadius: Radius.pill, paddingHorizontal: 10, paddingVertical: 4,
+    marginBottom: Spacing.sm,
   },
   mutualBadgeTxt: { fontSize: 11.5, fontFamily: Fonts.bold, color: Colors.accent },
-  coinPill: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: Colors.goldSoft, borderRadius: Radius.pill,
-    paddingHorizontal: 10, paddingVertical: 4,
-  },
-  coinPillTxt: { fontSize: 11.5, fontFamily: Fonts.bold, color: Colors.goldDeep },
 
   center: { paddingVertical: 60, alignItems: 'center' },
 
@@ -564,7 +551,7 @@ const styles = StyleSheet.create({
 
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.38)',
+    backgroundColor: Colors.modalBackdrop,
     alignItems: 'center',
     justifyContent: 'center',
     padding: Spacing.xl,
