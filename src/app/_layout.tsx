@@ -15,6 +15,7 @@ import { toastConfig } from '@/components/ui/ToastConfig';
 import { ConfirmSheetHost } from '@/lib/confirmSheet';
 import { PrivacyGuard } from '@/components/privacy/PrivacyGuard';
 import { KeyboardViewport } from '@/components/ui/KeyboardViewport';
+import { ModalBlurTarget } from '@/components/ui/BlurredModal';
 import { Colors } from '@/constants/colors';
 
 SplashScreen.preventAutoHideAsync();
@@ -44,6 +45,7 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: Colors.bg }}>
+      <ModalBlurTarget>
       <KeyboardProvider>
       <PrivacyGuard>
         <SafeAreaProvider initialMetrics={Platform.OS === 'web' ? WEB_INITIAL_SAFE_AREA_METRICS : undefined}>
@@ -71,6 +73,7 @@ export default function RootLayout() {
         </SafeAreaProvider>
       </PrivacyGuard>
       </KeyboardProvider>
+      </ModalBlurTarget>
     </GestureHandlerRootView>
   );
 }

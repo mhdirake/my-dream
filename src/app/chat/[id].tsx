@@ -29,7 +29,6 @@ import {
   AppState,
   FlatList,
   KeyboardAvoidingView,
-  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -41,6 +40,7 @@ import {
   ViewToken,
   View,
 } from 'react-native';
+import { Modal } from '@/components/ui/BlurredModal';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   Extrapolation,

@@ -3,6 +3,7 @@ import { MatchCelebrationModal } from '@/components/MatchCelebrationModal';
 import { TemplateMessageModal } from '@/components/TemplateMessageModal';
 import { Sheet } from '@/components/ui/Sheet';
 import { AppBar } from '@/components/ui/AppBar';
+import { Modal } from '@/components/ui/BlurredModal';
 import { Badge } from '@/components/ui/Badge';
 import { SimpleBadgeInfoModal } from '@/components/SimpleBadgeInfoModal';
 import { UserBadgeInfoModal } from '@/components/UserBadgeInfoModal';
@@ -51,7 +52,6 @@ import {
 import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Modal,
   Platform,
   Pressable,
   ScrollView,

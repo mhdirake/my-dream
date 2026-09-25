@@ -288,7 +288,7 @@ export default function ViewedMeScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: Colors.bg },
+  root: { flex: 1, backgroundColor: Colors.bg, paddingTop: Spacing.md },
 
   countBadge: {
     width: 36, height: 24, borderRadius: 12,

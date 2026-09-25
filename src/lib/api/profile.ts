@@ -1,6 +1,7 @@
 import { File as FSFile, UploadType } from 'expo-file-system';
 import { Platform } from 'react-native';
 import { api } from './client';
+import { apiUrl } from './url';
 
 export type ProfilePhotoVariants = {
   original: string;
@@ -141,7 +142,7 @@ export const profileApi = {
   ) => api.post<{ data: ClientProfile }>('/api/client/profile/prompts', { answers }, token),
 
   uploadVoiceIntro: async (token: string, uri: string, durationSeconds: number, mimeType = 'audio/mp4') => {
-    const url = `${process.env.EXPO_PUBLIC_API_URL}/api/client/profile/voice-intro`;
+    const url = apiUrl('/api/client/profile/voice-intro');
     const parameters = { duration_seconds: String(durationSeconds) };
 
     if (Platform.OS !== 'web') {

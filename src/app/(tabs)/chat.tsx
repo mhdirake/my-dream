@@ -1,4 +1,5 @@
 import { Avatar } from '@/components/ui/Avatar';
+import { Modal } from '@/components/ui/BlurredModal';
 import { useChatToast } from '@/components/ui/ChatToast';
 import { KeyboardAvoider } from '@/components/ui/KeyboardAvoider';
 import { SegmentedTabs } from '@/components/ui/SegmentedTabs';
@@ -16,7 +17,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  Modal,
   Platform,
   Pressable,
   RefreshControl,

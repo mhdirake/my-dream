@@ -1,4 +1,5 @@
 import { AppBar } from '@/components/ui/AppBar';
+import { Modal } from '@/components/ui/BlurredModal';
 import { Card } from '@/components/ui/Card';
 import { APP_VERSION_LABEL } from '@/constants/appVersion';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
@@ -10,7 +11,7 @@ import {
   MessageCircle, Shield, Trash2, UserX, type LucideIcon,
 } from 'lucide-react-native';
 import { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 type SettingItem = {

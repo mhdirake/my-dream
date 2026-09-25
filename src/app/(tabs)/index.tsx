@@ -404,12 +404,9 @@ function SwipeView({
 
   if (loading) {
     return (
-      <LinearGradient
-        colors={[Colors.purpleSoft, Colors.accentSoft]}
-        style={styles.fullCenter}
-      >
+      <View style={styles.fullCenter}>
         <ActivityIndicator color={Colors.accent} size="large" />
-      </LinearGradient>
+      </View>
     );
   }
 
@@ -881,8 +878,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 7,
   },
   safeBannerTxt: { fontSize: 12, fontFamily: Fonts.bold, color: Colors.ok },
-  modeScrollWrap: { flexGrow: 0 },
-  modeScroll: { paddingHorizontal: Spacing.lg, paddingVertical: 6, gap: 7, flexDirection: 'row', alignItems: 'center' },
+  modeScrollWrap: { flexGrow: 0, marginHorizontal: Spacing.lg },
+  modeScroll: { paddingBottom: 6, gap: 7, flexDirection: 'row', alignItems: 'center' },
   modeBtn: {
     paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999,
     backgroundColor: 'rgba(36,33,42,0.06)',

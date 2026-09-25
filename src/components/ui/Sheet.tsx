@@ -1,8 +1,8 @@
 import { AppMaxWidth, Colors, Fonts, Spacing } from '@/constants/colors';
+import { Modal } from '@/components/ui/BlurredModal';
 import { X } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import {
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,

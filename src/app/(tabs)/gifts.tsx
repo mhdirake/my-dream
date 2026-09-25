@@ -109,7 +109,9 @@ export default function GiftsScreen() {
     if (screenTab === 'received' && received.length === 0) loadReceived();
   }, [screenTab]);
 
-  const filtered = filterTab === 'all' ? gifts : gifts.filter(g => g.type === filterTab);
+  const matchesCategory = (type: string) => filterTab === 'all' || type === filterTab;
+  const filtered = gifts.filter(g => matchesCategory(g.type));
+  const filteredReceived = received.filter(g => matchesCategory(g.gift_type));
 
   const openGift = (g: BackendGift) => {
     router.push({
@@ -126,6 +128,43 @@ export default function GiftsScreen() {
     });
   };
 
+  const screenTabs = (
+    <View style={styles.screenTabRow}>
+      {SCREEN_TABS.map(t => (
+        <TouchableOpacity
+          key={t.key}
+          style={[styles.screenTab, screenTab === t.key && styles.screenTabActive]}
+          onPress={() => setScreenTab(t.key)}
+        >
+          <Text style={[styles.screenTabTxt, screenTab === t.key && styles.screenTabTxtActive]}>
+            {t.label}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+
+  const categoryTabs = (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      style={styles.filterScroll}
+      contentContainerStyle={styles.filterRow}
+    >
+      {FILTER_TABS.map(f => (
+        <TouchableOpacity
+          key={f.key}
+          style={[styles.filterChip, filterTab === f.key && styles.filterChipActive]}
+          onPress={() => setFilterTab(f.key)}
+        >
+          <Text style={[styles.filterTxt, filterTab === f.key && styles.filterTxtActive]}>
+            {f.label}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </ScrollView>
+  );
+
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <ScrollView
@@ -138,38 +177,11 @@ export default function GiftsScreen() {
           <CoinBadge count={coins} />
         </View>
 
-        {/* Screen tabs */}
-        <View style={styles.screenTabRow}>
-          {SCREEN_TABS.map(t => (
-            <TouchableOpacity
-              key={t.key}
-              style={[styles.screenTab, screenTab === t.key && styles.screenTabActive]}
-              onPress={() => setScreenTab(t.key)}
-            >
-              <Text style={[styles.screenTabTxt, screenTab === t.key && styles.screenTabTxtActive]}>
-                {t.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        {categoryTabs}
+        {screenTabs}
 
         {screenTab === 'store' ? (
           <>
-            {/* Category filter */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll} contentContainerStyle={styles.filterRow}>
-              {FILTER_TABS.map(f => (
-                <TouchableOpacity
-                  key={f.key}
-                  style={[styles.filterChip, filterTab === f.key && styles.filterChipActive]}
-                  onPress={() => setFilterTab(f.key)}
-                >
-                  <Text style={[styles.filterTxt, filterTab === f.key && styles.filterTxtActive]}>
-                    {f.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
             {loading ? (
               <View style={styles.loadingBox}>
                 <ActivityIndicator color={Colors.accent} />
@@ -240,14 +252,18 @@ export default function GiftsScreen() {
               <View style={styles.loadingBox}>
                 <ActivityIndicator color={Colors.accent} />
               </View>
-            ) : received.length === 0 ? (
+            ) : filteredReceived.length === 0 ? (
               <View style={styles.emptyBox}>
                 <Gift size={28} color={Colors.hair} strokeWidth={1.5} />
-                <Text style={styles.emptyTxt}>هنوز هدیه‌ای دریافت نکردی</Text>
-                <Text style={styles.emptySub}>وقتی کسی هدیه بفرسته اینجا میاد</Text>
+                <Text style={styles.emptyTxt}>
+                  {received.length === 0 ? 'هنوز هدیه‌ای دریافت نکردی' : 'هدیه‌ای از این دسته دریافت نکردی'}
+                </Text>
+                <Text style={styles.emptySub}>
+                  {received.length === 0 ? 'وقتی کسی هدیه بفرسته اینجا میاد' : 'دسته‌ی دیگه‌ای رو امتحان کن'}
+                </Text>
               </View>
             ) : (
-              received.map(sg => {
+              filteredReceived.map(sg => {
                 const meta = TYPE_META[sg.gift_type] ?? { label: sg.gift_type, color: Colors.muted, bg: Colors.ph2 };
                 return (
                   <TouchableOpacity
@@ -317,8 +333,8 @@ const styles = StyleSheet.create({
   screenTabTxt: { fontSize: 12.5, fontFamily: Fonts.semiBold, color: Colors.muted },
   screenTabTxtActive: { color: Colors.ink },
 
-  filterScroll: { flexGrow: 0, marginBottom: Spacing.md },
-  filterRow: { gap: 7, paddingVertical: 6, flexDirection: 'row', alignItems: 'center' },
+  filterScroll: { flexGrow: 0 },
+  filterRow: { gap: 7, paddingBottom: 6, flexDirection: 'row', alignItems: 'center' },
   filterChip: {
     paddingHorizontal: 16, paddingVertical: 8,
     backgroundColor: 'rgba(36,33,42,0.06)', borderRadius: 999,

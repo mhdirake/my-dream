@@ -1,6 +1,7 @@
 import { Colors, Fonts, Radius } from '@/constants/colors';
+import { Modal } from '@/components/ui/BlurredModal';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export type ConfirmButton = {

@@ -67,7 +67,7 @@ const styles = StyleSheet.create({
     zIndex: 4,
   },
   barDark: { backgroundColor: 'transparent' },
-  contentGap: { marginBottom: Spacing.md },
+  contentGap: { marginTop: Spacing.md, marginBottom: Spacing.md },
   backBtn: {
     width: 36,
     height: 36,

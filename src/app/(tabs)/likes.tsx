@@ -1,4 +1,5 @@
 import { Avatar } from '@/components/ui/Avatar';
+import { Modal } from '@/components/ui/BlurredModal';
 import { CoinBadge } from '@/components/ui/CoinBadge';
 import { DetailCard } from '@/components/ui/DetailCard';
 import { SegmentedTabs } from '@/components/ui/SegmentedTabs';
@@ -15,7 +16,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { Coins, Heart, Sparkles, UserX, VenetianMask } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import {
-  ActivityIndicator, Modal, Pressable, RefreshControl,
+  ActivityIndicator, Pressable, RefreshControl,
   Platform, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';

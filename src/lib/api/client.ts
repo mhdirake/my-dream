@@ -1,6 +1,5 @@
 import { localizeErrorMessage } from '@/lib/localization';
-
-const BASE = process.env.EXPO_PUBLIC_API_URL!;
+import { apiUrl } from './url';
 
 export class ApiError extends Error {
   constructor(
@@ -24,7 +23,7 @@ async function request<T>(
   let res: Response;
 
   try {
-    res = await fetch(`${BASE}${path}`, {
+    res = await fetch(apiUrl(path), {
       method,
       headers: {
         'Content-Type': 'application/json',

@@ -504,7 +504,7 @@ export default function GiftSubScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: Colors.bg },
+  root: { flex: 1, backgroundColor: Colors.bg, paddingTop: Spacing.md },
   historySection: { marginTop: 8, gap: 10 },
   historyTitle: { fontSize: 13, fontFamily: Fonts.bold, color: Colors.ink },
   historySeg: {

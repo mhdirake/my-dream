@@ -1,6 +1,7 @@
 import { File as FSFile, UploadType } from 'expo-file-system';
 import { Platform } from 'react-native';
 import { api } from './client';
+import { apiUrl } from './url';
 
 export type ConversationUserPhoto = {
   urls: {
@@ -268,7 +269,7 @@ export const chatApi = {
     mimeType = 'image/jpeg',
     caption?: string,
   ): Promise<MediaUploadResult> => {
-    const url = `${process.env.EXPO_PUBLIC_API_URL}/api/client/conversations/${conversationId}/images`;
+    const url = apiUrl(`/api/client/conversations/${conversationId}/images`);
 
     if (Platform.OS !== 'web') {
       const file = new FSFile(uri);
@@ -307,7 +308,7 @@ export const chatApi = {
     durationSeconds: number,
     mimeType = 'audio/m4a',
   ): Promise<MediaUploadResult> => {
-    const url = `${process.env.EXPO_PUBLIC_API_URL}/api/client/conversations/${conversationId}/files`;
+    const url = apiUrl(`/api/client/conversations/${conversationId}/files`);
     const parameters = { type: 'voice', duration_seconds: String(durationSeconds) };
 
     if (Platform.OS !== 'web') {
