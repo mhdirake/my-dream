@@ -109,7 +109,7 @@ export default function PlansScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
-      <AppBar title="اشتراک و ارتقا" back />
+      <AppBar title="اشتراک و ارتقا" back contentGap />
 
       {/* Period tabs */}
       <View style={styles.periodRow}>

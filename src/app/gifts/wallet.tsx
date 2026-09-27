@@ -84,7 +84,7 @@ export default function WalletScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
-      <AppBar title="کیف پول و سکه" back />
+      <AppBar title="کیف پول و سکه" back contentGap />
 
       {loading && !hasLoadedOnce ? (
         <View style={styles.center}>

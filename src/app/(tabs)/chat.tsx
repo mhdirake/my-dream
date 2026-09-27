@@ -192,6 +192,7 @@ export default function ChatScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
+      <View style={styles.headerSection}>
       {/* Header */}
       <View style={styles.header}>
         {searchOpen ? (
@@ -227,7 +228,6 @@ export default function ChatScreen() {
         )}
       </View>
 
-      <KeyboardAvoider>
       <SegmentedTabs
         value={tab}
         onChange={setTab}
@@ -237,7 +237,9 @@ export default function ChatScreen() {
           { key: 'requests', label: 'درخواست‌ها', count: pendingCount },
         ]}
       />
+      </View>
 
+      <KeyboardAvoider>
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator color={Colors.accent} />
@@ -545,6 +547,7 @@ function PendingRow({
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
+  headerSection: { gap: 2 },
 
   header: {
     height: 54,
@@ -554,7 +557,6 @@ const styles = StyleSheet.create({
     marginTop: Spacing.lg,
     gap: 8,
     justifyContent: 'space-between',
-    marginBottom: 4,
   },
   headerTitle: { fontSize: 18, fontFamily: Fonts.extraBold, color: Colors.ink },
   searchInput: {

@@ -1,6 +1,7 @@
 import { Badge } from '@/components/ui/Badge';
 import { Chip } from '@/components/ui/Chip';
 import { Card } from '@/components/ui/Card';
+import { SegmentedTabs, SegmentedTabItem } from '@/components/ui/SegmentedTabs';
 import { GiftModal } from '@/components/GiftModal';
 import { TemplateMessageModal } from '@/components/TemplateMessageModal';
 import { Colors, Fonts, Spacing } from '@/constants/colors';
@@ -45,10 +46,13 @@ const { width: SW } = Dimensions.get('window');
 const SWIPE_THRESHOLD = 80;
 
 type Mode = 'swipe' | 'daily' | 'ai';
-const MODES: { id: Mode; label: string }[] = [
-  { id: 'swipe', label: 'جستجو' },
-  { id: 'daily', label: 'پیشنهاد روزانه' },
-  { id: 'ai', label: 'مچ هوشمند' },
+const MODES: SegmentedTabItem<Mode>[] = [
+  { key: 'swipe', label: 'جستجو' },
+  { key: 'daily', label: 'پیشنهاد روزانه' },
+  {
+    key: 'ai', label: 'مچ هوشمند',
+    icon: active => <Sparkles size={12} color={active ? Colors.accent : Colors.purple} strokeWidth={2} />,
+  },
 ];
 
 function calcAge(d: string) {
@@ -661,32 +665,13 @@ function FloatingHeader({
         </View>
       )}
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.modeScroll}
-        style={styles.modeScrollWrap}
-      >
-        {MODES.map(m => {
-          const on = m.id === mode;
-          return (
-            <TouchableOpacity
-              key={m.id}
-              onPress={() => onModeChange(m.id)}
-              style={[styles.modeBtn, on && styles.modeBtnActive]}
-            >
-              {m.id === 'ai' && (
-                <Sparkles
-                  size={12}
-                  color={on ? Colors.accent : Colors.purple}
-                  strokeWidth={2}
-                />
-              )}
-              <Text style={[styles.modeTxt, on && styles.modeTxtActive]}>{m.label}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+      <SegmentedTabs
+        items={MODES}
+        value={mode}
+        onChange={onModeChange}
+        scrollable
+        style={styles.modeTabs}
+      />
     </View>
   );
 }
@@ -849,14 +834,13 @@ const styles = StyleSheet.create({
   content: { flex: 1 },
 
   // ── Floating header ─────────────────────────────────────────────────────────
-  floatingHeader: { backgroundColor: Colors.bg, paddingTop: Spacing.lg },
+  floatingHeader: { backgroundColor: Colors.bg, paddingTop: Spacing.lg, gap: 2 },
   headerRow: {
     height: 54,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Spacing.lg,
     justifyContent: 'space-between',
-    marginBottom: 4,
   },
   headerTitle: { fontSize: 18, fontFamily: Fonts.extraBold, color: Colors.ink },
   headerActions: { flexDirection: 'row', gap: 8 },
@@ -873,25 +857,12 @@ const styles = StyleSheet.create({
   },
   safeBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    marginHorizontal: 16, marginBottom: 4,
+    marginHorizontal: 16,
     backgroundColor: Colors.okSoft, borderRadius: 12,
     paddingHorizontal: 12, paddingVertical: 7,
   },
   safeBannerTxt: { fontSize: 12, fontFamily: Fonts.bold, color: Colors.ok },
-  modeScrollWrap: { flexGrow: 0, marginHorizontal: Spacing.lg },
-  modeScroll: { paddingBottom: 6, gap: 7, flexDirection: 'row', alignItems: 'center' },
-  modeBtn: {
-    paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999,
-    backgroundColor: 'rgba(36,33,42,0.06)',
-    borderWidth: 1.5, borderColor: 'transparent',
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-  },
-  modeBtnActive: {
-    backgroundColor: Colors.accentSoft,
-    borderWidth: 1.5, borderColor: Colors.accent,
-  },
-  modeTxt: { fontFamily: Fonts.semiBold, fontSize: 13, color: Colors.muted },
-  modeTxtActive: { color: Colors.accent, fontFamily: Fonts.extraBold },
+  modeTabs: { marginHorizontal: Spacing.lg, marginBottom: 6 },
 
   // ── Swipe layout ────────────────────────────────────────────────────────────
   swipeContainer: { flex: 1 },

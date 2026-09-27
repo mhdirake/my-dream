@@ -403,6 +403,7 @@ export default function NotificationsScreen() {
   return (
     <SafeAreaView style={styles.root}>
       <AppBar
+        contentGap
         title={unreadCount > 0 ? `اعلان‌ها (${toPersian(unreadCount)})` : 'اعلان‌ها'}
         back
         right={

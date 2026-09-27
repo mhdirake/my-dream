@@ -70,7 +70,7 @@ export default function BuyCoinsScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
-      <AppBar title="خرید سکه" back />
+      <AppBar title="خرید سکه" back contentGap />
 
       {loading ? (
         <View style={styles.center}><ActivityIndicator color={Colors.gold} /></View>

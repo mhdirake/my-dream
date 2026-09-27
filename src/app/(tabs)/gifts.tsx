@@ -1,6 +1,7 @@
 import { DetailCard } from '@/components/ui/DetailCard';
 import { Avatar } from '@/components/ui/Avatar';
 import { CoinBadge } from '@/components/ui/CoinBadge';
+import { SegmentedTabs } from '@/components/ui/SegmentedTabs';
 import { AppMaxWidth, Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { giftDisplayTitle, giftUserPhotoUrl, giftsApi, SentGift } from '@/lib/api/gifts';
 import { BackendGift } from '@/lib/api/discover';
@@ -145,24 +146,13 @@ export default function GiftsScreen() {
   );
 
   const categoryTabs = (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      style={styles.filterScroll}
-      contentContainerStyle={styles.filterRow}
-    >
-      {FILTER_TABS.map(f => (
-        <TouchableOpacity
-          key={f.key}
-          style={[styles.filterChip, filterTab === f.key && styles.filterChipActive]}
-          onPress={() => setFilterTab(f.key)}
-        >
-          <Text style={[styles.filterTxt, filterTab === f.key && styles.filterTxtActive]}>
-            {f.label}
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </ScrollView>
+    <SegmentedTabs
+      items={FILTER_TABS}
+      value={filterTab}
+      onChange={setFilterTab}
+      scrollable
+      style={styles.categoryTabs}
+    />
   );
 
   return (
@@ -172,12 +162,14 @@ export default function GiftsScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: bottom + 92 }]}
       >
         {/* Header */}
+        <View style={styles.headerSection}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>هدایا</Text>
           <CoinBadge count={coins} />
         </View>
 
         {categoryTabs}
+        </View>
         {screenTabs}
 
         {screenTab === 'store' ? (
@@ -317,10 +309,11 @@ export default function GiftsScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
   content: { padding: Spacing.lg },
+  headerSection: { gap: 2 },
 
   header: {
     height: 54, flexDirection: 'row',
-    alignItems: 'center', justifyContent: 'space-between', marginBottom: 4,
+    alignItems: 'center', justifyContent: 'space-between',
   },
   headerTitle: { fontSize: 18, fontFamily: Fonts.extraBold, color: Colors.ink },
 
@@ -333,20 +326,7 @@ const styles = StyleSheet.create({
   screenTabTxt: { fontSize: 12.5, fontFamily: Fonts.semiBold, color: Colors.muted },
   screenTabTxtActive: { color: Colors.ink },
 
-  filterScroll: { flexGrow: 0 },
-  filterRow: { gap: 7, paddingBottom: 6, flexDirection: 'row', alignItems: 'center' },
-  filterChip: {
-    paddingHorizontal: 16, paddingVertical: 8,
-    backgroundColor: 'rgba(36,33,42,0.06)', borderRadius: 999,
-    borderWidth: 1.5, borderColor: 'transparent',
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-  },
-  filterChipActive: {
-    backgroundColor: Colors.accentSoft,
-    borderWidth: 1.5, borderColor: Colors.accent,
-  },
-  filterTxt: { fontSize: 13, fontFamily: Fonts.semiBold, color: Colors.muted },
-  filterTxtActive: { color: Colors.accent, fontFamily: Fonts.extraBold },
+  categoryTabs: { marginBottom: 6 },
 
   loadingBox: { height: 120, alignItems: 'center', justifyContent: 'center' },
   emptyBox: { paddingVertical: 48, alignItems: 'center', gap: 8 },
