@@ -1,8 +1,9 @@
 {
   "name": "mobile",
   "main": "expo-router/entry",
-  "version": "1.0.14",
+  "version": "1.0.0",
   "dependencies": {
+    "@cafebazaar/react-native-poolakey": "^3.1.2",
     "@expo/ui": "~56.0.16",
     "centrifuge": "^5.6.0",
     "compression": "^1.8.1",

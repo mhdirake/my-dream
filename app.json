@@ -2,7 +2,7 @@
   "expo": {
     "name": "My Dream",
     "slug": "mobile",
-    "version": "1.0.14",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/logo.png",
     "scheme": "mobile",
@@ -12,7 +12,8 @@
       "bundleIdentifier": "mydream.app"
     },
     "android": {
-      "package": "mydream.app",
+      "package": "ir.mydreamapp.app",
+      "versionCode": 1,
       "icon": "./assets/images/logo.png",
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {

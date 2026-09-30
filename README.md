@@ -42,7 +42,7 @@ Keycloak client secret، کلید Centrifugo یا credential registry هرگز �
 
 ## Route و callback
 
-- scheme برنامه `mobile://` و شناسه Android/iOS برابر `mydream.app` است.
+- scheme برنامه `mobile://`، شناسه Android برابر `ir.mydreamapp.app` و شناسه iOS برابر `mydream.app` است.
 - payment callback پس از بازگشت وضعیت تراکنش را poll و wallet را refetch می‌کند.
 - tap اعلان سیستم‌عامل از route resolver مشترک اعلان داخلی استفاده می‌کند.
 - Group Chat فقط برای Silver/Gold و AI Match فقط برای Gold قابل دسترسی است.
