@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 type PrivacySettings = {
   safe_mode_enabled: boolean;
+  show_same_gender_in_swipe: boolean;
   message_permission_mode: string;
   min_profile_completion: number | null;
   personality_test_visibility: 'visible' | 'hidden';
@@ -49,6 +50,7 @@ export default function PrivacyScreen() {
   const [settings, setSettings] = useState<PrivacySettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [savingSafe, setSavingSafe] = useState(false);
+  const [savingSwipeGender, setSavingSwipeGender] = useState(false);
   const [isGold, setIsGold] = useState(false);
   const [insightVisible, setInsightVisible] = useState(true);
   const [savingInsight, setSavingInsight] = useState(false);
@@ -107,6 +109,26 @@ export default function PrivacyScreen() {
     }
   };
 
+  const toggleSwipeGender = async (val: boolean) => {
+    if (!session?.accessToken || !settings || savingSwipeGender) return;
+    setSavingSwipeGender(true);
+    const previous = settings.show_same_gender_in_swipe;
+    setSettings(current => current ? { ...current, show_same_gender_in_swipe: val } : current);
+    try {
+      const response = await api.patch<{ data: PrivacySettings }>(
+        '/api/client/privacy-settings',
+        { show_same_gender_in_swipe: val },
+        session.accessToken,
+      );
+      setSettings(response.data);
+    } catch (error: any) {
+      setSettings(current => current ? { ...current, show_same_gender_in_swipe: previous } : current);
+      toast.error(error.message ?? 'خطا در ذخیره');
+    } finally {
+      setSavingSwipeGender(false);
+    }
+  };
+
   const togglePersonalityVisibility = async (val: boolean) => {
     if (!session?.accessToken || !settings) return;
     setSavingPersonality(true);
@@ -141,6 +163,26 @@ export default function PrivacyScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+
+          <Text style={styles.sectionTitle}>تنظیمات جستجو</Text>
+          <Card soft>
+            <View style={styles.safeModeRow}>
+              <View style={[styles.modeIcon, { backgroundColor: Colors.accentSoft }]}>
+                <Eye size={20} color={Colors.accent} strokeWidth={2} />
+              </View>
+              <View style={styles.modeText}>
+                <Text style={styles.modeTitle}>نمایش هم‌جنس در لیست جستجو</Text>
+                <Text style={styles.modeSub}>به‌صورت پیش‌فرض فقط جنس مخالف نمایش داده می‌شود.</Text>
+              </View>
+              <Switch
+                value={settings?.show_same_gender_in_swipe ?? false}
+                onValueChange={toggleSwipeGender}
+                disabled={savingSwipeGender}
+                trackColor={{ false: Colors.hair, true: Colors.accent + 'AA' }}
+                thumbColor={settings?.show_same_gender_in_swipe ? Colors.accent : Colors.muted}
+              />
+            </View>
+          </Card>
 
           {/* Safe Mode */}
           <Text style={styles.sectionTitle}>حالت امن</Text>
