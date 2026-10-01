@@ -1,6 +1,7 @@
 import { Centrifuge, Subscription } from 'centrifuge';
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
+import { useTerms } from '@/lib/terms/TermsContext';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { chatApi } from '@/lib/api/chat';
 
@@ -43,7 +44,8 @@ const CentrifugoContext = createContext<CentrifugoContextValue>({
 
 export function CentrifugoProvider({ children }: { children: React.ReactNode }) {
   const { session } = useAuth();
-  const token = session?.accessToken;
+  const { canUseApp } = useTerms();
+  const token = canUseApp ? session?.accessToken : undefined;
 
   const isConnectedRef = useRef(false);
   const [connectionState, setConnectionState] = useState<ConnectionState>('disabled');

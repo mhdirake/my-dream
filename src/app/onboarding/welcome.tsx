@@ -167,10 +167,6 @@ export default function WelcomeScreen() {
             <Button variant="ghost" onPress={() => router.push('/onboarding/login')}>
               قبلاً حساب دارم
             </Button>
-            <Text style={styles.legal}>
-              با ورود، <Text style={styles.link}>قوانین</Text> و{' '}
-              <Text style={styles.link}>حریم خصوصی</Text> را می‌پذیرم
-            </Text>
             <Text style={styles.version}>{APP_VERSION_LABEL}</Text>
           </Animated.View>
         </View>

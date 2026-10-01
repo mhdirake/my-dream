@@ -1,3 +1,4 @@
+import { TermsProvider } from '@/lib/terms/TermsContext';
 import { AuthProvider } from '@/lib/auth/AuthContext';
 import { CentrifugoProvider } from '@/lib/chat/CentrifugoContext';
 import { ModerationProvider } from '@/lib/moderation/ModerationContext';
@@ -51,6 +52,7 @@ export default function RootLayout() {
         <SafeAreaProvider initialMetrics={Platform.OS === 'web' ? WEB_INITIAL_SAFE_AREA_METRICS : undefined}>
           <StatusBar style="light" />
           <AuthProvider>
+            <TermsProvider>
             <ModerationProvider>
               <CentrifugoProvider>
                 <KeyboardViewport>
@@ -67,6 +69,7 @@ export default function RootLayout() {
                 </KeyboardViewport>
               </CentrifugoProvider>
             </ModerationProvider>
+            </TermsProvider>
           </AuthProvider>
           <Toast config={toastConfig} visibilityTime={3000} topOffset={56} />
           <ConfirmSheetHost />

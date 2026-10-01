@@ -1,5 +1,7 @@
 type RegistrationState = {
   phone: string;
+  terms_version_id: number;
+  terms_accepted: boolean;
   registration_token: string;
   username: string;
   email: string;

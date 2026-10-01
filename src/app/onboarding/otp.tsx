@@ -1,3 +1,4 @@
+import { isTermsError } from '@/lib/termsPolicy';
 import { AppBar } from '@/components/ui/AppBar';
 import { Button } from '@/components/ui/Button';
 import { KeyboardStickyBar } from '@/components/ui/KeyboardStickyBar';
@@ -40,6 +41,7 @@ export default function OTPScreen() {
       setSeconds(Number(resend_after) || 60);
       setOtp('');
     } catch (e: any) {
+      if (isTermsError(e)) router.push({ pathname: '/terms', params: { returnTo: 'registration' } });
       toast.error(e.message ?? 'خطا در ارسال مجدد کد');
     }
   };

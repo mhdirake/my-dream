@@ -1,4 +1,5 @@
 import { api } from './client';
+import { registrationStore } from '../registrationStore';
 
 export type OtpSendResponse = {
   success: boolean;
@@ -70,7 +71,7 @@ export type MeResponse = {
 
 export const authApi = {
   sendOtp: (mobile: string) =>
-    api.post<OtpSendResponse>('/api/auth/register/send-otp', { mobile }),
+    api.post<OtpSendResponse>('/api/auth/register/send-otp', { mobile, terms_version_id: registrationStore.get().terms_version_id, terms_accepted: registrationStore.get().terms_accepted ?? false }),
 
   verifyOtp: (mobile: string, code: string) =>
     api.post<OtpVerifyResponse>('/api/auth/register/verify-otp', { mobile, code }),

@@ -12,6 +12,11 @@ export class ApiError extends Error {
   }
 }
 
+const termsListeners = new Set<(token?: string) => void>();
+export function onTermsRequired(listener: (token?: string) => void): () => void {
+  termsListeners.add(listener); return () => { termsListeners.delete(listener); };
+}
+
 async function request<T>(
   method: string,
   path: string,
@@ -44,6 +49,7 @@ async function request<T>(
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
+    if (data?.code === 'TERMS_ACCEPTANCE_REQUIRED') termsListeners.forEach(listener => listener(token));
     const validationMessage = data?.errors
       ? Object.values(data.errors).flat().find(value => typeof value === 'string')
       : undefined;

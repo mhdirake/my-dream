@@ -69,6 +69,7 @@ export default function SettingsScreen() {
     {
       title: 'حساب',
       items: [
+        { icon: Shield, iconColor: Colors.trust, label: 'قوانین و حریم خصوصی', route: '/terms' },
         {
           icon: Lock, iconColor: Colors.purple,
           label: 'تغییر رمز عبور',

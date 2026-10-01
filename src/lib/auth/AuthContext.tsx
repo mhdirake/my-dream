@@ -36,6 +36,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const token = await authApi.refresh(s.refreshToken);
       const next: Session = {
+        userId: s.userId,
         accessToken: token.access_token,
         refreshToken: token.refresh_token ?? s.refreshToken,
         expiresAt: Date.now() + (token.expires_in ?? 300) * 1000,
@@ -96,6 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           try {
             const token = await authApi.refresh(s.refreshToken);
             active = {
+              userId: s.userId,
               accessToken: token.access_token,
               refreshToken: token.refresh_token ?? s.refreshToken,
               expiresAt: Date.now() + (token.expires_in ?? 300) * 1000,
@@ -111,7 +113,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
+        // Keep the saved account available for offline terms acceptance checks.
+        setSession(active);
         const me = await authApi.me(active.accessToken);
+        active = { ...active, userId: me.id };
+        await saveSession(active);
         setSession(active);
         setUser(me);
       } catch (error) {
@@ -134,6 +140,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       expiresAt: Date.now() + (token.expires_in ?? 300) * 1000,
     };
     const me = await authApi.me(newSession.accessToken);
+    newSession.userId = me.id;
     await saveSession(newSession);
     setSession(newSession);
     setUser(me);
@@ -159,6 +166,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(newSession);
       try {
         const me = await authApi.me(accessToken);
+        newSession.userId = me.id;
+        await saveSession(newSession);
+        setSession({ ...newSession });
         setUser(me);
       } catch {
         // Session is saved; user info will load on next app start

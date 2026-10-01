@@ -5,13 +5,14 @@ const KEY = 'session';
 
 export type Session = {
   accessToken: string;
+  userId?: number;
   refreshToken: string;
   expiresAt: number; // Unix ms
 };
 
 // ── Platform-aware storage ────────────────────────────────────────
 // expo-secure-store is native-only; fall back to localStorage on web
-const store = {
+export const store = {
   get: (key: string): Promise<string | null> => {
     if (Platform.OS === 'web') {
       try { return Promise.resolve(localStorage.getItem(key)); }

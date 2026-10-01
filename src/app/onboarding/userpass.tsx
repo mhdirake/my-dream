@@ -1,3 +1,4 @@
+import { isTermsError } from '@/lib/termsPolicy';
 import { AppBar } from '@/components/ui/AppBar';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -15,10 +16,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function UserPassScreen() {
   const { saveRegistrationSession } = useAuth();
-  const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [passwordConfirm, setPasswordConfirm] = useState('');
+  const [username, setUsername] = useState(registrationStore.get().username ?? '');
+  const [email, setEmail] = useState(registrationStore.get().email ?? '');
+  const [password, setPassword] = useState(registrationStore.get().password ?? '');
+  const [passwordConfirm, setPasswordConfirm] = useState(registrationStore.get().password_confirmation ?? '');
   const [loading, setLoading] = useState(false);
 
   const passwordsMatch = password === passwordConfirm;
@@ -31,6 +32,7 @@ export default function UserPassScreen() {
       return;
     }
     const { registration_token } = registrationStore.get();
+    registrationStore.set({ username, email, password, password_confirmation: passwordConfirm });
     if (!registration_token) {
       toast.error('جلسه منقضی شده. لطفاً از ابتدا شروع کنید.');
       return;
@@ -49,6 +51,7 @@ export default function UserPassScreen() {
       await saveRegistrationSession(access_token, refresh_token, expires_in);
       router.replace('/profile-setup/basic-info' as any);
     } catch (e: any) {
+      if (isTermsError(e)) router.push({ pathname: '/terms', params: { returnTo: 'registration' } });
       toast.error(e.message ?? 'خطا در ثبت‌نام');
     } finally {
       setLoading(false);
