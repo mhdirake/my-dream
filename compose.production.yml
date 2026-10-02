@@ -1,0 +1,20 @@
+name: md-app
+x-runtime: &runtime
+  restart: unless-stopped
+  logging: {driver: json-file, options: {max-size: "10m", max-file: "3"}}
+services:
+  app:
+    <<: *runtime
+    image: ${MD_APP_IMAGE:?required}
+    env_file: .env
+    mem_limit: 512m
+    networks:
+      edge: {aliases: [md-app]}
+    healthcheck:
+      test: [CMD, node, -e, "require('http').get('http://127.0.0.1:3000/health',r=>process.exit(r.statusCode<400?0:1)).on('error',()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+networks:
+  edge: {name: md-edge, external: true}
