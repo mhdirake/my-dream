@@ -9,9 +9,10 @@ variables:
   MD_PUBLIC_URL: https://app.mydreamapp.ir
 
 # Keep native publishing available without coupling it to the web deployment.
-build-and-publish-android:
+build-android:
   stage: deploy
-  resource_group: md-production
+  tags: [germany]
+  resource_group: germany-android
   interruptible: true
   needs: [test-production]
   rules:
@@ -23,7 +24,7 @@ build-and-publish-android:
       set -euo pipefail
       case "${CI_PIPELINE_ID:?}" in *[!0-9]*|'') exit 1 ;; esac
       output="$CI_PROJECT_DIR/artifacts/android/$CI_PIPELINE_ID"
-      mkdir -p "$output" /srv/mydream/apk
+      mkdir -p "$output"
       docker buildx build --file Dockerfile.android --target android-artifacts \
         --output "type=local,dest=$output" \
         --build-arg UBUNTU_IMAGE=ubuntu:24.04 \
@@ -33,9 +34,29 @@ build-and-publish-android:
         --build-arg ANDROID_ARCHITECTURES=arm64-v8a \
         --build-arg EXPO_PUBLIC_API_URL=https://api.mydreamapp.ir .
       test -s "$output/app-release.apk"
-      install -m 644 "$output/app-release.apk" /srv/mydream/apk/my-dream-latest.apk.tmp
-      mv /srv/mydream/apk/my-dream-latest.apk.tmp /srv/mydream/apk/my-dream-latest.apk
   artifacts:
     name: "md-android-$CI_PIPELINE_ID"
     expire_in: 90 days
     paths: [artifacts/android/]
+
+publish-android:
+  stage: deploy
+  tags: [md]
+  resource_group: md-production
+  environment: {name: production/md, url: "https://mydreamapp.ir/downloads/my-dream-latest.apk"}
+  needs:
+    - job: build-android
+      artifacts: true
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: manual
+      allow_failure: true
+  script:
+    - |
+      set -euo pipefail
+      case "${CI_PIPELINE_ID:?}" in *[!0-9]*|'') exit 1 ;; esac
+      output="$CI_PROJECT_DIR/artifacts/android/$CI_PIPELINE_ID"
+      test -s "$output/app-release.apk"
+      mkdir -p /srv/mydream/apk
+      install -m 644 "$output/app-release.apk" /srv/mydream/apk/my-dream-latest.apk.tmp
+      mv /srv/mydream/apk/my-dream-latest.apk.tmp /srv/mydream/apk/my-dream-latest.apk
