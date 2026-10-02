@@ -7,3 +7,34 @@ variables:
   MD_BUILD_TARGET: web-runtime
   MD_TEST_TARGET: "test"
   MD_PUBLIC_URL: https://app.mydreamapp.ir
+
+# Keep native publishing available without coupling it to the web deployment.
+build-and-publish-android:
+  stage: deploy
+  resource_group: md-production
+  interruptible: true
+  needs: [test-production]
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: manual
+  script:
+    - |
+      set -euo pipefail
+      case "${CI_PIPELINE_ID:?}" in *[!0-9]*|'') exit 1 ;; esac
+      output="$CI_PROJECT_DIR/artifacts/android/$CI_PIPELINE_ID"
+      mkdir -p "$output" /srv/mydream/apk
+      docker buildx build --file Dockerfile.android --target android-artifacts \
+        --output "type=local,dest=$output" \
+        --build-arg UBUNTU_IMAGE=ubuntu:24.04 \
+        --build-arg ANDROID_REPOSITORY_URL=https://dl.google.com/android/repository \
+        --build-arg NPM_REGISTRY=https://registry.npmjs.org/ \
+        --build-arg ANDROID_GRADLE_VARIANT=Release \
+        --build-arg ANDROID_ARCHITECTURES=arm64-v8a \
+        --build-arg EXPO_PUBLIC_API_URL=https://api.mydreamapp.ir .
+      test -s "$output/app-release.apk"
+      install -m 644 "$output/app-release.apk" /srv/mydream/apk/my-dream-latest.apk.tmp
+      mv /srv/mydream/apk/my-dream-latest.apk.tmp /srv/mydream/apk/my-dream-latest.apk
+  artifacts:
+    name: "md-android-$CI_PIPELINE_ID"
+    expire_in: 90 days
+    paths: [artifacts/android/]
