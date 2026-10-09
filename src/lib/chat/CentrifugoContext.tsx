@@ -4,6 +4,8 @@ import { AppState } from 'react-native';
 import { useTerms } from '@/lib/terms/TermsContext';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { chatApi } from '@/lib/api/chat';
+import { ApiError } from '@/lib/api/client';
+import { HeartbeatGate } from './heartbeatGate';
 
 export type CentrifugoEvent = {
   event: string;
@@ -159,8 +161,18 @@ export function CentrifugoProvider({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     if (!token) return;
     let timer: ReturnType<typeof setInterval> | null = null;
-    const heartbeat = () => {
-      if (AppState.currentState === 'active') chatApi.heartbeat(token).catch(() => {});
+    const gate = new HeartbeatGate();
+    let stopped = false;
+    const heartbeat = async () => {
+      if (stopped || AppState.currentState !== 'active' || !gate.begin()) return;
+      try {
+        await chatApi.heartbeat(token);
+        gate.success();
+      } catch (error) {
+        const status = error instanceof ApiError ? error.status : 0;
+        const retryAfter = error instanceof ApiError ? error.retryAfterSeconds ?? 0 : 0;
+        gate.failure(status, retryAfter);
+      } finally { gate.finish(); }
     };
     heartbeat();
     timer = setInterval(heartbeat, 30_000);
@@ -168,6 +180,7 @@ export function CentrifugoProvider({ children }: { children: React.ReactNode }) 
       if (state === 'active') heartbeat();
     });
     return () => {
+      stopped = true;
       if (timer) clearInterval(timer);
       subscription.remove();
     };

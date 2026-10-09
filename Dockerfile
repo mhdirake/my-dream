@@ -28,10 +28,18 @@ RUN npx tsc --noEmit
 RUN npx eslint \
   src/lib/api/auth.ts \
   src/lib/api/client.ts \
+  src/lib/api/client.test.ts \
+  src/lib/auth/AuthContext.tsx \
+  src/lib/auth/storage.ts \
+  src/lib/auth/storage.test.ts \
+  src/lib/auth/sessionController.ts \
+  src/lib/auth/sessionController.test.ts \
   src/lib/passwordResetStore.ts \
   src/lib/passwordResetStore.test.ts \
   src/lib/api/chat.ts \
   src/lib/chat/CentrifugoContext.tsx \
+  src/lib/chat/heartbeatGate.ts \
+  src/lib/chat/heartbeatGate.test.ts \
   src/lib/chat/useChatMessages.ts \
   src/lib/chat/useConversations.ts \
   src/lib/chat/chatRepository.ts \

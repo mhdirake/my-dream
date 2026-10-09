@@ -6,10 +6,20 @@ export class ApiError extends Error {
     public status: number,
     public rawMessage: string,
     public data?: unknown,
+    public retryAfterSeconds?: number,
   ) {
     super(localizeErrorMessage(rawMessage, status));
     this.name = 'ApiError';
   }
+}
+
+type AuthHandlers = {
+  accessToken: (token: string, forceRefresh?: boolean) => Promise<string | undefined>;
+};
+let authHandlers: AuthHandlers | null = null;
+export function registerAuthHandlers(handlers: AuthHandlers): () => void {
+  authHandlers = handlers;
+  return () => { if (authHandlers === handlers) authHandlers = null; };
 }
 
 const termsListeners = new Set<(token?: string) => void>();
@@ -22,7 +32,12 @@ async function request<T>(
   path: string,
   body?: object,
   token?: string,
+  retried = false,
 ): Promise<T> {
+  const authenticated = !!token && !path.startsWith('/api/auth/');
+  if (authenticated && !retried && authHandlers) {
+    token = await authHandlers.accessToken(token!) ?? token;
+  }
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 20_000);
   let res: Response;
@@ -49,6 +64,10 @@ async function request<T>(
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
+    if (res.status === 401 && authenticated && !retried && authHandlers) {
+      const renewed = await authHandlers.accessToken(token!, true);
+      if (renewed) return request<T>(method, path, body, renewed, true);
+    }
     if (data?.code === 'TERMS_ACCEPTANCE_REQUIRED') termsListeners.forEach(listener => listener(token));
     const validationMessage = data?.errors
       ? Object.values(data.errors).flat().find(value => typeof value === 'string')
@@ -57,6 +76,7 @@ async function request<T>(
       res.status,
       String(validationMessage ?? data?.error_description ?? data?.message ?? data?.detail ?? data?.error ?? `HTTP ${res.status}`),
       data,
+      Number(res.headers.get('Retry-After')) || undefined,
     );
   }
 
