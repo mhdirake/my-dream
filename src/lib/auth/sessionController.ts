@@ -2,6 +2,21 @@ import type { Session } from './storage';
 
 const refreshes = new Map<string, Promise<Session>>();
 
+export async function refreshAuthenticatedIdentity<T extends { id: number }>(
+  controller: SessionController,
+  getIdentity: (token: string) => Promise<T>,
+  changed: (user: T) => void,
+): Promise<void> {
+  const version = controller.version;
+  const active = await controller.refresh();
+  if (!active || controller.version !== version) return;
+  const user = await getIdentity(active.accessToken);
+  if (controller.version !== version || !controller.session) return;
+  const acceptedVersion = controller.session.userId === user.id ? version : version + 1;
+  if (controller.session.userId !== user.id) await controller.replace({ ...controller.session, userId: user.id });
+  if (controller.version === acceptedVersion && controller.session?.userId === user.id) changed(user);
+}
+
 export class SessionController {
   private current: Session | null = null;
   private generation = 0;

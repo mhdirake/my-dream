@@ -3,7 +3,7 @@ import { AppState } from 'react-native';
 import { ApiError, registerAuthHandlers } from '../api/client';
 import { authApi, type MeResponse } from '../api/auth';
 import { clearSession, isExpired, loadSession, refreshRememberedSession, saveSession, type Session } from './storage';
-import { SessionController } from './sessionController';
+import { SessionController, refreshAuthenticatedIdentity } from './sessionController';
 
 export type AuthUser = MeResponse;
 type AuthCtx = {
@@ -46,8 +46,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const doRefresh = useCallback(async function refreshWithRetry() {
     if (retryTimer.current) { clearTimeout(retryTimer.current); retryTimer.current = null; }
-    try { await controller.refresh(); }
+    const version = controller.version;
+    try {
+      // Also restore identity after a transient startup failure, not just the JWT.
+      await refreshAuthenticatedIdentity(controller, authApi.me, setUser);
+    }
     catch (error) {
+      if (isAuthFailure(error) && controller.version === version) await controller.replace(null);
       if (!isAuthFailure(error) && controller.session) {
         const delay = error instanceof ApiError ? error.retryAfterSeconds ?? 30 : 30;
         retryTimer.current = setTimeout(() => { void refreshWithRetry(); }, Math.max(5, delay) * 1000);

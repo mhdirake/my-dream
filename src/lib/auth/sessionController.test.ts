@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { SessionController } from './sessionController';
+import { SessionController, refreshAuthenticatedIdentity } from './sessionController';
 import type { Session } from './storage';
 
 function session(id = 'a'): Session {
@@ -18,6 +18,29 @@ function controller(renew: (s: Session) => Promise<Session>) {
 }
 
 describe('session refresh', () => {
+  it('restores identity as well as tokens after a transient startup outage', async () => {
+    const { auth } = controller(async () => session('new'));
+    await auth.replace(session('saved'));
+    const changed = vi.fn();
+    await refreshAuthenticatedIdentity(auth, async () => ({ id: 42, first_name: 'Sara' }), changed);
+    expect(auth.session?.userId).toBe(42);
+    expect(changed).toHaveBeenCalledWith({ id: 42, first_name: 'Sara' });
+  });
+
+  it('does not apply a late identity response after switching accounts', async () => {
+    const { auth } = controller(async () => session('rotated'));
+    await auth.replace(session('old'));
+    const identity = pending<{ id: number }>();
+    const requested = pending<boolean>();
+    const changed = vi.fn();
+    const loading = refreshAuthenticatedIdentity(auth, () => { requested.resolve(true); return identity.promise; }, changed);
+    await requested.promise;
+    await auth.replace({ ...session('other'), userId: 99 });
+    identity.resolve({ id: 42 });
+    await loading;
+    expect(changed).not.toHaveBeenCalled();
+    expect(auth.session?.userId).toBe(99);
+  });
   it('shares one refresh across startup, foreground and parallel API requests', async () => {
     const task = pending<Session>();
     const renew = vi.fn(() => task.promise);

@@ -47,13 +47,19 @@ export const store = {
 // ── Public API ────────────────────────────────────────────────────
 export async function saveSession(session: Session): Promise<void> {
   const saved = { ...session, rememberUntil: session.rememberUntil ?? Date.now() + REMEMBER_MS };
-  await store.set(KEY, JSON.stringify(saved));
-  if (Platform.OS === 'web' && saved.userId && saved.rememberUntil > Date.now()) {
+  if (Platform.OS === 'web') {
     try {
-      localStorage.setItem(ACCOUNT_PREFIX + saved.userId, JSON.stringify(saved));
-      localStorage.setItem(LAST_ACCOUNT, String(saved.userId));
+      // Write the tab and account vault in one event-loop turn so logout cannot
+      // interleave between them and leave a restorable refresh token behind.
+      sessionStorage.setItem(KEY, JSON.stringify(saved));
+      if (saved.userId && saved.rememberUntil > Date.now()) {
+        localStorage.setItem(ACCOUNT_PREFIX + saved.userId, JSON.stringify(saved));
+        localStorage.setItem(LAST_ACCOUNT, String(saved.userId));
+      }
     } catch { /* Private browsing may disallow durable storage. */ }
+    return;
   }
+  await store.set(KEY, JSON.stringify(saved));
 }
 
 function parseSession(raw: string | null): Session | null {
@@ -109,7 +115,8 @@ export async function refreshRememberedSession(session: Session, renew: (current
     const latest = session.userId ? loadAccountSession(session.userId) : null;
     if (latest && latest.refreshToken !== session.refreshToken && !isExpired(latest)) return latest;
     const next = await renew(latest ?? session);
-    if (canPersist()) await saveSession(next);
+    // Native persistence is serialized by SessionController after its generation check.
+    if (Platform.OS === 'web' && canPersist()) await saveSession(next);
     return next;
   };
   if (Platform.OS === 'web' && session.userId && globalThis.navigator?.locks) {
