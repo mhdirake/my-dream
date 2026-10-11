@@ -1,5 +1,6 @@
 import { ScrollViewStyleReset, useServerDocumentContext } from 'expo-router/html';
 import type { PropsWithChildren } from 'react';
+import { AppMaxWidth, Colors } from '@/constants/colors';
 
 export default function Root({ children }: PropsWithChildren) {
   const { bodyAttributes, bodyNodes, headNodes, htmlAttributes } = useServerDocumentContext();
@@ -27,9 +28,12 @@ export default function Root({ children }: PropsWithChildren) {
         <ScrollViewStyleReset />
         <style dangerouslySetInnerHTML={{ __html: `
           :root {
-            --app-viewport-height: 100dvh;
+            --app-viewport-height: 100vh;
             --app-viewport-offset-top: 0px;
             --keyboard-inset: 0px;
+          }
+          @supports (height: 100dvh) {
+            :root { --app-viewport-height: 100dvh; }
           }
           html, body {
             width: 100%;
@@ -38,9 +42,9 @@ export default function Root({ children }: PropsWithChildren) {
             overflow: hidden;
             overscroll-behavior: none;
           }
-          body { direction: rtl; background: #080A0E; }
+          body { direction: rtl; background: ${Colors.bg}; }
           #root {
-            max-width: 600px;
+            max-width: ${AppMaxWidth}px;
             width: 100%;
             height: var(--app-viewport-height);
             min-height: 0;
@@ -53,16 +57,18 @@ export default function Root({ children }: PropsWithChildren) {
             -webkit-tap-highlight-color: transparent;
             -webkit-text-size-adjust: 100%;
             font-size: 16px !important;
-            outline: none !important;
-            box-shadow: none !important;
+            font-size: max(16px, 1em) !important;
             -webkit-appearance: none;
             appearance: none;
             scroll-margin-top: 20px;
-            scroll-margin-bottom: calc(var(--keyboard-inset) + 20px);
+            scroll-margin-bottom: 20px;
           }
-          input:focus, textarea:focus, [contenteditable="true"]:focus {
-            outline: none !important;
-            box-shadow: none !important;
+          :focus-visible {
+            outline: 2px solid ${Colors.accent};
+            outline-offset: 2px;
+          }
+          @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { scroll-behavior: auto !important; }
           }
         ` }} />
         {headNodes}

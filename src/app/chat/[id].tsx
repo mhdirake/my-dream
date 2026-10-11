@@ -28,7 +28,6 @@ import {
   ActivityIndicator,
   AppState,
   FlatList,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
@@ -41,6 +40,7 @@ import {
   View,
 } from 'react-native';
 import { Modal } from '@/components/ui/BlurredModal';
+import { useAppKeyboardVisible } from '@/components/ui/KeyboardViewport';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   Extrapolation,
@@ -629,7 +629,8 @@ export default function ConversationScreen() {
     ? initialPositionState.position
     : RESOLVING_INITIAL_POSITION;
   const listIsReady = initialPositionState.conversationKey === conversationKey && listReady;
-  const inputBottomPadding = insets.bottom + 10;
+  const keyboardVisible = useAppKeyboardVisible();
+  const inputBottomPadding = (keyboardVisible ? 0 : insets.bottom) + 10;
   const setInitialPosition = useCallback((position: InitialChatPosition) => {
     setInitialPositionState({ conversationKey, position });
   }, [conversationKey]);
@@ -1172,7 +1173,7 @@ export default function ConversationScreen() {
   }, [replyingTo, sendTyped]);
 
   return (
-    <SafeAreaView style={styles.root} edges={['top']}>
+    <SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -1240,11 +1241,7 @@ export default function ConversationScreen() {
         </View>
       )}
 
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={0}
-      >
+      <View style={styles.flex}>
         {loading ? (
           <View style={styles.center}>
             <ActivityIndicator color={Colors.accent} />
@@ -1962,7 +1959,7 @@ export default function ConversationScreen() {
             </>
           )}
         </View>
-      </KeyboardAvoidingView>
+      </View>
 
       {/* Message long-press menu */}
       <Modal visible={!!msgMenu} transparent animationType="fade" onRequestClose={() => { setMsgMenu(null); setConfirmDeleteId(null); }}>
@@ -2106,10 +2103,7 @@ export default function ConversationScreen() {
 
       {/* Gift picker */}
       <Modal visible={giftPickerOpen} transparent animationType="slide" onRequestClose={closeGiftPicker}>
-        <KeyboardAvoidingView
-          style={styles.flex}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
+        <View style={styles.flex}>
           <View style={styles.menuOverlay}>
             <Pressable style={StyleSheet.absoluteFill} onPress={closeGiftPicker} />
             <View style={[styles.giftSheet, { paddingBottom: 28 + insets.bottom }]}>
@@ -2200,7 +2194,7 @@ export default function ConversationScreen() {
             )}
             </View>
           </View>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
     </SafeAreaView>
   );

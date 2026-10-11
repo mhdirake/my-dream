@@ -15,7 +15,7 @@
       "package": "ir.mydreamapp.app",
       "versionCode": 1,
       "icon": "./assets/images/logo.png",
-      "softwareKeyboardLayoutMode": "pan",
+      "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "monochromeImage": "./assets/images/monochrome-icon.png",

@@ -5,6 +5,7 @@ import { SegmentedTabs, SegmentedTabItem } from '@/components/ui/SegmentedTabs';
 import { GiftModal } from '@/components/GiftModal';
 import { TemplateMessageModal } from '@/components/TemplateMessageModal';
 import { Colors, Fonts, Spacing } from '@/constants/colors';
+import { useAppWidth } from '@/components/ui/AppFrame';
 import { DailySuggestionProfile, DailySuggestionsMeta, DiscoverProfile, MutualUser, SwipePoolMeta, discoverApi } from '@/lib/api/discover';
 import { MatchCelebrationModal } from '@/components/MatchCelebrationModal';
 import { isGroupMessageNotification, notificationsApi } from '@/lib/api/notifications';
@@ -32,18 +33,20 @@ import Animated, {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Dimensions,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const { width: SW } = Dimensions.get('window');
 const SWIPE_THRESHOLD = 80;
+// CSS accepts combinations; Gesture Handler's type only lists single keywords.
+const SWIPE_TOUCH_ACTION = 'pan-y pinch-zoom' as React.ComponentProps<typeof GestureDetector>['touchAction'];
 
 type Mode = 'swipe' | 'daily' | 'ai';
 const MODES: SegmentedTabItem<Mode>[] = [
@@ -112,6 +115,7 @@ function SwipeCard({
   onSwiped: () => void;
   onLike: () => void;
 }) {
+  const SW = useAppWidth();
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const [checking, setChecking] = useState(false);
@@ -141,6 +145,8 @@ function SwipeCard({
   };
 
   const pan = Gesture.Pan()
+    .activeOffsetX([-12, 12])
+    .failOffsetY([-16, 16])
     .minDistance(10)
     .enabled(!checking)
     .onUpdate((e) => {
@@ -174,7 +180,7 @@ function SwipeCard({
   }));
 
   return (
-    <GestureDetector gesture={pan}>
+    <GestureDetector gesture={pan} touchAction={SWIPE_TOUCH_ACTION}>
       <Animated.View style={[styles.card, cardStyle]}>
       {/* Photo / default avatar */}
       {photoUrl ? (
@@ -354,6 +360,8 @@ function SwipeView({
   const { bottom } = useSafeAreaInsets();
   // tab bar: height 68 + bottom: insets.bottom + 8 (from _layout.tsx)
   const tabBarSpace = bottom + 8 + 68;
+  const { height } = useWindowDimensions();
+  const compact = height < 650;
   const [index, setIndex] = useState(0);
   const [liked, setLiked] = useState(false);
   const [giftTarget, setGiftTarget] = useState<DiscoverProfile | null>(null);
@@ -446,7 +454,12 @@ function SwipeView({
   }
 
   return (
-    <View style={styles.swipeContainer}>
+    <ScrollView
+      style={styles.swipeContainer}
+      contentContainerStyle={{ flexGrow: 1, minHeight: compact ? 520 : undefined }}
+      scrollEnabled={compact || Platform.OS === 'web'}
+      showsVerticalScrollIndicator={false}
+    >
       {/* Card area */}
       <View style={styles.cardContainer}>
         {/* Next card peek */}
@@ -516,12 +529,13 @@ function SwipeView({
           onSent={() => setChatTarget(null)}
         />
       )}
-    </View>
+    </ScrollView>
   );
 }
 
 // ── DailyView ────────────────────────────────────────────────────────────────
 function DailyView({ profiles, loading, meta }: { profiles: DiscoverProfile[]; loading: boolean; meta: DailySuggestionsMeta | null }) {
+  const { bottom } = useSafeAreaInsets();
   if (loading)
     return (
       <View style={styles.listCenter}>
@@ -530,7 +544,7 @@ function DailyView({ profiles, loading, meta }: { profiles: DiscoverProfile[]; l
     );
   return (
     <ScrollView
-      contentContainerStyle={styles.dailyContent}
+      contentContainerStyle={[styles.dailyContent, { paddingBottom: bottom + 100 }]}
       showsVerticalScrollIndicator={false}
     >
       {meta != null && profiles.length > 0 && (
@@ -788,7 +802,7 @@ export default function DiscoverScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.root} edges={['top']}>
+    <SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
       <FloatingHeader
         mode={mode}
         onModeChange={setMode}

@@ -115,7 +115,7 @@ export default function BlockedUsersScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.root} edges={['top']}>
+    <SafeAreaView style={styles.root} edges={['top', 'left', 'right', 'bottom']}>
       <AppBar
         title="کاربران مسدود"
         sub={items.length > 0 ? `${items.length} کاربر` : undefined}

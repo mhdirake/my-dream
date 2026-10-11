@@ -59,7 +59,16 @@ RUN npx eslint \
   src/app/onboarding/forgot-password-otp.tsx \
   src/app/onboarding/reset-password.tsx \
   src/app/onboarding/login.tsx \
-  src/app/onboarding/welcome.tsx
+  src/app/onboarding/welcome.tsx \
+  src/components/ui/AppFrame.tsx \
+  src/components/ui/KeyboardViewport.tsx \
+  src/components/ui/BlurredModal.tsx \
+  src/components/ui/Sheet.tsx \
+  src/components/ui/SelectModal.tsx \
+  src/lib/keyboardViewport.ts \
+  src/lib/keyboardViewport.test.ts \
+  src/lib/webViewport.ts \
+  src/lib/webViewport.test.ts
 RUN ! grep -R -E "EXPO_PUBLIC_KC_SECRET|process\.env\.KC_SECRET|grant_type.*password" src eas.json app.json
 
 FROM deps AS web-build

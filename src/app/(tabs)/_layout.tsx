@@ -18,6 +18,7 @@ import { Compass, Gift, Heart, MessageCircle, User } from 'lucide-react-native';
 import { useEffect } from 'react';
 import { ActivityIndicator, AppState, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAppKeyboardVisible } from '@/components/ui/KeyboardViewport';
 
 export default function TabsLayout() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -61,6 +62,7 @@ function ModerationGate() {
 
 function TabsNav() {
   const insets = useSafeAreaInsets();
+  const keyboardVisible = useAppKeyboardVisible();
   const { totalUnread } = useUnreadCtx();
   const { session } = useAuth();
   const { addUserEventHandler } = useCentrifugoCtx();
@@ -112,13 +114,15 @@ function TabsNav() {
       <Tabs
         screenOptions={{
           headerShown: false,
+          tabBarHideOnKeyboard: true,
           tabBarActiveTintColor: Colors.accent,
           tabBarInactiveTintColor: Colors.muted,
           tabBarStyle: {
+            display: keyboardVisible ? 'none' : 'flex',
             position: 'absolute',
             bottom: insets.bottom + 8,
-            left: 16,
-            right: 16,
+            left: insets.left + 16,
+            right: insets.right + 16,
             height: 68,
             borderRadius: 30,
             backgroundColor: 'rgba(16,19,26,0.96)',

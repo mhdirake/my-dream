@@ -4,8 +4,6 @@ import { Check, ChevronDown, Search } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import {
   FlatList,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -67,10 +65,7 @@ export function SelectModal({
         scroll={false}
         contentStyle={styles.content}
       >
-        <KeyboardAvoidingView
-          style={styles.kav}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
+        <View style={styles.kav}>
           <View style={styles.searchWrap}>
             <Search size={16} color={Colors.muted} strokeWidth={2} style={styles.searchIcon} />
             <TextInput
@@ -108,7 +103,7 @@ export function SelectModal({
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="interactive"
           />
-        </KeyboardAvoidingView>
+        </View>
       </Sheet>
     </>
   );

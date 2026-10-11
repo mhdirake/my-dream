@@ -13,6 +13,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAppKeyboardVisible } from './KeyboardViewport';
 
 type SheetProps = {
   visible: boolean;
@@ -52,6 +53,7 @@ export function Sheet({
   children,
 }: SheetProps) {
   const insets = useSafeAreaInsets();
+  const keyboardVisible = useAppKeyboardVisible();
 
   return (
     <Modal
@@ -64,7 +66,7 @@ export function Sheet({
       <View style={styles.overlay}>
         <Pressable style={StyleSheet.absoluteFill} onPress={dismissable ? onClose : undefined} />
 
-        <View style={[styles.card, { paddingBottom: insets.bottom }]}>
+        <View style={[styles.card, { paddingBottom: keyboardVisible ? 0 : insets.bottom }]}>
           {showHandle ? <View style={styles.handle} /> : null}
 
           {title ? (
@@ -83,6 +85,8 @@ export function Sheet({
               style={styles.scroll}
               contentContainerStyle={[styles.content, contentStyle]}
               showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
             >
               {children}
             </ScrollView>

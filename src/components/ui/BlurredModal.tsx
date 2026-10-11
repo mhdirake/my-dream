@@ -1,6 +1,8 @@
 import { BlurTargetView, BlurView } from 'expo-blur';
 import { createContext, useContext, useRef, type PropsWithChildren, type RefObject } from 'react';
 import { Modal as NativeModal, Platform, StyleSheet, View, type ModalProps } from 'react-native';
+import { SafeAreaProvider, SafeAreaView, useSafeAreaFrame, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { KeyboardSurface } from './KeyboardViewport';
 
 const BlurTargetContext = createContext<RefObject<View | null> | null>(null);
 
@@ -17,9 +19,11 @@ export function ModalBlurTarget({ children }: PropsWithChildren) {
 /** Adds blur behind the existing dim layer, leaving each modal's content sharp. */
 export function Modal({ children, ...props }: ModalProps) {
   const target = useContext(BlurTargetContext);
+  const insets = useSafeAreaInsets();
+  const frame = useSafeAreaFrame();
 
   return (
-    <NativeModal {...props}>
+    <NativeModal statusBarTranslucent navigationBarTranslucent {...props}>
       <BlurView
         pointerEvents="none"
         style={StyleSheet.absoluteFill}
@@ -28,7 +32,13 @@ export function Modal({ children, ...props }: ModalProps) {
         blurTarget={target ?? undefined}
         blurReductionFactor={1}
       />
-      {children}
+      <SafeAreaProvider initialMetrics={{ insets, frame }} style={styles.fill}>
+        <KeyboardSurface modal>
+          <SafeAreaView style={styles.fill} edges={['top', 'left', 'right']}>
+            {children}
+          </SafeAreaView>
+        </KeyboardSurface>
+      </SafeAreaProvider>
     </NativeModal>
   );
 }

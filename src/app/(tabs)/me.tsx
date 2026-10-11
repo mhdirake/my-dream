@@ -170,7 +170,7 @@ export default function MeScreen() {
   const planLabel = PLAN_FA[rawPlan] ?? 'پایه';
 
   return (
-    <SafeAreaView style={styles.root} edges={['top']}>
+    <SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
       <WebImageCropModal
         visible={Boolean(cropUri)}
         uri={cropUri}

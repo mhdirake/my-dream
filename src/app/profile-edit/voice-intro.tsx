@@ -83,7 +83,7 @@ export default function VoiceIntroScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.root} edges={['top']}>
+    <SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
       <AppBar title="معرفی صوتی" back backFallback="/profile-edit" contentGap />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.hint}>

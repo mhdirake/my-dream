@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Compass, Heart, MessageCircle, Gift, User, type LucideIcon } from 'lucide-react-native';
 import { Colors, Fonts } from '@/constants/colors';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Tab = 'discover' | 'likes' | 'chat' | 'gifts' | 'me';
 
@@ -18,8 +19,9 @@ const TABS: { id: Tab; icon: LucideIcon; label: string }[] = [
 ];
 
 export function TabBar({ active, onPress }: TabBarProps) {
+  const insets = useSafeAreaInsets();
   return (
-    <View style={styles.bar}>
+    <View style={[styles.bar, { bottom: insets.bottom + 16, left: insets.left + 14, right: insets.right + 14 }]}>
       {TABS.map(t => {
         const on = t.id === active;
         return (

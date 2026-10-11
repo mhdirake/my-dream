@@ -3,7 +3,8 @@ import { Modal } from '@/components/ui/BlurredModal';
 import { CoinBadge } from '@/components/ui/CoinBadge';
 import { DetailCard } from '@/components/ui/DetailCard';
 import { SegmentedTabs } from '@/components/ui/SegmentedTabs';
-import { AppMaxWidth, Colors, Fonts, Radius, Spacing } from '@/constants/colors';
+import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
+import { useAppWidth } from '@/components/ui/AppFrame';
 import {
   AnonSummary, ReceivedAnonInterest, ReceivedResponse,
   RevealPackage, SentAnonInterest, SentLike, likesApi, mediaUrl,
@@ -17,7 +18,7 @@ import { Coins, Heart, Sparkles, UserX, VenetianMask } from 'lucide-react-native
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator, Pressable, RefreshControl,
-  Platform, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View,
+  Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -125,7 +126,7 @@ export default function LikesScreen() {
   const mutualCount = sent.filter(s => s.is_mutual).length;
 
   return (
-    <SafeAreaView style={styles.root} edges={['top']}>
+    <SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.content, { paddingBottom: bottom + 92 }]}
@@ -297,11 +298,8 @@ function ReceivedSection({
   onPurchase: () => void;
 }) {
   const pkg = packages[0];
-  const { width: winWidth } = useWindowDimensions();
-  // #root is capped to AppMaxWidth on web (see +html.tsx) and centered, but
-  // useWindowDimensions() still reports the raw browser window width — on a
-  // wide monitor that made cards blow up far past the actual visible column.
-  const contentWidth = Math.min(winWidth, AppMaxWidth);
+  const { left, right } = useSafeAreaInsets();
+  const contentWidth = Math.max(0, useAppWidth() - left - right);
   const cardWidth = (contentWidth - Spacing.lg * 2 - GRID_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS;
 
   if (locked) {
