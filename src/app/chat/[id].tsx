@@ -8,7 +8,7 @@ import { useChatMessages } from '@/lib/chat/useChatMessages';
 import { useCentrifugoCtx } from '@/lib/chat/CentrifugoContext';
 import { conversationStatusFromEvent } from '@/lib/chat/conversationEvents';
 import { CHAT_SEND_TARGET, CHAT_SEND_HIT_SLOP } from '@/lib/chat/controls';
-import { senderPhotoUrl } from '@/lib/chat/senderDirectory';
+import { displayUserName, senderPhotoUrl } from '@/lib/chat/senderDirectory';
 import { useSenderDirectory } from '@/lib/chat/useSenderDirectory';
 import { selectInitialChatPosition, type InitialChatPosition } from '@/lib/chat/initialPosition';
 import { formatPersianDate, formatPersianTime } from '@/lib/date/persian';
@@ -261,9 +261,7 @@ function senderDisplayName(
 ): string {
   const sender = resolveMessageSender(message, allMessages, mySender);
 
-  return [sender?.first_name, sender?.last_name].filter(Boolean).join(' ')
-    || sender?.username
-    || `کاربر ${toFaDigits(message.sender_user_id)}`;
+  return displayUserName(sender);
 }
 
 function senderAvatarUrl(
@@ -440,10 +438,12 @@ export default function ConversationScreen() {
     loadContext, highlightId, clearHighlight, refresh,
   } = useChatMessages(conversationId, publicId ?? '', token, myId, isGroup ? 'group' : 'direct');
   const { connectionState, addUserEventHandler } = useCentrifugoCtx();
-  const senderDirectory = useSenderDirectory(token, conversationId, messages);
+  const senderDirectory = useSenderDirectory(token, conversationId, messages, myId, [Number(otherId), typingUserId ?? 0]);
   const displayMessages = messages.map(message => ({
     ...message, sender: senderDirectory.get(message.sender_user_id) ?? message.sender,
   }));
+  const peerName = isGroup ? name ?? 'گفتگوی گروهی'
+    : displayUserName(senderDirectory.get(Number(otherId)), displayUserName({ first_name: name }));
 
   const otherTyping = typingUserId != null && (isGroup ? typingUserId !== myId : String(typingUserId) === otherId);
 
@@ -1204,7 +1204,7 @@ export default function ConversationScreen() {
             {!isGroup && isOnline && <View style={styles.onlineDot} />}
           </View>
           <View>
-            <Text style={styles.headerName}>{name ?? '...'}</Text>
+            <Text style={styles.headerName}>{peerName}</Text>
             <Text style={styles.headerSub}>
               {isGroup ? `${groupKey === 'gold' ? 'گروه طلایی' : 'گروه نقره‌ای'} · ${toFaDigits(memberCount ?? '0')} عضو` :
                isPending ? 'در انتظار تأیید' :
@@ -1273,7 +1273,7 @@ export default function ConversationScreen() {
                     }}
                   >
                     <View style={styles.searchResultRow}>
-                      <Text style={styles.searchResultSender}>{isMine ? 'شما' : (name ?? '')}</Text>
+                      <Text style={styles.searchResultSender}>{isMine ? 'شما' : (isGroup ? displayUserName(senderDirectory.get(item.sender_user_id)) : peerName)}</Text>
                       <Text style={styles.searchResultTime}>{formatTime(item.created_at)}</Text>
                     </View>
                     <Text style={styles.searchResultBody} numberOfLines={2}>{item.text_snippet}</Text>
@@ -1385,7 +1385,7 @@ export default function ConversationScreen() {
               const bubbleContent = (
                 <>
                   {showGroupSender ? (
-                    <Text style={[styles.groupSender, { color: isMine ? '#fff' : Colors.purple }]}>{senderDisplayName(item, messages, mySender)}</Text>
+                    <Text style={[styles.groupSender, { color: isMine ? '#fff' : Colors.purple }]}>{senderDisplayName(item, displayMessages, mySender)}</Text>
                   ) : null}
                   {item.reply_to_message_id && (
                     <TouchableOpacity
@@ -1397,7 +1397,7 @@ export default function ConversationScreen() {
                       <View style={styles.replyQuoteContent}>
                         <Text style={[styles.replyQuoteTitle, isMine && styles.replyQuoteTitleMine]} numberOfLines={1}>
                           {replyTarget
-                            ? (replyTarget.sender_user_id === myId ? 'شما' : senderDisplayName(replyTarget, messages, mySender))
+                            ? (replyTarget.sender_user_id === myId ? 'شما' : displayUserName(senderDirectory.get(replyTarget.sender_user_id) ?? resolveMessageSender(replyTarget, displayMessages, mySender)))
                             : 'پیام پاسخ‌داده‌شده'}
                         </Text>
                         <Text style={[styles.replyQuoteBody, isMine && styles.replyQuoteBodyMine]} numberOfLines={2}>
@@ -1599,7 +1599,7 @@ export default function ConversationScreen() {
                             activeOpacity={0.72}
                             hitSlop={8}
                             accessibilityRole={isMine ? undefined : 'button'}
-                            accessibilityLabel={isMine ? undefined : `مشاهده پروفایل ${senderDisplayName(item, messages, mySender)}`}
+                            accessibilityLabel={isMine ? undefined : `مشاهده پروفایل ${senderDisplayName(item, displayMessages, mySender)}`}
                           >
                             {groupAvatarUri ? (
                               <Image source={{ uri: groupAvatarUri }} style={styles.groupAvatarImage} contentFit="cover" />
@@ -1699,8 +1699,8 @@ export default function ConversationScreen() {
             <Clock size={14} color={Colors.trust} strokeWidth={2} />
             <Text style={styles.pendingTxt}>
               {canRespond
-                ? `${name} می‌خواد باهات چت کنه`
-                : `در انتظار تأیید ${name} — تا تأیید نشه چت باز نمیشه`}
+                ? `${peerName} می‌خواد باهات چت کنه`
+                : `در انتظار تأیید ${peerName} — تا تأیید نشه چت باز نمیشه`}
             </Text>
           </View>
         )}
@@ -2055,7 +2055,7 @@ export default function ConversationScreen() {
                       </TouchableOpacity>
                     )}
                     <TouchableOpacity style={[styles.menuRow, styles.menuRowDanger]} activeOpacity={0.7}
-                      onPress={() => { setMsgMenu(null); setTimeout(() => router.push({ pathname: '/report-user', params: { userId: isGroup ? String(msgMenu?.sender) : (otherId ?? String(msgMenu?.sender)), userName: isGroup ? `کاربر ${toFaDigits(msgMenu?.sender ?? '')}` : (name ?? ''), conversationPublicId: publicId ?? '', messageId: msgMenu?.id, context: 'message' } } as never), 100); }}>
+                      onPress={() => { setMsgMenu(null); setTimeout(() => router.push({ pathname: '/report-user', params: { userId: isGroup ? String(msgMenu?.sender) : (otherId ?? String(msgMenu?.sender)), userName: isGroup ? displayUserName(senderDirectory.get(msgMenu?.sender ?? 0)) : peerName, conversationPublicId: publicId ?? '', messageId: msgMenu?.id, context: 'message' } } as never), 100); }}>
                       <Text style={[styles.menuRowTxt, styles.menuRowTxtDanger]}>گزارش پیام</Text>
                     </TouchableOpacity>
                   </>
@@ -2088,7 +2088,7 @@ export default function ConversationScreen() {
             {!isGroup && <TouchableOpacity
               style={[styles.menuRow, styles.menuRowDanger]}
               activeOpacity={0.7}
-              onPress={() => { setMenuOpen(false); setTimeout(() => router.push({ pathname: '/report-user', params: { userId: otherId ?? '', userName: name ?? '' } } as never), 100); }}
+              onPress={() => { setMenuOpen(false); setTimeout(() => router.push({ pathname: '/report-user', params: { userId: otherId ?? '', userName: peerName } } as never), 100); }}
             >
               <Text style={[styles.menuRowTxt, styles.menuRowTxtDanger]}>گزارش تخلف</Text>
             </TouchableOpacity>}

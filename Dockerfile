@@ -68,7 +68,25 @@ RUN npx eslint \
   src/lib/keyboardViewport.ts \
   src/lib/keyboardViewport.test.ts \
   src/lib/webViewport.ts \
-  src/lib/webViewport.test.ts
+  src/lib/webViewport.test.ts \
+  src/lib/chat/controls.ts \
+  src/lib/chat/controls.test.ts \
+  src/lib/chat/senderDirectory.ts \
+  src/lib/chat/senderDirectory.test.ts \
+  src/lib/chat/useSenderDirectory.ts \
+  src/lib/alertLayers.ts \
+  src/lib/alertLayers.test.ts \
+  src/components/ui/AlertLayer.tsx \
+  src/components/ui/ChatToast.tsx \
+  src/components/ui/NotificationToast.tsx \
+  src/lib/confirmSheet.tsx \
+  src/lib/profileIdentity.ts \
+  src/lib/profileIdentity.test.ts \
+  src/app/profile-edit/index.tsx \
+  src/app/profile-setup/basic-info.tsx \
+  src/components/MatchCelebrationModal.tsx \
+  src/lib/matchAvatars.ts \
+  src/lib/matchAvatars.test.ts
 RUN ! grep -R -E "EXPO_PUBLIC_KC_SECRET|process\.env\.KC_SECRET|grant_type.*password" src eas.json app.json
 
 FROM deps AS web-build

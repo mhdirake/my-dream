@@ -1,8 +1,9 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { MessageSender } from '@/lib/api/chat';
-import { SenderDirectory, senderPhotoUrl } from './senderDirectory';
+import { SenderDirectory, displayUserName, senderPhotoUrl } from './senderDirectory';
 
 const sender = (id: number): MessageSender => ({ id, username: 'sara', first_name: 'Sara', last_name: null, profile_photo: null });
+afterEach(() => { vi.useRealTimers(); });
 
 describe('chat sender directory', () => {
   it('batches at most 50 identities and deduplicates subsequent messages', async () => {
@@ -26,5 +27,50 @@ describe('chat sender directory', () => {
     const directory = new SenderDirectory(async () => [sender(99)], vi.fn());
     await directory.resolve([1]);
     expect(directory.senders.size).toBe(0);
+    directory.stop();
+  });
+
+  it('never displays IDs or numeric placeholder names', () => {
+    expect(displayUserName({ first_name: '', username: '۱۲۳' })).toBe('در حال دریافت نام…');
+    expect(displayUserName({ first_name: 'کاربر 123' })).toBe('در حال دریافت نام…');
+    expect(displayUserName({ first_name: ' Sara ', last_name: 'Ahmadi' })).toBe('Sara  Ahmadi');
+    expect(displayUserName({ username: 'sara' })).toBe('sara');
+  });
+
+  it('retries transient failures then stops once the name is available', async () => {
+    vi.useFakeTimers();
+    const fetch = vi.fn().mockRejectedValueOnce(new Error('503')).mockResolvedValueOnce([sender(1)]);
+    const directory = new SenderDirectory(fetch, vi.fn());
+    await directory.resolve([1]);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(directory.senders.get(1)?.first_name).toBe('Sara');
+    await vi.advanceTimersByTimeAsync(30000);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    directory.stop();
+  });
+
+  it('bounds missing-name retries and allows a later focus retry', async () => {
+    vi.useFakeTimers();
+    const fetch = vi.fn(async () => [] as MessageSender[]);
+    const directory = new SenderDirectory(fetch, vi.fn());
+    await directory.resolve([1]);
+    await vi.advanceTimersByTimeAsync(30000);
+    expect(fetch).toHaveBeenCalledTimes(4);
+    await directory.resolve([1]);
+    expect(fetch).toHaveBeenCalledTimes(4);
+    fetch.mockResolvedValueOnce([sender(1)]);
+    await directory.retryUnresolved();
+    expect(directory.senders.get(1)?.first_name).toBe('Sara');
+    directory.stop();
+  });
+
+  it('cancels retries when leaving the account or conversation', async () => {
+    vi.useFakeTimers();
+    const fetch = vi.fn(async () => [] as MessageSender[]);
+    const directory = new SenderDirectory(fetch, vi.fn());
+    await directory.resolve([1]);
+    directory.stop();
+    await vi.advanceTimersByTimeAsync(30000);
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 });
