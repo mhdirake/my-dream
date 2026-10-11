@@ -8,6 +8,8 @@ import { useChatMessages } from '@/lib/chat/useChatMessages';
 import { useCentrifugoCtx } from '@/lib/chat/CentrifugoContext';
 import { conversationStatusFromEvent } from '@/lib/chat/conversationEvents';
 import { CHAT_SEND_TARGET, CHAT_SEND_HIT_SLOP } from '@/lib/chat/controls';
+import { senderPhotoUrl } from '@/lib/chat/senderDirectory';
+import { useSenderDirectory } from '@/lib/chat/useSenderDirectory';
 import { selectInitialChatPosition, type InitialChatPosition } from '@/lib/chat/initialPosition';
 import { formatPersianDate, formatPersianTime } from '@/lib/date/persian';
 import { useVoiceRecorder } from '@/lib/chat/useVoiceRecorder';
@@ -271,10 +273,7 @@ function senderAvatarUrl(
 ): string | null {
   const sender = resolveMessageSender(message, allMessages, mySender);
 
-  return sender?.profile_photo?.urls?.thumbnail
-    ?? sender?.profile_photo?.urls?.small
-    ?? sender?.profile_photo?.urls?.medium
-    ?? null;
+  return senderPhotoUrl(sender);
 }
 
 function senderById(userId: number, myId: number, allMessages: Message[], mySender: MessageSender | null): MessageSender | null {
@@ -441,6 +440,10 @@ export default function ConversationScreen() {
     loadContext, highlightId, clearHighlight, refresh,
   } = useChatMessages(conversationId, publicId ?? '', token, myId, isGroup ? 'group' : 'direct');
   const { connectionState, addUserEventHandler } = useCentrifugoCtx();
+  const senderDirectory = useSenderDirectory(token, conversationId, messages);
+  const displayMessages = messages.map(message => ({
+    ...message, sender: senderDirectory.get(message.sender_user_id) ?? message.sender,
+  }));
 
   const otherTyping = typingUserId != null && (isGroup ? typingUserId !== myId : String(typingUserId) === otherId);
 
@@ -1283,7 +1286,7 @@ export default function ConversationScreen() {
           <View style={styles.chatListWrap}>
           <FlatList
             ref={listRef}
-            data={messages}
+            data={displayMessages}
             keyExtractor={m => m.message_id}
             onScroll={handleScroll}
             onLayout={handleListLayout}
@@ -1311,7 +1314,7 @@ export default function ConversationScreen() {
               const nextMessage = messages[index + 1];
               const showGroupSender = isGroup && !isMine && previousMessage?.sender_user_id !== item.sender_user_id;
               const showGroupAvatar = isGroup && nextMessage?.sender_user_id !== item.sender_user_id;
-              const groupAvatarUri = showGroupAvatar ? senderAvatarUrl(item, messages, mySender) : null;
+              const groupAvatarUri = showGroupAvatar ? senderAvatarUrl(item, displayMessages, mySender) : null;
 
               // Tick icon: clock=sending, single check=sent, double grey=delivered, double accent=read
               const TickIcon = isFailed ? X : isSending ? Clock : item.read_at ? CheckCheck : item.delivered_at ? CheckCheck : item.status === 'sent' ? Check : CheckCheck;

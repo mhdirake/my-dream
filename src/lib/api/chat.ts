@@ -195,6 +195,12 @@ export type TypedMessagePayload = {
 };
 
 export const chatApi = {
+  getSenders: (token: string, conversationId: number, userIds: number[]) => {
+    const params = new URLSearchParams();
+    userIds.forEach(id => params.append('user_ids[]', String(id)));
+    return api.get<{ data: MessageSender[] }>(`/api/client/conversations/${conversationId}/senders?${params}`, token)
+      .then(result => result.data);
+  },
   listConversations: async (token: string, cursor?: string): Promise<ConversationPage> => {
     const params = new URLSearchParams({ limit: '50' });
     if (cursor) params.set('cursor', cursor);
