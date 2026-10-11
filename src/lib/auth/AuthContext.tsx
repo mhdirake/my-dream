@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import { AppState } from 'react-native';
 import { ApiError, registerAuthHandlers } from '../api/client';
 import { authApi, type MeResponse } from '../api/auth';
-import { clearSession, isExpired, loadSession, saveSession, type Session } from './storage';
+import { clearSession, isExpired, loadSession, refreshRememberedSession, saveSession, type Session } from './storage';
 import { SessionController } from './sessionController';
 
 export type AuthUser = MeResponse;
@@ -25,8 +25,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [controller] = useState(() => new SessionController(
-      async s => {
+  const [controller] = useState<SessionController>((): SessionController => new SessionController(
+      async (s): Promise<Session> => {
+        const version: number = controller.version;
+        return refreshRememberedSession(s, async current => {
+        s = current;
         if (!s.refreshToken) throw new ApiError(401, 'Unauthenticated');
         const token = await authApi.refresh(s.refreshToken);
         return {
@@ -34,6 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           refreshToken: token.refresh_token ?? s.refreshToken,
           expiresAt: Date.now() + (token.expires_in ?? 300) * 1000,
         };
+        }, (): boolean => controller.version === version);
       },
       s => s ? saveSession(s) : clearSession(),
       s => { setSession(s); if (!s) setUser(null); },
@@ -100,6 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const next: Session = {
       accessToken: token.access_token, refreshToken: token.refresh_token ?? '',
       expiresAt: Date.now() + (token.expires_in ?? 300) * 1000,
+      rememberUntil: Date.now() + 30 * 86400000,
     };
     const me = await authApi.me(next.accessToken);
     if (controller.version !== version) throw new ApiError(409, 'Login was cancelled');
@@ -111,11 +116,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     if (retryTimer.current) clearTimeout(retryTimer.current);
+    const previous = controller.session;
     await controller.replace(null);
+    if (previous?.refreshToken) {
+      await authApi.logout(previous.accessToken, previous.refreshToken).catch(() => {
+        // Local logout still completes if the identity service is unavailable.
+      });
+    }
   }, [controller]);
 
   const saveRegistrationSession = useCallback(async (accessToken: string, refreshToken: string, expiresIn: number) => {
-    const next: Session = { accessToken, refreshToken, expiresAt: Date.now() + expiresIn * 1000 };
+    const next: Session = { accessToken, refreshToken, expiresAt: Date.now() + expiresIn * 1000, rememberUntil: Date.now() + 30 * 86400000 };
     await controller.replace(next);
     const version = controller.version;
     try {

@@ -70,6 +70,8 @@ export type MeResponse = {
 };
 
 export const authApi = {
+  logout: (token: string, refreshToken: string) =>
+    api.post('/api/auth/logout', { refresh_token: refreshToken }, token),
   sendOtp: (mobile: string) =>
     api.post<OtpSendResponse>('/api/auth/register/send-otp', { mobile, terms_version_id: registrationStore.get().terms_version_id, terms_accepted: registrationStore.get().terms_accepted ?? false }),
 

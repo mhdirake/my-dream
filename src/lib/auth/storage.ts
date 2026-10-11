@@ -2,6 +2,9 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
 const KEY = 'session';
+const ACCOUNT_PREFIX = 'mydream.session.account.';
+const LAST_ACCOUNT = 'mydream.session.last-account';
+const REMEMBER_MS = 30 * 24 * 60 * 60 * 1000;
 
 function webStorage(key: string): Storage {
   return key === KEY ? sessionStorage : localStorage;
@@ -12,6 +15,7 @@ export type Session = {
   userId?: number;
   refreshToken: string;
   expiresAt: number; // Unix ms
+  rememberUntil?: number;
 };
 
 // ── Platform-aware storage ────────────────────────────────────────
@@ -42,7 +46,33 @@ export const store = {
 
 // ── Public API ────────────────────────────────────────────────────
 export async function saveSession(session: Session): Promise<void> {
-  await store.set(KEY, JSON.stringify(session));
+  const saved = { ...session, rememberUntil: session.rememberUntil ?? Date.now() + REMEMBER_MS };
+  await store.set(KEY, JSON.stringify(saved));
+  if (Platform.OS === 'web' && saved.userId && saved.rememberUntil > Date.now()) {
+    try {
+      localStorage.setItem(ACCOUNT_PREFIX + saved.userId, JSON.stringify(saved));
+      localStorage.setItem(LAST_ACCOUNT, String(saved.userId));
+    } catch { /* Private browsing may disallow durable storage. */ }
+  }
+}
+
+function parseSession(raw: string | null): Session | null {
+  if (!raw) return null;
+  try {
+    const session = JSON.parse(raw) as Session;
+    if (typeof session.accessToken !== 'string' || typeof session.refreshToken !== 'string'
+      || !Number.isFinite(session.expiresAt)
+      || (session.rememberUntil !== undefined && (!Number.isFinite(session.rememberUntil) || session.rememberUntil <= Date.now()))) return null;
+    return session;
+  } catch { return null; }
+}
+
+export function loadAccountSession(userId: number): Session | null {
+  if (Platform.OS !== 'web') return null;
+  try {
+    const saved = parseSession(localStorage.getItem(ACCOUNT_PREFIX + userId));
+    return saved?.userId === userId ? saved : null;
+  } catch { return null; }
 }
 
 export async function loadSession(): Promise<Session | null> {
@@ -51,17 +81,41 @@ export async function loadSession(): Promise<Session | null> {
     try { localStorage.removeItem(KEY); } catch {}
   }
   const raw = await store.get(KEY);
-  if (!raw) return null;
-  try {
-    const session = JSON.parse(raw) as Session;
-    if (typeof session.accessToken !== 'string' || typeof session.refreshToken !== 'string'
-      || !Number.isFinite(session.expiresAt)) return null;
-    return session;
-  } catch { return null; }
+  // An existing tab always owns its account, including malformed/expired sessions.
+  if (raw !== null) return parseSession(raw);
+  if (Platform.OS === 'web') {
+    try {
+      const saved = loadAccountSession(Number(localStorage.getItem(LAST_ACCOUNT)));
+      if (saved) await store.set(KEY, JSON.stringify(saved));
+      return saved;
+    } catch { return null; }
+  }
+  return null;
 }
 
 export async function clearSession(): Promise<void> {
+  const saved = parseSession(await store.get(KEY));
+  if (Platform.OS === 'web' && saved?.userId) {
+    try {
+      localStorage.removeItem(ACCOUNT_PREFIX + saved.userId);
+      if (localStorage.getItem(LAST_ACCOUNT) === String(saved.userId)) localStorage.removeItem(LAST_ACCOUNT);
+    } catch {}
+  }
   await store.del(KEY);
+}
+
+export async function refreshRememberedSession(session: Session, renew: (current: Session) => Promise<Session>, canPersist: () => boolean = () => true): Promise<Session> {
+  const run = async () => {
+    const latest = session.userId ? loadAccountSession(session.userId) : null;
+    if (latest && latest.refreshToken !== session.refreshToken && !isExpired(latest)) return latest;
+    const next = await renew(latest ?? session);
+    if (canPersist()) await saveSession(next);
+    return next;
+  };
+  if (Platform.OS === 'web' && session.userId && globalThis.navigator?.locks) {
+    return navigator.locks.request(`mydream-session-refresh-${session.userId}`, run);
+  }
+  return run();
 }
 
 export function isExpired(session: Session): boolean {
