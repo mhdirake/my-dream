@@ -1,13 +1,18 @@
 import { Button } from '@/components/ui/Button';
+import { AppBar } from '@/components/ui/AppBar';
 import { Field } from '@/components/ui/Field';
 import { KeyboardAvoider } from '@/components/ui/KeyboardAvoider';
 import { KeyboardStickyBar } from '@/components/ui/KeyboardStickyBar';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { onboardingApi } from '@/lib/api/onboarding';
+import { profileApi } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { profileSetupStore } from '@/lib/profileSetupStore';
-import { router } from 'expo-router';
-import { toJalaali, toGregorian } from 'jalaali-js';
+import { identityBirthDate, normalizeDateDigits } from '@/lib/profileIdentity';
+import { toast } from '@/lib/toast';
+import { useSafeBack } from '@/lib/useSafeBack';
+import { router, useLocalSearchParams } from 'expo-router';
+import { toJalaali } from 'jalaali-js';
 import { CheckCircle } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
@@ -20,10 +25,11 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-type Gender = 'female' | 'male' | 'prefer_not_to_say';
+type Gender = 'female' | 'male' | 'other';
 const GENDERS: { key: Gender; label: string }[] = [
   { key: 'female', label: 'زن' },
   { key: 'male', label: 'مرد' },
+  { key: 'other', label: 'سایر' },
 ];
 
 const toPersian = (n: number | string) =>
@@ -32,7 +38,15 @@ const toPersian = (n: number | string) =>
 export default function BasicInfoScreen() {
   const insets = useSafeAreaInsets();
   const { session } = useAuth();
+  const { mode } = useLocalSearchParams<{ mode?: string }>();
+  const isEdit = mode === 'edit';
+  const safeBack = useSafeBack('/profile-edit');
   const [name, setName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [reload, setReload] = useState(0);
   const [year, setYear] = useState('');
   const [month, setMonth] = useState('');
   const [day, setDay] = useState('');
@@ -40,9 +54,13 @@ export default function BasicInfoScreen() {
 
   useEffect(() => {
     if (!session?.accessToken) return;
-    onboardingApi.getStatus(session.accessToken).then(status => {
-      const u = status.user;
+    let active = true;
+    const loadProfile = isEdit ? profileApi.getProfile(session.accessToken)
+      : onboardingApi.getStatus(session.accessToken).then(status => status.user);
+    loadProfile.then(u => {
+      if (!active) return;
       if (u.first_name) setName(u.first_name);
+      setLastName(u.last_name ?? '');
       if (u.birth_date) {
         const d = u.birth_date.split('T')[0]; // "2000-10-10"
         const [gy, gm, gd] = d.split('-').map(Number);
@@ -51,25 +69,36 @@ export default function BasicInfoScreen() {
         setMonth(String(jm));
         setDay(String(jd));
       }
-      if (u.gender && ['female', 'male', 'prefer_not_to_say'].includes(u.gender)) {
+      if (u.gender && ['female', 'male', 'other'].includes(u.gender)) {
         setGender(u.gender as Gender);
       }
-    }).catch(() => {});
-  }, [session]);
+    }).catch(() => {
+      if (active) { setLoadError(true); toast.error('خطا در دریافت اطلاعات هویتی'); }
+    }).finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [session?.accessToken, isEdit, reload]);
 
-  const birthDate = (() => {
-    if (year.length !== 4 || !month || !day) return null;
-    try {
-      const { gy, gm, gd } = toGregorian(Number(year), Number(month), Number(day));
-      return `${gy}-${String(gm).padStart(2, '0')}-${String(gd).padStart(2, '0')}`;
-    } catch {
-      return null;
+  const birthDate = identityBirthDate(year, month, day);
+
+  const canContinue = !loading && !loadError && name.trim().length >= 2 && !!birthDate && !!gender;
+
+  const handleNext = async () => {
+    if (!canContinue || saving) return;
+    if (isEdit) {
+      if (!session?.accessToken) return;
+      setSaving(true);
+      try {
+        await profileApi.updateProfile(session.accessToken, {
+          first_name: name.trim(), last_name: lastName.trim() || null,
+          birth_date: birthDate!, gender: gender!,
+        });
+        toast.success('اطلاعات هویتی ذخیره شد');
+        safeBack();
+      } catch (error: unknown) {
+        toast.error(error instanceof Error ? error.message : 'خطا در ذخیره اطلاعات');
+      } finally { setSaving(false); }
+      return;
     }
-  })();
-
-  const canContinue = name.trim().length >= 2 && !!birthDate && !!gender;
-
-  const handleNext = () => {
     profileSetupStore.set({
       first_name: name.trim(),
       birth_date: birthDate!,
@@ -80,7 +109,7 @@ export default function BasicInfoScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
-      <Stepper step={1} />
+      {isEdit ? <AppBar title="ویرایش اطلاعات هویتی" back backFallback="/profile-edit" /> : <Stepper step={1} />}
       <KeyboardAvoider>
       <ScrollView
         contentContainerStyle={styles.content}
@@ -88,7 +117,8 @@ export default function BasicInfoScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <Text style={styles.title}>اطلاعات پایه</Text>
-        <Text style={styles.sub}>فقط چند مورد ضروری — بقیه بعداً</Text>
+        <Text style={styles.sub}>{isEdit ? 'نام، تاریخ تولد و جنسیت خودت را ویرایش کن' : 'فقط چند مورد ضروری — بقیه بعداً'}</Text>
+        {loadError && <Button variant="ghost" onPress={() => { setLoading(true); setLoadError(false); setReload(value => value + 1); }}>تلاش دوباره</Button>}
 
         <Field
           label="نام"
@@ -96,13 +126,14 @@ export default function BasicInfoScreen() {
           onChangeText={setName}
           autoCapitalize="words"
         />
+        {isEdit && <Field label="نام خانوادگی (اختیاری)" value={lastName} onChangeText={setLastName} autoCapitalize="words" />}
 
         <Text style={styles.fieldLabel}>تاریخ تولد (شمسی)</Text>
         <View style={styles.dateRow}>
           <TextInput
             style={[styles.dateInput, styles.dateField]}
             value={day}
-            onChangeText={v => setDay(v.replace(/\D/g, '').slice(0, 2))}
+            onChangeText={v => setDay(normalizeDateDigits(v).slice(0, 2))}
             placeholder="روز"
             placeholderTextColor={Colors.muted}
             keyboardType="numeric"
@@ -112,7 +143,7 @@ export default function BasicInfoScreen() {
           <TextInput
             style={[styles.dateInput, styles.dateField]}
             value={month}
-            onChangeText={v => setMonth(v.replace(/\D/g, '').slice(0, 2))}
+            onChangeText={v => setMonth(normalizeDateDigits(v).slice(0, 2))}
             placeholder="ماه"
             placeholderTextColor={Colors.muted}
             keyboardType="numeric"
@@ -122,7 +153,7 @@ export default function BasicInfoScreen() {
           <TextInput
             style={[styles.dateInput, styles.dateField]}
             value={year}
-            onChangeText={v => setYear(v.replace(/\D/g, '').slice(0, 4))}
+            onChangeText={v => setYear(normalizeDateDigits(v).slice(0, 4))}
             placeholder="سال"
             placeholderTextColor={Colors.muted}
             keyboardType="numeric"
@@ -130,7 +161,7 @@ export default function BasicInfoScreen() {
             textAlign="center"
           />
         </View>
-        <Text style={styles.hint}>مثلاً ۱۵ / ۰۶ / ۱۳۷۷</Text>
+        <Text style={styles.hint}>مثلاً ۱۵ / ۰۶ / ۱۳۷۷ — حداقل سن ۱۸ سال</Text>
 
         <Text style={styles.fieldLabel}>جنسیت</Text>
         <View style={styles.genderRow}>
@@ -155,8 +186,8 @@ export default function BasicInfoScreen() {
       </KeyboardAvoider>
 
       <KeyboardStickyBar style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
-        <Button variant="accent" onPress={handleNext} disabled={!canContinue}>
-          ادامه
+        <Button variant="accent" onPress={handleNext} disabled={!canContinue || saving}>
+          {loading ? 'در حال دریافت…' : saving ? 'در حال ذخیره…' : isEdit ? 'ذخیره' : 'ادامه'}
         </Button>
       </KeyboardStickyBar>
     </SafeAreaView>

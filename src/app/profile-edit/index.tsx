@@ -2,7 +2,7 @@ import { AppBar } from '@/components/ui/AppBar';
 import { Colors, Fonts, Radius } from '@/constants/colors';
 import { ClientProfile, profileApi } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import {
   ChevronLeft,
   Flag,
@@ -15,7 +15,7 @@ import {
   Sparkles,
   Target,
 } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -51,6 +51,13 @@ function buildSections(profile: ClientProfile): Section[] {
   const locationPreview = [profile.city, profile.province].filter(Boolean).join('، ') || '—';
 
   return [
+    {
+      icon: Pencil,
+      iconColor: Colors.accent,
+      label: 'اطلاعات هویتی',
+      value: [profile.first_name, profile.last_name].filter(Boolean).join(' ') || '—',
+      onPress: () => push('/profile-setup/basic-info', { mode: 'edit' }),
+    },
     {
       icon: Pencil,
       iconColor: Colors.accent,
@@ -148,13 +155,17 @@ export default function ProfileEditHub() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     if (!session?.accessToken) return;
+    let active = true;
+    setLoading(true);
+    setError(false);
     profileApi.getProfile(session.accessToken)
-      .then(setProfile)
-      .catch(() => setError(true))
-      .finally(() => setLoading(false));
-  }, [session]);
+      .then(value => { if (active) setProfile(value); })
+      .catch(() => { if (active) setError(true); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [session]));
 
   const goBack = () =>
     router.canGoBack() ? router.back() : router.replace('/(tabs)/me' as never);

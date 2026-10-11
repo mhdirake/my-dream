@@ -122,6 +122,10 @@ export const profileApi = {
   updateProfile: (
     token: string,
     data: {
+      first_name?: string;
+      last_name?: string | null;
+      birth_date?: string;
+      gender?: 'male' | 'female' | 'other';
       bio?: string;
       height_cm?: number;
       job?: string;
@@ -134,7 +138,7 @@ export const profileApi = {
       dealbreakers?: string[];
     }
   ) =>
-    api.patch<ClientProfile>('/api/client/profile', data, token),
+    api.patch<{ data: ClientProfile }>('/api/client/profile', data, token).then(r => r.data),
 
   answerPrompts: (
     token: string,

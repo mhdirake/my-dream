@@ -1,7 +1,7 @@
 type ProfileSetupState = {
   first_name?: string;
   birth_date?: string;
-  gender?: 'male' | 'female' | 'prefer_not_to_say';
+  gender?: 'male' | 'female' | 'other';
   province_id?: number;
   province_name?: string;
   city_id?: number;
