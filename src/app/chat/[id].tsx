@@ -7,6 +7,7 @@ import { profileApi } from '@/lib/api/profile';
 import { useChatMessages } from '@/lib/chat/useChatMessages';
 import { useCentrifugoCtx } from '@/lib/chat/CentrifugoContext';
 import { conversationStatusFromEvent } from '@/lib/chat/conversationEvents';
+import { CHAT_SEND_TARGET, CHAT_SEND_HIT_SLOP } from '@/lib/chat/controls';
 import { selectInitialChatPosition, type InitialChatPosition } from '@/lib/chat/initialPosition';
 import { formatPersianDate, formatPersianTime } from '@/lib/date/persian';
 import { useVoiceRecorder } from '@/lib/chat/useVoiceRecorder';
@@ -1877,13 +1878,16 @@ export default function ConversationScreen() {
               </Text>
             </View>
           ) : voiceRecorder.isRecording ? (
-            <TouchableOpacity style={[styles.sendBtn, styles.sendBtnActive]} onPress={handleMicPress} activeOpacity={0.8}>
+            <TouchableOpacity style={[styles.sendBtn, styles.sendBtnActive]} hitSlop={CHAT_SEND_HIT_SLOP} accessibilityRole="button" accessibilityLabel="پایان ضبط صدا" onPress={handleMicPress} activeOpacity={0.8}>
               <Check size={18} color={Colors.accent} strokeWidth={2.5} />
             </TouchableOpacity>
           ) : voiceRecorder.recordedUri ? (
             <TouchableOpacity
               style={[styles.sendBtn, styles.sendBtnActive]}
               onPress={handleSendVoice}
+              hitSlop={CHAT_SEND_HIT_SLOP}
+              accessibilityRole="button"
+              accessibilityLabel="ارسال پیام صوتی"
               disabled={sendingVoice}
               activeOpacity={0.8}
             >
@@ -1897,6 +1901,9 @@ export default function ConversationScreen() {
                   if (text.trim() || pendingImage || editingId) preventComposerBlurOnWeb(event);
                 }}
                 onPress={pendingImage ? handleSendImage : text.trim() ? handleSend : handleMicPress}
+                hitSlop={CHAT_SEND_HIT_SLOP}
+                accessibilityRole="button"
+                accessibilityLabel={pendingImage ? 'ارسال تصویر' : text.trim() ? (editingId ? 'ذخیره ویرایش پیام' : 'ارسال پیام') : 'ضبط پیام صوتی'}
                 disabled={uploadingImage || myId <= 0}
                 activeOpacity={0.8}
               >
@@ -2814,7 +2821,8 @@ const styles = StyleSheet.create({
   },
   composerAttachBtnActive: { backgroundColor: Colors.accentSoft },
   sendBtn: {
-    width: 46, height: 46, borderRadius: 23,
+    width: CHAT_SEND_TARGET, height: CHAT_SEND_TARGET, borderRadius: CHAT_SEND_TARGET / 2,
+    flexShrink: 0,
     alignItems: 'center', justifyContent: 'center',
     backgroundColor: Colors.ph2,
   },
