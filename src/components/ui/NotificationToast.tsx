@@ -1,6 +1,7 @@
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
+import { AlertPortal } from './AlertLayer';
 import { Bell } from 'lucide-react-native';
-import React, { createContext, useCallback, useContext, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -30,10 +31,11 @@ export function NotificationToastProvider({ children }: { children: React.ReactN
   const opacity = useSharedValue(0);
   const progress = useSharedValue(1);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
 
   const hide = useCallback(() => {
-    translateY.value = withTiming(-140, { duration: 280 });
-    opacity.value = withTiming(0, { duration: 280 });
+    translateY.set(withTiming(-140, { duration: 280 }));
+    opacity.set(withTiming(0, { duration: 280 }));
   }, [translateY, opacity]);
 
   const showNotificationToast = useCallback((next: ToastData) => {
@@ -41,11 +43,11 @@ export function NotificationToastProvider({ children }: { children: React.ReactN
 
     setData(next);
 
-    translateY.value = withSpring(0, { damping: 18, stiffness: 200 });
-    opacity.value = withTiming(1, { duration: 180 });
+    translateY.set(withSpring(0, { damping: 18, stiffness: 200 }));
+    opacity.set(withTiming(1, { duration: 180 }));
 
-    progress.value = 1;
-    progress.value = withTiming(0, { duration: 4000 });
+    progress.set(1);
+    progress.set(withTiming(0, { duration: 4000 }));
 
     timerRef.current = setTimeout(() => hide(), 4000);
   }, [translateY, opacity, progress, hide]);
@@ -70,6 +72,7 @@ export function NotificationToastProvider({ children }: { children: React.ReactN
     <NotificationToastContext.Provider value={{ showNotificationToast }}>
       {children}
       {data && (
+        <AlertPortal>
         <ToastView
           data={data}
           animStyle={animStyle}
@@ -80,6 +83,7 @@ export function NotificationToastProvider({ children }: { children: React.ReactN
             hide();
           }}
         />
+        </AlertPortal>
       )}
     </NotificationToastContext.Provider>
   );

@@ -1,14 +1,13 @@
 import { Avatar } from '@/components/ui/Avatar';
+import { AlertPortal } from './AlertLayer';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { Conversation, ConversationUser } from '@/lib/api/chat';
 import { router } from 'expo-router';
-import React, { createContext, useCallback, useContext, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
-  runOnJS,
   useAnimatedStyle,
   useSharedValue,
-  withDelay,
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
@@ -31,10 +30,11 @@ export function ChatToastProvider({ children }: { children: React.ReactNode }) {
   const opacity = useSharedValue(0);
   const progress = useSharedValue(1);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
 
   const hide = useCallback(() => {
-    translateY.value = withTiming(-140, { duration: 280 });
-    opacity.value = withTiming(0, { duration: 280 });
+    translateY.set(withTiming(-140, { duration: 280 }));
+    opacity.set(withTiming(0, { duration: 280 }));
   }, [translateY, opacity]);
 
   const showChatToast = useCallback((conv: Conversation, other: ConversationUser) => {
@@ -43,12 +43,12 @@ export function ChatToastProvider({ children }: { children: React.ReactNode }) {
     setData({ conv, other });
 
     // Slide in
-    translateY.value = withSpring(0, { damping: 18, stiffness: 200 });
-    opacity.value = withTiming(1, { duration: 180 });
+    translateY.set(withSpring(0, { damping: 18, stiffness: 200 }));
+    opacity.set(withTiming(1, { duration: 180 }));
 
     // Progress bar drains over 4s
-    progress.value = 1;
-    progress.value = withTiming(0, { duration: 4000 });
+    progress.set(1);
+    progress.set(withTiming(0, { duration: 4000 }));
 
     // Auto-hide after 4s
     timerRef.current = setTimeout(() => hide(), 4000);
@@ -88,6 +88,7 @@ export function ChatToastProvider({ children }: { children: React.ReactNode }) {
     <ChatToastContext.Provider value={{ showChatToast }}>
       {children}
       {data && (
+        <AlertPortal>
         <ToastView
           data={data}
           animStyle={animStyle}
@@ -98,6 +99,7 @@ export function ChatToastProvider({ children }: { children: React.ReactNode }) {
             hide();
           }}
         />
+        </AlertPortal>
       )}
     </ChatToastContext.Provider>
   );

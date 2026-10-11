@@ -11,8 +11,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { I18nManager, Platform } from 'react-native';
-import Toast from 'react-native-toast-message';
-import { toastConfig } from '@/components/ui/ToastConfig';
+import { AlertLayerHost } from '@/components/ui/AlertLayer';
 import { ConfirmSheetHost } from '@/lib/confirmSheet';
 import { PrivacyGuard } from '@/components/privacy/PrivacyGuard';
 import { KeyboardViewport } from '@/components/ui/KeyboardViewport';
@@ -73,7 +72,7 @@ export default function RootLayout() {
             </ModerationProvider>
             </TermsProvider>
           </AuthProvider>
-          <Toast config={toastConfig} visibilityTime={3000} topOffset={56} />
+          <AlertLayerHost root />
           <ConfirmSheetHost />
         </SafeAreaProvider>
         </AppFrame>

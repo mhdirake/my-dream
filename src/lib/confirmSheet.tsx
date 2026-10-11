@@ -1,7 +1,7 @@
 import { Colors, Fonts, Radius } from '@/constants/colors';
-import { Modal } from '@/components/ui/BlurredModal';
-import { useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { AlertPortal } from '@/components/ui/AlertLayer';
+import { useEffect, useState } from 'react';
+import { Animated, BackHandler, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export type ConfirmButton = {
@@ -16,7 +16,14 @@ type ConfirmRequest = {
   buttons: ConfirmButton[];
 };
 
-let showListener: ((req: ConfirmRequest) => void) | null = null;
+let showListener: ((req: ConfirmRequest | null) => void) | null = null;
+let confirmationOpen = false;
+
+export function dismissConfirmSheet(): boolean {
+  if (!confirmationOpen) return false;
+  showListener?.(null);
+  return true;
+}
 
 // Drop-in replacement for Alert.alert(title, message, buttons) that renders
 // a themed bottom sheet instead of the native OS dialog.
@@ -30,12 +37,16 @@ export const confirmSheet = {
 export function ConfirmSheetHost() {
   const insets = useSafeAreaInsets();
   const [request, setRequest] = useState<ConfirmRequest | null>(null);
-  const slideY = useRef(new Animated.Value(500)).current;
+  const [slideY] = useState(() => new Animated.Value(500));
 
   useEffect(() => {
     showListener = req => setRequest(req);
-    return () => { showListener = null; };
+    return () => { showListener = null; confirmationOpen = false; };
   }, []);
+
+  useEffect(() => {
+    confirmationOpen = request !== null;
+  }, [request]);
 
   useEffect(() => {
     if (request) {
@@ -51,13 +62,22 @@ export function ConfirmSheetHost() {
     });
   };
 
+  useEffect(() => {
+    if (!request) return;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      setRequest(null);
+      return true;
+    });
+    return () => subscription.remove();
+  }, [request]);
+
   if (!request) return null;
 
   const cancelButtons = request.buttons.filter(b => b.style === 'cancel');
   const actionButtons = request.buttons.filter(b => b.style !== 'cancel');
 
   return (
-    <Modal visible transparent animationType="none" onRequestClose={() => close()}>
+    <AlertPortal>
       <View style={styles.overlay}>
         <Pressable style={StyleSheet.absoluteFill} onPress={() => close()} />
         <Animated.View style={[styles.sheet, { paddingBottom: 16 + insets.bottom, transform: [{ translateY: slideY }] }]}>
@@ -90,13 +110,13 @@ export function ConfirmSheetHost() {
           </View>
         </Animated.View>
       </View>
-    </Modal>
+    </AlertPortal>
   );
 }
 
 const styles = StyleSheet.create({
   overlay: {
-    flex: 1,
+    ...StyleSheet.absoluteFill,
     justifyContent: 'flex-end',
     backgroundColor: Colors.modalBackdrop,
   },

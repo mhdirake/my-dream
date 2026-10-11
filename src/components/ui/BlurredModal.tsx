@@ -3,6 +3,8 @@ import { createContext, useContext, useRef, type PropsWithChildren, type RefObje
 import { Modal as NativeModal, Platform, StyleSheet, View, type ModalProps } from 'react-native';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaFrame, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardSurface } from './KeyboardViewport';
+import { AlertLayerHost } from './AlertLayer';
+import { dismissConfirmSheet } from '@/lib/confirmSheet';
 
 const BlurTargetContext = createContext<RefObject<View | null> | null>(null);
 
@@ -23,7 +25,9 @@ export function Modal({ children, ...props }: ModalProps) {
   const frame = useSafeAreaFrame();
 
   return (
-    <NativeModal statusBarTranslucent navigationBarTranslucent {...props}>
+    <NativeModal statusBarTranslucent navigationBarTranslucent {...props} onRequestClose={event => {
+      if (!dismissConfirmSheet()) props.onRequestClose?.(event);
+    }}>
       <BlurView
         pointerEvents="none"
         style={StyleSheet.absoluteFill}
@@ -38,6 +42,7 @@ export function Modal({ children, ...props }: ModalProps) {
             {children}
           </SafeAreaView>
         </KeyboardSurface>
+        {props.visible && <AlertLayerHost />}
       </SafeAreaProvider>
     </NativeModal>
   );
