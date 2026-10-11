@@ -27,6 +27,23 @@ app.use(
 app.use(morgan('tiny'));
 app.all('/{*all}', createRequestHandler({ build: SERVER_BUILD_DIR }));
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Expo web server listening on port ${PORT}`);
 });
+
+let stopping = false;
+function shutdown() {
+  if (stopping) return;
+  stopping = true;
+  const deadline = setTimeout(() => {
+    server.closeAllConnections();
+    process.exit(1);
+  }, 25_000);
+  deadline.unref();
+  server.close((error) => {
+    clearTimeout(deadline);
+    process.exit(error ? 1 : 0);
+  });
+}
+process.once('SIGTERM', shutdown);
+process.once('SIGINT', shutdown);

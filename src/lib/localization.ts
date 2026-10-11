@@ -45,6 +45,9 @@ function fieldFromMessage(message: string): string | null {
 
 export function localizeErrorMessage(rawMessage: unknown, status?: number): string {
   const raw = typeof rawMessage === 'string' ? rawMessage.trim() : '';
+  if (/^AI is temporarily unavailable: the service is disabled or not configured\./i.test(raw)) {
+    return 'سرویس هوش مصنوعی فعلاً غیرفعال است و هنوز تنظیم نشده است.';
+  }
 
   if (
     /limit exceeded|daily .*limit|quota|subscription|plan limit|swipe limit|message limit|like limit/i.test(raw) ||
@@ -58,7 +61,7 @@ export function localizeErrorMessage(rawMessage: unknown, status?: number): stri
     /forbidden|not allowed|permission/i.test(raw) ||
     /اجازه انجام این عملیات را نداری|مجاز نیست|دسترسی نداری/.test(raw)
   ) {
-    return 'این کار با اشتراک فعلی‌ات مجاز نیست. برای ادامه باید اشتراکت را ارتقا بدهی.';
+    return 'اجازه انجام این عملیات را نداری.';
   }
 
   // Any other message (e.g. per-target rejections like a resend cooldown,

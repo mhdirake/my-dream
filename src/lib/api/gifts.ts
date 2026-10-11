@@ -2,8 +2,7 @@ import { api } from './client';
 import { BackendGift } from './discover';
 import type { PaymentTransaction } from './payments';
 import { Platform } from 'react-native';
-
-const MEDIA_BASE = process.env.EXPO_PUBLIC_MEDIA_URL ?? process.env.EXPO_PUBLIC_API_URL ?? '';
+import { resolveMediaUrl } from './media';
 
 export type GiftUser = {
   id: number;
@@ -28,7 +27,7 @@ export function giftUserPhotoUrl(user: GiftUser | null | undefined): string | nu
     ?? user?.profile_photo?.urls?.medium
     ?? user?.profile_photo_path;
   if (!path) return null;
-  return path.startsWith('http') ? path : `${MEDIA_BASE}/${path.replace(/^\//, '')}`;
+  return resolveMediaUrl(path);
 }
 
 // English seed titles displayed in Persian — admin-created gifts with a Persian

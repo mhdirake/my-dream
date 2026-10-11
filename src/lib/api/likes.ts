@@ -1,6 +1,5 @@
 import { api } from './client';
-
-const MEDIA_BASE = process.env.EXPO_PUBLIC_MEDIA_URL ?? process.env.EXPO_PUBLIC_API_URL ?? '';
+import { resolveMediaUrl } from './media';
 
 type MediaLike =
   | string
@@ -31,7 +30,7 @@ export function mediaUrl(path: MediaLike): string | null {
       ?? path.path
       ?? null;
   if (!resolved) return null;
-  return resolved.startsWith('http') ? resolved : `${MEDIA_BASE}/${resolved}`;
+  return resolveMediaUrl(resolved);
 }
 
 // ── Types ──────────────────────────────────────────────────────────────────────

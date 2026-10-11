@@ -8,9 +8,14 @@ describe('localizeErrorMessage', () => {
     );
   });
 
-  it('replaces vague permission errors with a subscription explanation', () => {
+  it('does not mistake authorization failures for subscription limits', () => {
     expect(localizeErrorMessage('اجازه انجام این عملیات را نداری.', 403)).toBe(
-      'این کار با اشتراک فعلی‌ات مجاز نیست. برای ادامه باید اشتراکت را ارتقا بدهی.',
+      'اجازه انجام این عملیات را نداری.',
+    );
+  });
+  it('explains that AI is intentionally disabled', () => {
+    expect(localizeErrorMessage('AI is temporarily unavailable: the service is disabled or not configured.', 503)).toBe(
+      'سرویس هوش مصنوعی فعلاً غیرفعال است و هنوز تنظیم نشده است.',
     );
   });
 });

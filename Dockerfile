@@ -23,12 +23,15 @@ RUN --mount=type=cache,target=/root/.npm,sharing=locked \
 
 FROM deps AS test
 COPY . .
+RUN node --check server.js
 RUN npm run test:unit
 RUN npx tsc --noEmit
 RUN npx eslint \
   src/lib/api/auth.ts \
   src/lib/api/client.ts \
   src/lib/api/client.test.ts \
+  src/lib/api/media.ts \
+  src/lib/api/media.test.ts \
   src/lib/auth/AuthContext.tsx \
   src/lib/auth/storage.ts \
   src/lib/auth/storage.test.ts \
@@ -77,9 +80,10 @@ WORKDIR /app
 ENV NODE_ENV=production \
   PORT=3000
 
-COPY --from=web-build /app/node_modules ./node_modules
-COPY --from=web-build /app/dist ./dist
-COPY package.json server.js ./
+COPY --from=web-build --chown=node:node /app/node_modules ./node_modules
+COPY --from=web-build --chown=node:node /app/dist ./dist
+COPY --chown=node:node package.json server.js ./
+USER node
 
 EXPOSE 3000
 
