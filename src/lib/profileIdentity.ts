@@ -1,5 +1,23 @@
 import { isValidJalaaliDate, toGregorian } from 'jalaali-js';
 
+// Token rotation is not a new editing session: never hydrate over an open draft.
+export class IdentityHydration {
+  private scope: string | null = null;
+  private loaded = false;
+
+  needsLoad(scope: string): boolean {
+    if (scope !== this.scope) {
+      this.scope = scope;
+      this.loaded = false;
+    }
+    return !this.loaded;
+  }
+
+  complete(scope: string): void {
+    if (scope === this.scope) this.loaded = true;
+  }
+}
+
 export function normalizeDateDigits(value: string): string {
   return value.replace(/[۰-۹]/g, digit => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
     .replace(/[٠-٩]/g, digit => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit))).replace(/\D/g, '');

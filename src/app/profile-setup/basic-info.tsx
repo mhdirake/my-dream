@@ -8,13 +8,13 @@ import { onboardingApi } from '@/lib/api/onboarding';
 import { profileApi } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { profileSetupStore } from '@/lib/profileSetupStore';
-import { identityBirthDate, normalizeDateDigits } from '@/lib/profileIdentity';
+import { IdentityHydration, identityBirthDate, normalizeDateDigits } from '@/lib/profileIdentity';
 import { toast } from '@/lib/toast';
 import { useSafeBack } from '@/lib/useSafeBack';
 import { router, useLocalSearchParams } from 'expo-router';
 import { toJalaali } from 'jalaali-js';
 import { CheckCircle } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -37,7 +37,7 @@ const toPersian = (n: number | string) =>
 
 export default function BasicInfoScreen() {
   const insets = useSafeAreaInsets();
-  const { session } = useAuth();
+  const { session, user } = useAuth();
   const { mode } = useLocalSearchParams<{ mode?: string }>();
   const isEdit = mode === 'edit';
   const safeBack = useSafeBack('/profile-edit');
@@ -51,14 +51,22 @@ export default function BasicInfoScreen() {
   const [month, setMonth] = useState('');
   const [day, setDay] = useState('');
   const [gender, setGender] = useState<Gender | null>(null);
+  const hydration = useRef(new IdentityHydration());
+  const accountId = session?.userId ?? user?.id;
 
   useEffect(() => {
     if (!session?.accessToken) return;
+    const scope = `${accountId ?? 'pending'}:${isEdit ? 'edit' : 'setup'}:${reload}`;
+    if (!hydration.current.needsLoad(scope)) return;
     let active = true;
+    setLoading(true);
+    setLoadError(false);
+    setName(''); setLastName(''); setYear(''); setMonth(''); setDay(''); setGender(null);
     const loadProfile = isEdit ? profileApi.getProfile(session.accessToken)
       : onboardingApi.getStatus(session.accessToken).then(status => status.user);
     loadProfile.then(u => {
       if (!active) return;
+      hydration.current.complete(scope);
       if (u.first_name) setName(u.first_name);
       setLastName(u.last_name ?? '');
       if (u.birth_date) {
@@ -76,7 +84,7 @@ export default function BasicInfoScreen() {
       if (active) { setLoadError(true); toast.error('خطا در دریافت اطلاعات هویتی'); }
     }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [session?.accessToken, isEdit, reload]);
+  }, [session?.accessToken, accountId, isEdit, reload]);
 
   const birthDate = identityBirthDate(year, month, day);
 
@@ -125,8 +133,9 @@ export default function BasicInfoScreen() {
           value={name}
           onChangeText={setName}
           autoCapitalize="words"
+          editable={!loading && !loadError && !saving}
         />
-        {isEdit && <Field label="نام خانوادگی (اختیاری)" value={lastName} onChangeText={setLastName} autoCapitalize="words" />}
+        {isEdit && <Field label="نام خانوادگی (اختیاری)" value={lastName} onChangeText={setLastName} autoCapitalize="words" editable={!loading && !loadError && !saving} />}
 
         <Text style={styles.fieldLabel}>تاریخ تولد (شمسی)</Text>
         <View style={styles.dateRow}>
@@ -139,6 +148,7 @@ export default function BasicInfoScreen() {
             keyboardType="numeric"
             maxLength={2}
             textAlign="center"
+            editable={!loading && !loadError && !saving}
           />
           <TextInput
             style={[styles.dateInput, styles.dateField]}
@@ -149,6 +159,7 @@ export default function BasicInfoScreen() {
             keyboardType="numeric"
             maxLength={2}
             textAlign="center"
+            editable={!loading && !loadError && !saving}
           />
           <TextInput
             style={[styles.dateInput, styles.dateField]}
@@ -159,6 +170,7 @@ export default function BasicInfoScreen() {
             keyboardType="numeric"
             maxLength={4}
             textAlign="center"
+            editable={!loading && !loadError && !saving}
           />
         </View>
         <Text style={styles.hint}>مثلاً ۱۵ / ۰۶ / ۱۳۷۷ — حداقل سن ۱۸ سال</Text>
@@ -169,6 +181,7 @@ export default function BasicInfoScreen() {
             <Pressable
               key={g.key}
               onPress={() => setGender(g.key)}
+              disabled={loading || loadError || saving}
               style={[styles.genderChip, gender === g.key && styles.genderChipActive]}
             >
               {gender === g.key && (

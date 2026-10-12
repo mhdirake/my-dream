@@ -16,9 +16,10 @@ interface FieldProps {
   maxLength?: number;
   textDirection?: 'rtl' | 'ltr';
   keepCursorAtEnd?: boolean;
+  editable?: boolean;
 }
 
-export function Field({ label, value, placeholder, hint, error, suffix, secureTextEntry, onChangeText, keyboardType, autoCapitalize, autoCorrect, maxLength, textDirection, keepCursorAtEnd }: FieldProps) {
+export function Field({ label, value, placeholder, hint, error, suffix, secureTextEntry, onChangeText, keyboardType, autoCapitalize, autoCorrect, maxLength, textDirection, keepCursorAtEnd, editable = true }: FieldProps) {
   const directionStyle: TextStyle | null = textDirection === 'ltr'
     ? styles.inputLtr
     : textDirection === 'rtl'
@@ -44,6 +45,7 @@ export function Field({ label, value, placeholder, hint, error, suffix, secureTe
           autoCorrect={autoCorrect}
           maxLength={maxLength}
           selection={cursorAtEnd}
+          editable={editable}
         />
         {suffix && <Text style={styles.suffix}>{suffix}</Text>}
       </View>
