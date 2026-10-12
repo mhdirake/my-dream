@@ -111,29 +111,7 @@ export type ConversationPage = {
   next_cursor: string | null;
 };
 
-export function conversationPeer(conversation: Conversation, myId: number): ConversationUser {
-  if (conversation.type === 'group') {
-    return {
-      id: 0,
-      username: conversation.group_key ?? 'group',
-      first_name: conversation.group_title ?? 'گفتگوی گروهی',
-      last_name: null,
-      profile_photo: null,
-    };
-  }
-
-  const peer = conversation.first_user_id === myId
-    ? conversation.second_user
-    : conversation.first_user;
-
-  return peer ?? {
-    id: 0,
-    username: 'unknown',
-    first_name: 'کاربر',
-    last_name: null,
-    profile_photo: null,
-  };
-}
+export { conversationPeer } from '@/lib/chat/conversationIdentity';
 
 export type ConversationTemplate = {
   id: number;

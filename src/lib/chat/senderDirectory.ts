@@ -9,7 +9,8 @@ export function senderPhotoUrl(sender: MessageSender | null | undefined): string
 
 export function displayUserName(sender: Partial<MessageSender> | null | undefined, fallback = 'در حال دریافت نام…'): string {
   const names = [[sender?.first_name, sender?.last_name].filter(Boolean).join(' ').trim(), sender?.username?.trim()];
-  return names.find(name => name && !/^[\d۰-۹٠-٩\s]+$/.test(name) && !/^کاربر\s+[\d۰-۹٠-٩]+$/.test(name)) ?? fallback;
+  return names.find(name => name && !/^(unknown|کاربر)$/i.test(name)
+    && !/^[\d۰-۹٠-٩\s]+$/.test(name) && !/^کاربر\s+[\d۰-۹٠-٩]+$/.test(name)) ?? fallback;
 }
 
 const RETRY_DELAYS = [1000, 3000, 10000];

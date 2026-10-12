@@ -74,10 +74,14 @@ RUN npx eslint \
   src/lib/chat/senderDirectory.ts \
   src/lib/chat/senderDirectory.test.ts \
   src/lib/chat/useSenderDirectory.ts \
+  src/lib/chat/conversationIdentity.ts \
+  src/lib/chat/conversationIdentity.test.ts \
+  src/lib/chat/useConversationPeer.ts \
   src/lib/alertLayers.ts \
   src/lib/alertLayers.test.ts \
   src/components/ui/AlertLayer.tsx \
   src/components/ui/ChatToast.tsx \
+  src/components/ui/Field.tsx \
   src/components/ui/NotificationToast.tsx \
   src/lib/confirmSheet.tsx \
   src/lib/profileIdentity.ts \

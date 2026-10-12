@@ -7,6 +7,9 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { Conversation, ConversationUser, chatApi, conversationPeer } from '@/lib/api/chat';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useConversations } from '@/lib/chat/useConversations';
+import { conversationPeerName } from '@/lib/chat/conversationIdentity';
+import { useConversationPeer } from '@/lib/chat/useConversationPeer';
+import { senderPhotoUrl } from '@/lib/chat/senderDirectory';
 import { formatPersianDate, formatPersianTime } from '@/lib/date/persian';
 import { toFaDigits } from '@/lib/localization';
 import { toast } from '@/lib/toast';
@@ -29,7 +32,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 function photoUrl(user: ConversationUser | null | undefined) {
-  return user?.profile_photo?.urls?.thumbnail ?? null;
+  return senderPhotoUrl(user);
 }
 
 function timeAgo(iso: string | null | undefined) {
@@ -131,7 +134,7 @@ export default function ChatScreen() {
         id: String(c.id),
         publicId: c.public_id,
         otherId: c.type === 'group' ? '' : String(other.id),
-        name: other.first_name,
+        name: conversationPeerName(c, other),
         avatar: photoUrl(other) ?? '',
         status: c.status,
         isSender: c.first_user_id === myId ? '1' : '0',
@@ -413,7 +416,7 @@ function LockedGroupRow({ group, onPress }: { group: LockedGroup; onPress: () =>
 function ActiveRow({
   conversation: c,
   myId,
-  other,
+  other: initialPeer,
   onPress,
 }: {
   conversation: Conversation;
@@ -421,6 +424,8 @@ function ActiveRow({
   other: ConversationUser;
   onPress: () => void;
 }) {
+  const other = useConversationPeer(c, initialPeer);
+  const name = conversationPeerName(c, other);
   const unread = c.unread_count ?? 0;
   const hasUnread = unread > 0;
   const lastTime = timeAgo(c.last_message_at);
@@ -439,10 +444,10 @@ function ActiveRow({
       style={({ pressed }) => [styles.chatRow, pressed && { backgroundColor: Colors.ph2 }]}
       onPress={onPress}
     >
-      <Avatar size={50} name={other.first_name} photoUrl={photoUrl(other)} />
+      <Avatar size={50} name={name} photoUrl={photoUrl(other)} />
       <View style={styles.chatInfo}>
         <View style={styles.chatTop}>
-          <Text style={[styles.chatName, hasUnread && styles.chatNameUnread]}>{other.first_name}</Text>
+          <Text style={[styles.chatName, hasUnread && styles.chatNameUnread]}>{name}</Text>
           <View style={styles.chatTopRight}>
             <Text style={[styles.chatTime, hasUnread && styles.chatTimeUnread]}>{lastTime}</Text>
             {hasUnread && (
@@ -464,7 +469,7 @@ function ActiveRow({
 
 function PendingRow({
   conversation: c,
-  other,
+  other: initialPeer,
   isSender,
   isResponding,
   onAccept,
@@ -479,6 +484,8 @@ function PendingRow({
   onReject: () => void;
   onPress: () => void;
 }) {
+  const other = useConversationPeer(c, initialPeer);
+  const name = conversationPeerName(c, other);
   const msgBody = c.last_message_preview ?? '';
   const lastTime = timeAgo(c.last_message_at);
   const goToProfile = () => router.push({ pathname: '/user/[id]', params: { id: String(other.id) } } as never);
@@ -487,12 +494,12 @@ function PendingRow({
     <Pressable style={styles.pendingCard} onPress={onPress}>
       <View style={styles.pendingTop}>
         <TouchableOpacity onPress={goToProfile} activeOpacity={0.8}>
-          <Avatar size={46} name={other.first_name} photoUrl={photoUrl(other)} />
+          <Avatar size={46} name={name} photoUrl={photoUrl(other)} />
         </TouchableOpacity>
         <View style={styles.pendingInfo}>
           <View style={styles.chatTop}>
             <TouchableOpacity onPress={goToProfile} activeOpacity={0.7}>
-              <Text style={styles.chatName}>{other.first_name}</Text>
+              <Text style={styles.chatName}>{name}</Text>
             </TouchableOpacity>
             <Text style={styles.chatTime}>{lastTime}</Text>
           </View>

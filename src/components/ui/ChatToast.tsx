@@ -2,6 +2,8 @@ import { Avatar } from '@/components/ui/Avatar';
 import { AlertPortal } from './AlertLayer';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { Conversation, ConversationUser } from '@/lib/api/chat';
+import { conversationPeerName } from '@/lib/chat/conversationIdentity';
+import { senderPhotoUrl } from '@/lib/chat/senderDirectory';
 import { router } from 'expo-router';
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -74,8 +76,8 @@ export function ChatToastProvider({ children }: { children: React.ReactNode }) {
         id: String(conv.id),
         publicId: conv.public_id,
         otherId: conv.type === 'group' ? '' : String(other.id),
-        name: other.first_name,
-        avatar: other.profile_photo?.urls?.thumbnail ?? '',
+        name: conversationPeerName(conv, other),
+        avatar: senderPhotoUrl(other) ?? '',
         status: conv.status,
         conversationType: conv.type,
         groupKey: conv.group_key ?? '',
@@ -120,6 +122,7 @@ function ToastView({
 }) {
   const insets = useSafeAreaInsets();
   const { conv, other } = data;
+  const name = conversationPeerName(conv, other);
   const preview = conv.last_message_preview ?? 'پیام جدید';
 
   return (
@@ -135,12 +138,12 @@ function ToastView({
         <View style={styles.content}>
           <Avatar
             size={44}
-            name={other.first_name}
-            photoUrl={other.profile_photo?.urls?.thumbnail ?? null}
+            name={name}
+            photoUrl={senderPhotoUrl(other)}
           />
           <View style={styles.textBlock}>
             <View style={styles.row}>
-              <Text style={styles.name} numberOfLines={1}>{other.first_name}</Text>
+              <Text style={styles.name} numberOfLines={1}>{name}</Text>
               <Text style={styles.time}>همین الان</Text>
             </View>
             <Text style={styles.preview} numberOfLines={2}>{preview}</Text>
