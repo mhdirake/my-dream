@@ -27,12 +27,18 @@ build-production:
   script:
     - bash scripts/ci/build-pwa.sh
   artifacts:
+    paths:
+      - compose.production.yml
+      - scripts/ci/deploy-pwa.sh
     reports:
       dotenv: .pwa-build.env
     expire_in: 90 days
 
 .pwa-deployment:
   stage: deploy
+  # Deploy consumes the build's release files, not another clone of the repository.
+  variables:
+    GIT_STRATEGY: empty
   resource_group: md-production
   interruptible: false
   needs:

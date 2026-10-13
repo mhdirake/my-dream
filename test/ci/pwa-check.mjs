@@ -150,6 +150,8 @@ test('web deploy is automatic; redeploy and Android remain optional', () => {
   assert.match(ci, /deploy-production:[\s\S]*?when: on_success/);
   assert.match(ci, /redeploy-production:[\s\S]*?when: manual\s+allow_failure: true/);
   assert.match(ci, /job: build-production\s+artifacts: true/);
+  assert.match(ci, /GIT_STRATEGY: empty/);
+  assert.match(ci, /paths:\s+- compose.production.yml\s+- scripts\/ci\/deploy-pwa.sh/);
   assert.match(app, /build-android:[\s\S]*?tags: \[germany\]/);
   assert.match(app, /build-android:[\s\S]*?when: manual\s+allow_failure: true/);
 });
