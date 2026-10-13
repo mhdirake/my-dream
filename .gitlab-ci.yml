@@ -5,7 +5,7 @@ variables:
   MD_BUILD_TARGET: web-runtime
   MD_TEST_TARGET: "test"
   MD_PUBLIC_URL: https://app.mydreamapp.ir
-  ANDROID_GRADLE_HEAP_MB: "1024"
+  ANDROID_GRADLE_HEAP_MB: "3072"
 
 # Keep native publishing available without coupling it to the web deployment.
 build-android:

@@ -33,7 +33,11 @@ not against generated native files or PWA dependencies. Review/remove the patch
 when updating Poolakey; unexpected versions/source fail early instead of silently
 changing billing code.
 Gradle has one worker, bounded heap/metaspace, in-process Kotlin, and CMake/Ninja
-job pools; Metro also has a bounded heap. The heap override defaults to 1024 MiB.
+job pools; Metro also has a bounded heap. The heap override defaults to 3072 MiB:
+Dex merging and in-process Kotlin share the Gradle JVM, and the previous 1024 MiB
+budget was insufficient for this app. `build-android-gradle.sh` records host and
+cgroup memory counters, exits explicitly on JVM OOM, and prints JVM crash details
+on failure. It does not silently retry a killed process or disable build checks.
 
 The aligned APK and AAB are signed using the same production key. Generated AAB
 debug signatures are removed before signing. The build checks both certificates

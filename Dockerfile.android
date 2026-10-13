@@ -83,7 +83,7 @@ RUN node scripts/patch-poolakey-android.cjs
 
 ARG ANDROID_GRADLE_VARIANT=Release
 ARG ANDROID_ARCHITECTURES=arm64-v8a
-ARG ANDROID_GRADLE_HEAP_MB=1024
+ARG ANDROID_GRADLE_HEAP_MB=3072
 ARG ANDROID_VERSION_CODE
 ARG EXPO_PUBLIC_BUILD_SHA
 ARG EXPO_PUBLIC_API_URL
@@ -99,17 +99,10 @@ RUN --mount=type=cache,id=mydream-expo,target=/root/.expo,sharing=locked \
   && npx expo prebuild --clean --platform android \
   && cd android \
   && chmod +x ./gradlew \
-  && awk '/MemTotal|MemAvailable|SwapTotal/ {print}' /proc/meminfo \
-  && NODE_ENV=production NODE_OPTIONS=--max-old-space-size=768 ./gradlew clean "assemble${ANDROID_GRADLE_VARIANT}" "bundle${ANDROID_GRADLE_VARIANT}" \
-    -Dorg.gradle.jvmargs="-Xmx${ANDROID_GRADLE_HEAP_MB}m -XX:MaxMetaspaceSize=768m -XX:ActiveProcessorCount=2" \
-    -Dorg.gradle.parallel=false \
-    --init-script /app/scripts/android-build-limits.gradle \
-    -Pkotlin.compiler.execution.strategy=in-process \
-    -PreactNativeArchitectures="$ANDROID_ARCHITECTURES" \
-    --no-build-cache \
-    --rerun-tasks \
-    --max-workers=1 \
-    --no-daemon \
+  && ANDROID_GRADLE_HEAP_MB="$ANDROID_GRADLE_HEAP_MB" \
+    ANDROID_GRADLE_VARIANT="$ANDROID_GRADLE_VARIANT" \
+    ANDROID_ARCHITECTURES="$ANDROID_ARCHITECTURES" \
+    sh /app/scripts/build-android-gradle.sh \
   && apk_path="$(find /app/android/app/build/outputs/apk -type f -path "*/release/*.apk" -print -quit)" \
   && test -n "$apk_path" \
   && aab_path="$(find /app/android/app/build/outputs/bundle -type f -path "*/release/*.aab" -print -quit)" \
