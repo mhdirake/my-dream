@@ -79,27 +79,69 @@ COPY . .
 
 ARG ANDROID_GRADLE_VARIANT=Release
 ARG ANDROID_ARCHITECTURES=arm64-v8a
+ARG ANDROID_GRADLE_HEAP_MB=1024
+ARG ANDROID_VERSION_CODE
+ARG EXPO_PUBLIC_BUILD_SHA
 ARG EXPO_PUBLIC_API_URL
 
-ENV EXPO_PUBLIC_API_URL=${EXPO_PUBLIC_API_URL}
-ENV GRADLE_USER_HOME=/app/.gradle
+ENV ANDROID_VERSION_CODE=${ANDROID_VERSION_CODE} \
+  EXPO_PUBLIC_BUILD_SHA=${EXPO_PUBLIC_BUILD_SHA} \
+  EXPO_PUBLIC_API_URL=${EXPO_PUBLIC_API_URL}
 
 RUN --mount=type=cache,id=mydream-expo,target=/root/.expo,sharing=locked \
-  --mount=type=cache,id=mydream-gradle-modules,target=/app/.gradle/caches/modules-2,sharing=locked \
-  --mount=type=cache,id=mydream-gradle-wrapper,target=/app/.gradle/wrapper,sharing=locked \
+  --mount=type=cache,id=mydream-gradle,target=/root/.gradle,sharing=locked \
   mkdir -p /out \
-  && rm -f "$GRADLE_USER_HOME/init.gradle" \
-  && npx expo prebuild --platform android \
+  && rm -f /root/.gradle/init.gradle \
+  && npx expo prebuild --clean --platform android \
   && cd android \
   && chmod +x ./gradlew \
-  && GRADLE_OPTS="-Dorg.gradle.jvmargs=-Xmx1536m -Dkotlin.daemon.jvm.options=-Xmx512m" ./gradlew "assemble${ANDROID_GRADLE_VARIANT}" \
+  && awk '/MemTotal|MemAvailable|SwapTotal/ {print}' /proc/meminfo \
+  && NODE_ENV=production NODE_OPTIONS=--max-old-space-size=768 ./gradlew clean "assemble${ANDROID_GRADLE_VARIANT}" "bundle${ANDROID_GRADLE_VARIANT}" \
+    -Dorg.gradle.jvmargs="-Xmx${ANDROID_GRADLE_HEAP_MB}m -XX:MaxMetaspaceSize=768m -XX:ActiveProcessorCount=2" \
+    -Dorg.gradle.parallel=false \
+    --init-script /app/scripts/android-build-limits.gradle \
+    -Pkotlin.compiler.execution.strategy=in-process \
     -PreactNativeArchitectures="$ANDROID_ARCHITECTURES" \
     --no-build-cache \
+    --rerun-tasks \
     --max-workers=1 \
     --no-daemon \
   && apk_path="$(find /app/android/app/build/outputs/apk -type f -path "*/release/*.apk" -print -quit)" \
   && test -n "$apk_path" \
-  && cp "$apk_path" /out/app-release.apk
+  && aab_path="$(find /app/android/app/build/outputs/bundle -type f -path "*/release/*.aab" -print -quit)" \
+  && test -n "$aab_path" \
+  && printf 'commit=%s\nversion_code=%s\n' "$EXPO_PUBLIC_BUILD_SHA" "$ANDROID_VERSION_CODE" > /out/build-metadata.txt \
+  && cp "$apk_path" /out/app-release.apk \
+  && cp "$aab_path" /out/app-release.aab
+
+FROM scratch AS android-unsigned-artifacts
+COPY --from=android-build /out/ /
+
+# Fetch the official tool before any signing secrets are mounted. Pin both the
+# release and GitHub's published asset digest; never execute an unchecked JAR.
+FROM android-base AS bazaar-signer-tool
+ARG BAZAAR_BUNDLE_SIGNER_VERSION=0.1.14
+ARG BAZAAR_BUNDLE_SIGNER_SHA256=aef2c387f678558e3a4baddab9730fbdca64ef28a0e2e0245491e1088b4968f5
+RUN mkdir -p /opt/cafebazaar \
+  && curl -fL --retry 5 --retry-all-errors --retry-delay 5 --connect-timeout 20 --max-time 600 \
+    "https://github.com/cafebazaar/bundle-signer/releases/download/v${BAZAAR_BUNDLE_SIGNER_VERSION}/bundlesigner-${BAZAAR_BUNDLE_SIGNER_VERSION}.jar" \
+    -o /opt/cafebazaar/bundlesigner.jar \
+  && printf '%s  %s\n' "$BAZAAR_BUNDLE_SIGNER_SHA256" /opt/cafebazaar/bundlesigner.jar | sha256sum -c - \
+  && printf 'bundle_signer_version=%s\nbundle_signer_jar_sha256=%s\n' \
+    "$BAZAAR_BUNDLE_SIGNER_VERSION" "$BAZAAR_BUNDLE_SIGNER_SHA256" \
+    > /opt/cafebazaar/tool-metadata.txt
+
+FROM android-build AS android-signed
+RUN apt-get update && apt-get install -y --no-install-recommends zip \
+  && rm -rf /var/lib/apt/lists/*
+COPY --from=bazaar-signer-tool /opt/cafebazaar/ /opt/cafebazaar/
+ARG ANDROID_KEY_ALIAS
+ARG ANDROID_SIGNING_CERT_SHA256
+RUN --network=none \
+  --mount=type=secret,id=android_keystore,required=true \
+  --mount=type=secret,id=android_store_password,required=true \
+  --mount=type=secret,id=android_key_password,required=true \
+  sh /app/scripts/sign-android.sh /out /signed-out
 
 FROM scratch AS android-artifacts
-COPY --from=android-build /out/ /
+COPY --from=android-signed /signed-out/ /

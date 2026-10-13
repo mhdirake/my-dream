@@ -51,6 +51,9 @@ example
 /android
 
 artifacts-local
+artifacts/
+*.keystore
+credentials.json
 .ci-cache/
 
 # Local Codex / RTK profile

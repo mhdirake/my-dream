@@ -1,5 +1,5 @@
 #!/usr/bin/env powershell
-# Build Android APK locally via Docker, mirroring the CI warm+offline strategy.
+# Build unsigned preview APK/AAB locally; CI exports production-signed outputs.
 #
 # First run (or --warm): builds online and saves a local buildx cache.
 # Subsequent runs (default): builds offline using the local buildx cache.
@@ -59,7 +59,7 @@ New-Item -ItemType Directory -Force (Split-Path $CacheNew) | Out-Null
 $buildArgs = @(
     "buildx", "build",
     "--file", "$ProjectRoot\Dockerfile.android",
-    "--target", "android-artifacts",
+    "--target", "android-unsigned-artifacts",
     "--output", "type=local,dest=$ArtifactsDir",
     "--cache-to", "type=local,dest=$CacheNew,mode=max",
     "--build-arg", "EXPO_PUBLIC_API_URL=$apiUrl",

@@ -13,6 +13,8 @@ npm-debug.*
 yarn-debug.*
 yarn-error.*
 *.jks
+*.keystore
+credentials.json
 *.p8
 *.p12
 *.key

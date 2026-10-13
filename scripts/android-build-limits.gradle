@@ -1,0 +1,15 @@
+// Gradle's --max-workers does not limit Ninja's C++ compiler processes.
+// Configure every Android module after its DSL is populated, before AGP locks it.
+gradle.beforeProject { project ->
+    ['com.android.application', 'com.android.library'].each { pluginId ->
+        project.pluginManager.withPlugin(pluginId) {
+            project.extensions.getByName('androidComponents').finalizeDsl { android ->
+                android.defaultConfig.externalNativeBuild.cmake.arguments.addAll([
+                    '-DCMAKE_JOB_POOLS=md_compile=1;md_link=1',
+                    '-DCMAKE_JOB_POOL_COMPILE=md_compile',
+                    '-DCMAKE_JOB_POOL_LINK=md_link'
+                ])
+            }
+        }
+    }
+}

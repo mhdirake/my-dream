@@ -5,10 +5,11 @@ variables:
   MD_BUILD_TARGET: web-runtime
   MD_TEST_TARGET: "test"
   MD_PUBLIC_URL: https://app.mydreamapp.ir
+  ANDROID_GRADLE_HEAP_MB: "1024"
 
 # Keep native publishing available without coupling it to the web deployment.
 build-android:
-  stage: deploy
+  stage: build
   tags: [germany]
   resource_group: germany-android
   interruptible: true
@@ -19,12 +20,33 @@ build-android:
       allow_failure: true
   script:
     - |
+      set +x
       set -euo pipefail
+      umask 077
       case "${CI_PIPELINE_ID:?}" in *[!0-9]*|'') exit 1 ;; esac
+      test -s "${ANDROID_KEYSTORE_BASE64:?File variable required}"
+      test -s "${ANDROID_KEYSTORE_PASSWORD:?File variable required}"
+      test -s "${ANDROID_KEY_PASSWORD:?File variable required}"
+      test -n "${ANDROID_KEY_ALIAS:?Signing alias required}"
+      test -n "${ANDROID_SIGNING_CERT_SHA256:?Signer fingerprint required}"
       output="$CI_PROJECT_DIR/artifacts/android/$CI_PIPELINE_ID"
       mkdir -p "$output"
+      signing_dir=$(mktemp -d /tmp/md-android-signing.XXXXXX)
+      chmod 0700 "$signing_dir"
+      trap 'rm -f "$signing_dir/release.jks"; rmdir "$signing_dir"' EXIT
+      trap 'exit 130' INT
+      trap 'exit 143' TERM HUP
+      base64 --decode "$ANDROID_KEYSTORE_BASE64" > "$signing_dir/release.jks"
       docker buildx build --file Dockerfile.android --target android-artifacts \
         --output "type=local,dest=$output" \
+        --secret "id=android_keystore,src=$signing_dir/release.jks" \
+        --secret "id=android_store_password,src=$ANDROID_KEYSTORE_PASSWORD" \
+        --secret "id=android_key_password,src=$ANDROID_KEY_PASSWORD" \
+        --build-arg ANDROID_KEY_ALIAS="$ANDROID_KEY_ALIAS" \
+        --build-arg ANDROID_SIGNING_CERT_SHA256="$ANDROID_SIGNING_CERT_SHA256" \
+        --build-arg ANDROID_GRADLE_HEAP_MB="$ANDROID_GRADLE_HEAP_MB" \
+        --build-arg ANDROID_VERSION_CODE="$CI_PIPELINE_IID" \
+        --build-arg EXPO_PUBLIC_BUILD_SHA="$CI_COMMIT_SHA" \
         --build-arg UBUNTU_IMAGE=ubuntu:24.04 \
         --build-arg ANDROID_REPOSITORY_URL=https://dl.google.com/android/repository \
         --build-arg NPM_REGISTRY=https://registry.npmjs.org/ \
@@ -32,10 +54,23 @@ build-android:
         --build-arg ANDROID_ARCHITECTURES=arm64-v8a \
         --build-arg EXPO_PUBLIC_API_URL=https://api.mydreamapp.ir .
       test -s "$output/app-release.apk"
+      test -s "$output/app-release.aab"
+      test -s "$output/app-release.bin"
   artifacts:
-    name: "md-android-$CI_PIPELINE_ID"
+    name: "md-android-$CI_PIPELINE_IID-$CI_COMMIT_SHORT_SHA"
     expire_in: 90 days
-    paths: [artifacts/android/]
+    access: developer
+    paths:
+      - artifacts/android/*/app-release.apk
+      - artifacts/android/*/app-release.aab
+      - artifacts/android/*/app-release.bin
+      - artifacts/android/*/cafebazaar-signing.txt
+      - artifacts/android/*/build-metadata.txt
+      - artifacts/android/*/android-signing-certificate.pem
+      - artifacts/android/*/apk-signature.txt
+      - artifacts/android/*/aab-signature.txt
+      - artifacts/android/*/aab-certificate.txt
+      - artifacts/android/*/SHA256SUMS
 
 publish-android:
   stage: deploy
