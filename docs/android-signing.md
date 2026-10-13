@@ -25,6 +25,13 @@ mounts, never build arguments or copied source. Signing runs without networking.
 Release APK and AAB are compiled together with clean Expo prebuild. Version code
 comes from the project-local `CI_PIPELINE_IID`, increasing between pipelines.
 The application ID stays `ir.mydreamapp.app`. Metadata records commit and version.
+Before prebuild, `scripts/patch-poolakey-android.cjs` applies a version/source-guarded
+compatibility patch to Poolakey 3.1.2: activity access uses
+`reactApplicationContext.currentActivity`, compatible with React Native 0.85's
+Kotlin module base class. This runs after each fresh install in the Android image,
+not against generated native files or PWA dependencies. Review/remove the patch
+when updating Poolakey; unexpected versions/source fail early instead of silently
+changing billing code.
 Gradle has one worker, bounded heap/metaspace, in-process Kotlin, and CMake/Ninja
 job pools; Metro also has a bounded heap. The heap override defaults to 1024 MiB.
 

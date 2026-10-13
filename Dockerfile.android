@@ -77,6 +77,10 @@ RUN --mount=type=cache,id=mydream-npm,target=/root/.npm,sharing=locked \
 FROM deps AS android-build
 COPY . .
 
+# Keep the billing SDK compatible with RN 0.85 on fresh npm ci installs.
+# Fail before expensive native compilation if the upstream source has changed.
+RUN node scripts/patch-poolakey-android.cjs
+
 ARG ANDROID_GRADLE_VARIANT=Release
 ARG ANDROID_ARCHITECTURES=arm64-v8a
 ARG ANDROID_GRADLE_HEAP_MB=1024
