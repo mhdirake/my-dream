@@ -7,7 +7,10 @@ heap=${ANDROID_GRADLE_HEAP_MB:-3072}
 variant=${ANDROID_GRADLE_VARIANT:-Release}
 architectures=${ANDROID_ARCHITECTURES:-arm64-v8a}
 case "$heap" in ''|*[!0-9]*) echo 'Invalid Android heap size' >&2; exit 1 ;; esac
-test "$heap" -ge 1024 && test "$heap" -le 8192
+if [ "$heap" -lt 1024 ] || [ "$heap" -gt 8192 ]; then
+  echo 'Android heap must be between 1024 and 8192 MiB' >&2
+  exit 1
+fi
 test "$variant" = Release
 
 print_memory() {
