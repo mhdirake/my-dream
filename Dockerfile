@@ -24,6 +24,7 @@ RUN --mount=type=cache,target=/root/.npm,sharing=locked \
 FROM deps AS test
 COPY . .
 RUN node --check server.js
+RUN node --test test/ci/pwa-check.mjs
 RUN npm run test:unit
 RUN npx tsc --noEmit
 RUN npx eslint \

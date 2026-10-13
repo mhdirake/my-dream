@@ -1,0 +1,59 @@
+stages: [test, build, deploy]
+
+workflow:
+  auto_cancel:
+    on_new_commit: interruptible
+
+default:
+  tags: [md]
+  interruptible: true
+
+variables:
+  DOCKER_BUILDKIT: "1"
+  BUILDKIT_PROGRESS: plain
+
+test-production:
+  stage: test
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  script:
+    - docker build -f "$MD_DOCKERFILE" --target "$MD_TEST_TARGET" -t "md-test-$CI_PROJECT_NAME:$CI_COMMIT_SHA" .
+
+build-production:
+  stage: build
+  needs: [test-production]
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  script:
+    - bash scripts/ci/build-pwa.sh
+  artifacts:
+    reports:
+      dotenv: .pwa-build.env
+    expire_in: 90 days
+
+.pwa-deployment:
+  stage: deploy
+  resource_group: md-production
+  interruptible: false
+  needs:
+    - job: build-production
+      artifacts: true
+  environment:
+    name: production/md
+    url: $MD_PUBLIC_URL
+  script:
+    - bash scripts/ci/deploy-pwa.sh
+
+deploy-production:
+  extends: .pwa-deployment
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: on_success
+
+# Optional: reuse the successful build artifact, never compile the app again.
+redeploy-production:
+  extends: .pwa-deployment
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: manual
+      allow_failure: true

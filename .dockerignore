@@ -21,3 +21,6 @@ yarn-error.*
 .env.*
 .env*.local
 artifacts
+graphify-out
+AGENTS.md
+.pwa-build.env

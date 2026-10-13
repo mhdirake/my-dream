@@ -56,3 +56,4 @@ artifacts-local
 # Local Codex / RTK profile
 /AGENTS.md
 /RTK.md
+.pwa-build.env

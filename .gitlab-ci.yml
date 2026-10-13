@@ -1,7 +1,5 @@
 include:
-  - project: m3work/my-dream/my-dream-infra
-    ref: main
-    file: /templates/application.yml
+  - local: /ci/pwa.yml
 variables:
   MD_DOCKERFILE: Dockerfile
   MD_BUILD_TARGET: web-runtime
