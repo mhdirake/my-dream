@@ -1,4 +1,4 @@
-FROM docker.iranserver.com/node:22.13.1-bookworm-slim AS deps
+FROM node:22.13.1-bookworm-slim AS deps
 WORKDIR /app
 
 ENV CI=1 \
@@ -123,7 +123,7 @@ RUN --mount=type=cache,target=/root/.expo \
   npx expo export --platform web \
   && npm prune --omit=dev
 
-FROM docker.iranserver.com/node:22.13.1-bookworm-slim AS web-runtime
+FROM node:22.13.1-bookworm-slim AS web-runtime
 WORKDIR /app
 
 ENV NODE_ENV=production \
