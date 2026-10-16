@@ -50,6 +50,9 @@ RUN npx eslint \
   src/lib/registrationValidation.test.ts \
   src/lib/iranMobile.ts \
   src/lib/iranMobile.test.ts \
+  src/lib/terms/TermsContext.tsx \
+  src/lib/terms/termsSession.ts \
+  src/lib/terms/termsSession.test.ts \
   src/app/onboarding/userpass.tsx \
   src/components/ui/AppSwitch.tsx \
   src/lib/passwordResetStore.ts \

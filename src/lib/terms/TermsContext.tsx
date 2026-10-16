@@ -2,117 +2,71 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { store } from '@/lib/auth/storage';
 import { termsApi } from '@/lib/api/terms';
 import { onTermsRequired } from '@/lib/api/client';
-import { hasOfflineAcceptance, type TermsDocument, type TermsStatus } from '@/lib/termsPolicy';
 import { TermsReader } from '@/components/terms/TermsReader';
 import { Button } from '@/components/ui/Button';
 import { Colors, Fonts } from '@/constants/colors';
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { AppState, Modal, Text, View } from 'react-native';
+import { createContext, useContext, useEffect, useState, useSyncExternalStore } from 'react';
+import { ActivityIndicator, AppState, Modal, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { TermsSessionController } from './termsSession';
 
-type Cache = { status: TermsStatus; document: TermsDocument | null };
 const Context = createContext({ refreshTerms: async () => {}, canUseApp: false });
 export const useTerms = () => useContext(Context);
+
 export function TermsProvider({ children }: { children: React.ReactNode }) {
   const { session, user, logout } = useAuth();
   const token = session?.accessToken;
-  const userId = user?.id ?? session?.userId;
-  const identity = session ? String(userId ?? 'unknown') : null;
-  const cache = useRef<Cache | null>(null);
-  const generation = useRef(0);
-  const required = useRef(false);
-  const [allowedIdentity, setAllowedIdentity] = useState<string | null>(null);
-  const [document, setDocument] = useState<TermsDocument | null>(null);
-  const [message, setMessage] = useState('در حال بررسی قوانین…');
-  const [busy, setBusy] = useState(false);
-  const inFlight = useRef(false);
-  const key = userId ? `terms-status-${userId}` : null;
-  const pendingWrite = useRef<Promise<void>>(Promise.resolve());
-  const persist = useCallback(async (value: Cache) => {
-    cache.current = value;
-    if (key) {
-      const write = pendingWrite.current.catch(() => {}).then(() => store.set(key, JSON.stringify(value)));
-      pendingWrite.current = write;
-      await write;
-    }
-  }, [key]);
-  const refreshTerms = useCallback(async () => {
-    if (!token || inFlight.current) return;
-    const epoch = generation.current; inFlight.current = true;
-    try {
-      const status = await termsApi.status(token);
-      if (epoch !== generation.current) return;
-      required.current = !status.terms_accepted;
-      // Persist a newly observed requirement before fetching the document: offline cannot undo it.
-      await persist({ status, document: cache.current?.document ?? null });
-      if (epoch !== generation.current) return;
-      if (status.terms_accepted) { setAllowedIdentity(identity); setMessage(''); }
-      else {
-        setAllowedIdentity(null); setMessage('برای ادامه، قوانین و حریم خصوصی را تأیید کنید.');
-        const current = await termsApi.current();
-        if (epoch !== generation.current) return;
-        setDocument(current); await persist({ status, document: current });
-        if (!current) setMessage('قوانین هنوز منتشر نشده است. پس از انتشار می‌توانید ادامه دهید.');
-      }
-    } catch {
-      if (epoch !== generation.current) return;
-      if (!required.current && hasOfflineAcceptance(cache.current?.status ?? null)) setAllowedIdentity(identity);
-      else { setAllowedIdentity(null); setDocument(cache.current?.document ?? null); setMessage('بررسی قوانین ممکن نشد. اتصال را بررسی و دوباره تلاش کنید.'); }
-    } finally { if (epoch === generation.current) inFlight.current = false; }
-  }, [token, identity, persist]);
+  const userId = session?.userId ?? user?.id;
+  const identity = session ? (userId !== undefined ? String(userId) : `pending:${token}`) : null;
+  const key = userId !== undefined ? `terms-status-${userId}` : null;
+  const [controller] = useState(() => new TermsSessionController({
+    load: store.get, save: store.set,
+    status: termsApi.status, current: termsApi.current, accept: termsApi.accept,
+  }));
+  const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
+
   useEffect(() => {
-    generation.current++; inFlight.current = false; required.current = false; cache.current = null;
-    if (!token) return;
-    const epoch = generation.current;
-    const epochs = generation;
-    void (async () => {
-      try {
-        const raw = key ? await store.get(key) : await Promise.resolve(null);
-        if (epoch !== generation.current) return;
-        setDocument(null); setAllowedIdentity(null); setMessage('در حال بررسی قوانین…'); setBusy(false);
-        cache.current = raw ? JSON.parse(raw) : null;
-        required.current = !!cache.current && !hasOfflineAcceptance(cache.current.status);
-      } catch { if (epoch === generation.current) cache.current = null; }
-      if (epoch === generation.current) await refreshTerms();
-    })();
-    return () => { epochs.current++; };
-  }, [identity, token, key, refreshTerms]);
+    void controller.connect(identity, token, key);
+    return controller.cancel;
+  }, [controller, identity, token, key]);
   useEffect(() => {
-    const sub = AppState.addEventListener('change', state => { if (state === 'active') void refreshTerms(); });
-    const timer = setInterval(() => { if (AppState.currentState === 'active') void refreshTerms(); }, 60000);
-    const remove = onTermsRequired(requestToken => {
-      if (requestToken !== token || !token) return;
-      generation.current++; inFlight.current = false;
-      required.current = true; setAllowedIdentity(null);
-      if (cache.current) void persist({ ...cache.current, status: { ...cache.current.status, terms_accepted: false } });
-      void refreshTerms();
-    });
+    const sub = AppState.addEventListener('change', next => { if (next === 'active') void controller.refresh(); });
+    const timer = setInterval(() => { if (AppState.currentState === 'active') void controller.refresh(); }, 60000);
+    const remove = onTermsRequired(requestToken => { void controller.require(requestToken); });
     return () => { sub.remove(); clearInterval(timer); remove(); };
-  }, [refreshTerms, token, identity, persist]);
-  const blocked = !!session && allowedIdentity !== identity;
-  const accept = async () => {
-    if (!document || !session) return;
-    const epoch = ++generation.current; inFlight.current = false;
-    setBusy(true);
-    try {
-      const status = await termsApi.accept(session.accessToken, document.id);
-      if (epoch !== generation.current) return;
-      required.current = false; await persist({ status, document });
-      if (epoch === generation.current) setAllowedIdentity(identity);
-    } catch { setMessage('تأیید ثبت نشد یا نسخه جدیدی منتشر شده است. دوباره بررسی کنید.'); await refreshTerms(); }
-    finally { setBusy(false); }
-  };
-  return <Context.Provider value={{ refreshTerms, canUseApp: !blocked }}>
+  }, [controller]);
+
+  const phase = state.identity === identity ? state.phase : 'checking';
+  const blocked = !!session && phase !== 'allowed';
+  const message = phase === 'error'
+    ? 'بررسی وضعیت حساب ممکن نشد. اتصال را بررسی و دوباره تلاش کنید.'
+    : state.acceptError ? 'تأیید ثبت نشد یا نسخه جدیدی منتشر شده است. دوباره بررسی کنید.'
+      : 'برای ادامه، قوانین و حریم خصوصی را تأیید کنید. اگر متن دریافت نشد، بررسی مجدد را بزنید.';
+
+  return <Context.Provider value={{ refreshTerms: controller.refresh, canUseApp: !blocked }}>
     {children}
-    <Modal visible={blocked} animationType="fade" presentationStyle="fullScreen" onRequestClose={() => {}}>
+    <Modal visible={blocked} animationType="none" presentationStyle="fullScreen" onRequestClose={() => {}}>
       <SafeAreaView style={{ flex: 1, backgroundColor: Colors.bg }}>
-        <Text style={{ color: Colors.ink, fontFamily: Fonts.bold, fontSize: 18, textAlign: 'center', padding: 16 }}>قوانین و حریم خصوصی</Text>
-        <Text style={{ color: Colors.muted, fontFamily: Fonts.regular, textAlign: 'center', paddingHorizontal: 20 }}>{message}</Text>
-        {document ? <TermsReader key={document.id} document={document} onAccept={accept} busy={busy} /> : <View style={{ flex: 1 }} />}
-        <View style={{ padding: 16, gap: 8 }}>
-          <Button variant="ghost" disabled={busy} onPress={() => { void refreshTerms(); }}>بررسی مجدد</Button>
-          <Button variant="ghost" disabled={busy} onPress={() => { void logout(); }}>خروج از حساب</Button>
-        </View>
+        {phase === 'checking' ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+            <ActivityIndicator size="large" color={Colors.accent} />
+            <Text style={{ color: Colors.muted, fontFamily: Fonts.regular }}>در حال آماده‌سازی…</Text>
+          </View>
+        ) : (
+          <>
+            <Text style={{ color: Colors.ink, fontFamily: Fonts.bold, fontSize: 18, textAlign: 'center', padding: 16 }}>
+              {phase === 'required' ? 'قوانین و حریم خصوصی' : 'بررسی اتصال'}
+            </Text>
+            <Text style={{ color: Colors.muted, fontFamily: Fonts.regular, textAlign: 'center', paddingHorizontal: 20 }}>{message}</Text>
+            {phase === 'required' && state.document
+              ? <TermsReader key={state.document.id} document={state.document} onAccept={controller.accept} busy={state.busy} />
+              : <View style={{ flex: 1 }} />}
+            <View style={{ padding: 16, gap: 8 }}>
+              <Button variant="ghost" disabled={state.busy} onPress={() => { void controller.refresh(); }}>بررسی مجدد</Button>
+              <Button variant="ghost" disabled={state.busy} onPress={() => { void logout(); }}>خروج از حساب</Button>
+            </View>
+          </>
+        )}
       </SafeAreaView>
     </Modal>
   </Context.Provider>;
