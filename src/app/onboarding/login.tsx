@@ -62,6 +62,7 @@ export default function LoginScreen() {
 
         <Field
           label="شماره موبایل"
+          required
           value={username}
           onChangeText={v => setUsername(v.replace(/[۰-۹]/g, d => String(d.charCodeAt(0) - 1776)))}
           placeholder=""
@@ -73,6 +74,7 @@ export default function LoginScreen() {
         />
         <Field
           label="رمز عبور"
+          required
           value={password}
           onChangeText={setPassword}
           secureTextEntry

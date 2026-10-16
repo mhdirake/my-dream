@@ -350,11 +350,11 @@ function AnonConfirmSheet({
 
 function LockedRow({ label }: { label: string }) {
   return (
-    <View style={styles.lockedRow}>
+    <TouchableOpacity style={styles.lockedRow} onPress={() => router.push('/subscription')} accessibilityRole="button" accessibilityLabel={`ارتقای پلن برای ${label}`}>
       <Lock size={14} color={Colors.muted} strokeWidth={2} />
       <Text style={styles.lockedLabel}>{label}</Text>
       <Text style={styles.lockedCta}>ارتقا ←</Text>
-    </View>
+    </TouchableOpacity>
   );
 }
 

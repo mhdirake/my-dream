@@ -16,6 +16,7 @@ export type Session = {
   refreshToken: string;
   expiresAt: number; // Unix ms
   rememberUntil?: number;
+  backendManaged?: boolean;
 };
 
 // ── Platform-aware storage ────────────────────────────────────────
@@ -126,5 +127,5 @@ export async function refreshRememberedSession(session: Session, renew: (current
 }
 
 export function isExpired(session: Session): boolean {
-  return Date.now() >= session.expiresAt - 30_000; // 30 s buffer
+  return Date.now() >= session.expiresAt - (session.backendManaged ? 0 : 30_000);
 }

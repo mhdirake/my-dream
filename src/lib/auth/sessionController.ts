@@ -57,7 +57,7 @@ export class SessionController {
   async accessToken(token: string, forceRefresh = false): Promise<string | undefined> {
     if (!this.owns(token)) return undefined;
     const current = this.current!;
-    const needsRefresh = Date.now() >= current.expiresAt - 30_000
+    const needsRefresh = Date.now() >= current.expiresAt - (current.backendManaged ? 0 : 30_000)
       || (forceRefresh && token === current.accessToken);
     const active = needsRefresh ? await this.refresh() : current;
     if (!this.owns(token)) return undefined;

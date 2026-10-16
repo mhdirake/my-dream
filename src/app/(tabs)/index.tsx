@@ -120,6 +120,8 @@ function SwipeCard({
   const translateY = useSharedValue(0);
   const [checking, setChecking] = useState(false);
   const checkingRef = useRef(false);
+  const [widgetsVisible, setWidgetsVisible] = useState(true);
+  const revealWidgets = () => setWidgetsVisible(true);
   const age = calcAge(profile.birth_date);
   const photoUrl = profile.profile_photo?.urls.large;
 
@@ -130,6 +132,7 @@ function SwipeCard({
   };
 
   const attemptSwipe = async (dir: 1 | -1) => {
+    revealWidgets();
     if (checkingRef.current) return;
     checkingRef.current = true;
     setChecking(true);
@@ -149,6 +152,7 @@ function SwipeCard({
     .failOffsetY([-16, 16])
     .minDistance(10)
     .enabled(!checking)
+    .onStart(() => { runOnJS(revealWidgets)(); })
     .onUpdate((e) => {
       translateX.value = e.translationX;
       translateY.value = e.translationY;
@@ -199,6 +203,13 @@ function SwipeCard({
         </View>
       )}
 
+      <Pressable
+        style={StyleSheet.absoluteFill}
+        onPress={() => setWidgetsVisible(visible => !visible)}
+        accessibilityRole="button"
+        accessibilityLabel={widgetsVisible ? 'مخفی کردن اطلاعات روی عکس' : 'نمایش اطلاعات روی عکس'}
+      />
+
       {checking && (
         <View style={styles.checkingOverlay} pointerEvents="none">
           <ActivityIndicator color="#fff" />
@@ -209,7 +220,7 @@ function SwipeCard({
       <LinearGradient
         colors={['transparent', 'rgba(0,0,0,0.06)', 'rgba(0,0,0,0.55)']}
         locations={[0.4, 0.65, 1]}
-        style={StyleSheet.absoluteFill}
+        style={[StyleSheet.absoluteFill, { opacity: widgetsVisible ? 1 : 0 }]}
         pointerEvents="none"
       />
 
@@ -226,7 +237,7 @@ function SwipeCard({
       </View>
 
       {/* Compat pill — top left */}
-      {profile.compatibility_score != null && (
+      {widgetsVisible && profile.compatibility_score != null && (
         <View style={styles.compatPill}>
           <Sparkles size={12} color={Colors.purple} strokeWidth={2} />
           <Text style={styles.compatTxt}>{toPersianDigits(profile.compatibility_score)}٪</Text>
@@ -234,7 +245,7 @@ function SwipeCard({
       )}
 
       {/* Badges — top right */}
-      {profile.badges.length > 0 && (
+      {widgetsVisible && profile.badges.length > 0 && (
         <View style={styles.cardBadgesTop}>
           {profile.badges.slice(0, 1).map(b => (
             <Badge key={b.id} kind={badgeKind(b.slug)} label="" />
@@ -243,7 +254,7 @@ function SwipeCard({
       )}
 
       {/* Glass info card — bottom */}
-      <View style={styles.glassCard}>
+      <View style={[styles.glassCard, { opacity: widgetsVisible ? 1 : 0 }]} pointerEvents={widgetsVisible ? 'auto' : 'none'}>
         {/* Name row */}
         <View style={styles.cardNameRow}>
           <TouchableOpacity

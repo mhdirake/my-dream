@@ -15,6 +15,7 @@ export type SelectOption = { id: number; name: string };
 
 interface SelectModalProps {
   label: string;
+  required?: boolean;
   placeholder?: string;
   value?: SelectOption | null;
   options: SelectOption[];
@@ -25,6 +26,7 @@ interface SelectModalProps {
 
 export function SelectModal({
   label,
+  required = false,
   placeholder = 'انتخاب کنید',
   value,
   options,
@@ -46,7 +48,7 @@ export function SelectModal({
   return (
     <>
       <View style={styles.wrap}>
-        <Text style={styles.label}>{label}</Text>
+        <Text style={styles.label}>{label}{required && <Text style={{ color: Colors.danger }}> *</Text>}</Text>
         <Pressable
           onPress={() => !disabled && !loading && setOpen(true)}
           style={[styles.trigger, disabled && styles.triggerDisabled]}

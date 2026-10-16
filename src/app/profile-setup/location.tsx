@@ -167,6 +167,7 @@ export default function LocationScreen() {
 
         <SelectModal
           label="استان"
+          required
           placeholder="انتخاب استان"
           value={province}
           options={provinces}
@@ -176,6 +177,7 @@ export default function LocationScreen() {
 
         <SelectModal
           label="شهر"
+          required
           placeholder={province ? 'انتخاب شهر' : 'اول استان رو انتخاب کن'}
           value={city}
           options={cities}

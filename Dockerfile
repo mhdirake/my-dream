@@ -38,6 +38,12 @@ RUN npx eslint \
   src/lib/auth/storage.test.ts \
   src/lib/auth/sessionController.ts \
   src/lib/auth/sessionController.test.ts \
+  src/lib/auth/sessionLifetime.ts \
+  src/lib/auth/sessionLifetime.test.ts \
+  src/lib/registrationValidation.ts \
+  src/lib/registrationValidation.test.ts \
+  src/app/onboarding/userpass.tsx \
+  src/components/ui/AppSwitch.tsx \
   src/lib/passwordResetStore.ts \
   src/lib/passwordResetStore.test.ts \
   src/lib/api/chat.ts \

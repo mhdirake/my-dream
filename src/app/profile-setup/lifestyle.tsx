@@ -19,7 +19,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const MIN = 3;
-const MAX = 7;
+const MAX = 15;
 const toPersian = (n: number) => String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
 
 export default function LifestyleScreen() {
@@ -66,6 +66,10 @@ export default function LifestyleScreen() {
   }, [tags]);
 
   const toggle = (id: number) => {
+    if (!selected.includes(id) && selected.length >= MAX) {
+      toast.error('حداکثر ۱۵ مورد از سبک زندگی را می‌توانی انتخاب کنی؛ برای انتخاب مورد جدید، یکی را حذف کن');
+      return;
+    }
     setSelected(prev =>
       prev.includes(id)
         ? prev.filter(x => x !== id)
@@ -75,7 +79,7 @@ export default function LifestyleScreen() {
     );
   };
 
-  const canSave = selected.length >= MIN;
+  const canSave = selected.length >= MIN && selected.length <= MAX;
 
   const handleSave = async () => {
     if (!session?.accessToken || !canSave) return;

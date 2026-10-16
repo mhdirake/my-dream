@@ -49,6 +49,7 @@ export default function PhoneScreen() {
           یه کد تأیید برات می‌فرستیم. شماره موبایل کمک می‌کنه فیک نباشیم.
         </Text>
 
+        <Text style={[styles.body, { marginBottom: 6 }]}>شماره موبایل<Text style={{ color: Colors.danger }}> *</Text></Text>
         <View style={styles.phoneRow}>
           <TextInput
             style={styles.phoneInput}
@@ -65,6 +66,7 @@ export default function PhoneScreen() {
           </View>
         </View>
 
+        <Text style={[styles.body, { color: Colors.muted, fontSize: 11 }]}>شماره را با ۱۰ رقم و بدون صفر اول وارد کن؛ مثلاً ۹۱۲۳۴۵۶۷۸۹</Text>
         {/* <Card tint="trust" style={styles.note}>
           <Text style={styles.noteText}>
            ساخت چند اکانت با یک شماره امکان پذیر می‌شود.

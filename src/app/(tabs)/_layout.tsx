@@ -197,8 +197,8 @@ function TabsNav() {
         <Tabs.Screen
           name="me"
           options={{
-            title: 'من',
-            tabBarLabel: 'من',
+            title: 'پروفایل',
+            tabBarLabel: 'پروفایل',
             tabBarIcon: ({ focused }) => (
               <TabIcon icon={User} focused={focused} />
             ),

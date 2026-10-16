@@ -29,6 +29,7 @@ export type RegisterCompleteResponse = {
       refresh_token: string;
       expires_in: number;
       refresh_expires_in: number;
+      session_expires_at?: string;
     };
     next_step: string;
   };
@@ -49,6 +50,7 @@ export type PasswordResetResponse = {
 };
 
 export type LoginResponse = {
+  session_expires_at?: string;
   access_token: string;
   refresh_token: string;
   expires_in: number;

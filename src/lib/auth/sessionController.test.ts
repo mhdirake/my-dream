@@ -18,6 +18,13 @@ function controller(renew: (s: Session) => Promise<Session>) {
 }
 
 describe('session refresh', () => {
+  it('does not refresh backend sessions during normal requests, even near the fixed deadline', async () => {
+    const renew = vi.fn(async () => session('unexpected'));
+    const { auth } = controller(renew);
+    await auth.replace({ ...session('managed'), backendManaged: true, expiresAt: Date.now() + 10000 });
+    for (let i = 0; i < 5; i++) expect(await auth.accessToken('access-managed')).toBe('access-managed');
+    expect(renew).not.toHaveBeenCalled();
+  });
   it('restores identity as well as tokens after a transient startup outage', async () => {
     const { auth } = controller(async () => session('new'));
     await auth.replace(session('saved'));

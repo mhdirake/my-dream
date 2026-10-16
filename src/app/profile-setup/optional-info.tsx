@@ -21,7 +21,7 @@ const EDUCATION_OPTIONS: SelectOption[] = [
   { id: 3, name: 'کاردانی' },
   { id: 4, name: 'کارشناسی' },
   { id: 5, name: 'کارشناسی ارشد' },
-  { id: 6, name: 'دکترا' },
+  { id: 6, name: 'دکتری' },
 ];
 
 const toPersian = (n: number) => String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
@@ -38,16 +38,18 @@ export default function OptionalInfoScreen() {
   const [job, setJob] = useState(typeof currentJob === 'string' ? currentJob : '');
   const [education, setEducation] = useState<SelectOption | null>(() => {
     if (typeof currentEducation === 'string' && currentEducation) {
-      return EDUCATION_OPTIONS.find(e => e.name === currentEducation) ?? null;
+      return EDUCATION_OPTIONS.find(e => e.name === currentEducation.replace('دکترا', 'دکتری')) ?? null;
     }
     return null;
   });
   const [saving, setSaving] = useState(false);
 
   const hasSomething = height.trim() || job.trim() || education;
+  const heightError = height && (Number(height) < 100 || Number(height) > 250) ? 'قد باید بین ۱۰۰ تا ۲۵۰ سانتی‌متر باشد' : undefined;
 
   const handleSave = async () => {
     if (!session?.accessToken || !hasSomething) return;
+    if (heightError) { toast.error(heightError); return; }
     setSaving(true);
     try {
       await profileApi.updateProfile(session.accessToken, {
@@ -82,6 +84,9 @@ export default function OptionalInfoScreen() {
           onChangeText={v => setHeight(v.replace(/\D/g, ''))}
           placeholder="مثلاً ۱۷۰"
           keyboardType="numeric"
+          maxLength={3}
+          hint="اختیاری؛ بین ۱۰۰ تا ۲۵۰ سانتی‌متر"
+          error={heightError}
           suffix="cm"
         />
         <Field
@@ -89,6 +94,8 @@ export default function OptionalInfoScreen() {
           value={job}
           onChangeText={setJob}
           placeholder="شغل یا حرفه‌ات"
+          maxLength={255}
+          hint="اختیاری؛ حداکثر ۲۵۵ کاراکتر"
         />
         <SelectModal
           label="تحصیلات"
@@ -102,7 +109,7 @@ export default function OptionalInfoScreen() {
           <View style={styles.voiceRow}>
             <View>
               <Text style={styles.voiceTitle}>🎤 Voice Intro</Text>
-              <Text style={styles.voiceSub}>۳۰-۶۰ ثانیه. فقط Silver/Gold</Text>
+              <Text style={styles.voiceSub}>۵-۶۰ ثانیه. فقط Silver/Gold</Text>
             </View>
             <View style={styles.lockBadge}>
               <Lock size={11} color={Colors.muted} strokeWidth={2} />

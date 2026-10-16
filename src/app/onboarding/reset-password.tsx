@@ -66,6 +66,8 @@ export default function ResetPasswordScreen() {
 
           <Field
             label="رمز عبور جدید"
+            required
+            error={password.length > 0 && password.length < 8 ? 'رمز عبور باید حداقل ۸ کاراکتر باشد' : undefined}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -75,6 +77,7 @@ export default function ResetPasswordScreen() {
           />
           <Field
             label="تکرار رمز عبور جدید"
+            required
             value={passwordConfirmation}
             onChangeText={setPasswordConfirmation}
             secureTextEntry

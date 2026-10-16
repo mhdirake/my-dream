@@ -60,6 +60,7 @@ export default function ChangePasswordScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Field
           label="رمز عبور فعلی"
+          required
           value={current}
           onChangeText={setCurrent}
           placeholder="رمز فعلی را وارد کن"
@@ -69,6 +70,7 @@ export default function ChangePasswordScreen() {
         />
         <Field
           label="رمز عبور جدید"
+          required
           value={password}
           onChangeText={setPassword}
           placeholder="حداقل ۸ کاراکتر"
@@ -79,6 +81,7 @@ export default function ChangePasswordScreen() {
         />
         <Field
           label="تکرار رمز عبور جدید"
+          required
           value={confirm}
           onChangeText={setConfirm}
           placeholder="رمز جدید را دوباره وارد کن"

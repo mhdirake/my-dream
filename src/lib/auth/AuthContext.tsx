@@ -4,6 +4,7 @@ import { ApiError, registerAuthHandlers } from '../api/client';
 import { authApi, type MeResponse } from '../api/auth';
 import { clearSession, isExpired, loadSession, refreshRememberedSession, saveSession, type Session } from './storage';
 import { SessionController, refreshAuthenticatedIdentity } from './sessionController';
+import { scheduleSessionDeadline, sessionDeadline } from './sessionLifetime';
 
 export type AuthUser = MeResponse;
 type AuthCtx = {
@@ -13,7 +14,7 @@ type AuthCtx = {
   isAuthenticated: boolean;
   loginWithPassword: (username: string, password: string) => Promise<Session>;
   logout: () => Promise<void>;
-  saveRegistrationSession: (accessToken: string, refreshToken: string, expiresIn: number) => Promise<void>;
+  saveRegistrationSession: (accessToken: string, refreshToken: string, expiresIn: number, sessionExpiresAt?: string) => Promise<void>;
 };
 const AuthContext = createContext<AuthCtx | null>(null);
 function isAuthFailure(error: unknown): boolean {
@@ -35,7 +36,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return {
           ...s, accessToken: token.access_token,
           refreshToken: token.refresh_token ?? s.refreshToken,
-          expiresAt: Date.now() + (token.expires_in ?? 300) * 1000,
+          expiresAt: sessionDeadline(token),
+          backendManaged: !!token.session_expires_at,
+          rememberUntil: token.session_expires_at ? sessionDeadline(token) : s.rememberUntil,
         };
         }, (): boolean => controller.version === version);
       },
@@ -64,10 +67,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!session) return;
-    const delay = Math.max(session.expiresAt - Date.now() - 60_000, 0);
-    const timer = setTimeout(() => { void doRefresh(); }, delay);
-    return () => clearTimeout(timer);
-  }, [session, doRefresh]);
+    return scheduleSessionDeadline(session, () => {
+      if (controller.session?.accessToken !== session.accessToken) return;
+      if (session.backendManaged) void controller.replace(null);
+      else void doRefresh();
+    });
+  }, [session, controller, doRefresh]);
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', state => {
@@ -108,8 +113,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const token = await authApi.login({ username, password });
     const next: Session = {
       accessToken: token.access_token, refreshToken: token.refresh_token ?? '',
-      expiresAt: Date.now() + (token.expires_in ?? 300) * 1000,
-      rememberUntil: Date.now() + 30 * 86400000,
+      expiresAt: sessionDeadline(token),
+      rememberUntil: token.session_expires_at ? sessionDeadline(token) : Date.now() + 30 * 86400000,
+      backendManaged: !!token.session_expires_at,
     };
     const me = await authApi.me(next.accessToken);
     if (controller.version !== version) throw new ApiError(409, 'Login was cancelled');
@@ -130,8 +136,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [controller]);
 
-  const saveRegistrationSession = useCallback(async (accessToken: string, refreshToken: string, expiresIn: number) => {
-    const next: Session = { accessToken, refreshToken, expiresAt: Date.now() + expiresIn * 1000, rememberUntil: Date.now() + 30 * 86400000 };
+  const saveRegistrationSession = useCallback(async (accessToken: string, refreshToken: string, expiresIn: number, sessionExpiresAt?: string) => {
+    const expiresAt = sessionDeadline({ expires_in: expiresIn, session_expires_at: sessionExpiresAt });
+    const next: Session = { accessToken, refreshToken, expiresAt, backendManaged: !!sessionExpiresAt, rememberUntil: sessionExpiresAt ? expiresAt : Date.now() + 30 * 86400000 };
     await controller.replace(next);
     const version = controller.version;
     try {

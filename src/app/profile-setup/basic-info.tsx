@@ -25,11 +25,10 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-type Gender = 'female' | 'male' | 'other';
+type Gender = 'female' | 'male';
 const GENDERS: { key: Gender; label: string }[] = [
   { key: 'female', label: 'زن' },
   { key: 'male', label: 'مرد' },
-  { key: 'other', label: 'سایر' },
 ];
 
 const toPersian = (n: number | string) =>
@@ -77,7 +76,7 @@ export default function BasicInfoScreen() {
         setMonth(String(jm));
         setDay(String(jd));
       }
-      if (u.gender && ['female', 'male', 'other'].includes(u.gender)) {
+      if (u.gender && ['female', 'male'].includes(u.gender)) {
         setGender(u.gender as Gender);
       }
     }).catch(() => {
@@ -130,6 +129,10 @@ export default function BasicInfoScreen() {
 
         <Field
           label="نام"
+          required
+          hint="حداقل ۲ کاراکتر"
+          maxLength={255}
+          error={name.length > 0 && name.trim().length < 2 ? 'نام باید حداقل ۲ کاراکتر باشد' : undefined}
           value={name}
           onChangeText={setName}
           autoCapitalize="words"
@@ -137,7 +140,8 @@ export default function BasicInfoScreen() {
         />
         {isEdit && <Field label="نام خانوادگی (اختیاری)" value={lastName} onChangeText={setLastName} autoCapitalize="words" editable={!loading && !loadError && !saving} />}
 
-        <Text style={styles.fieldLabel}>تاریخ تولد (شمسی)</Text>
+        <Text style={styles.fieldLabel}>تاریخ تولد (شمسی)<Text style={{ color: Colors.danger }}> *</Text></Text>
+        <Text style={{ color: Colors.muted, fontFamily: Fonts.regular, fontSize: 11 }}>حداقل سن مجاز ۱۸ سال است</Text>
         <View style={styles.dateRow}>
           <TextInput
             style={[styles.dateInput, styles.dateField]}
@@ -174,8 +178,9 @@ export default function BasicInfoScreen() {
           />
         </View>
         <Text style={styles.hint}>مثلاً ۱۵ / ۰۶ / ۱۳۷۷ — حداقل سن ۱۸ سال</Text>
+        {year.length === 4 && month && day && !birthDate && <Text style={[styles.hint, { color: Colors.danger }]}>تاریخ تولد معتبر وارد کن؛ حداقل سن مجاز ۱۸ سال است</Text>}
 
-        <Text style={styles.fieldLabel}>جنسیت</Text>
+        <Text style={styles.fieldLabel}>جنسیت<Text style={{ color: Colors.danger }}> *</Text></Text>
         <View style={styles.genderRow}>
           {GENDERS.map(g => (
             <Pressable

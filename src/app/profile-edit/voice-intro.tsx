@@ -66,8 +66,8 @@ export default function VoiceIntroScreen() {
 
   const handleSave = async () => {
     if (!session?.accessToken || !recorder.recordedUri || uploading) return;
-    if (recorder.recordedDuration < 30) {
-      toast.error('معرفی صوتی باید حداقل ۳۰ ثانیه باشد');
+    if (recorder.recordedDuration < 5) {
+      toast.error('معرفی صوتی باید حداقل ۵ ثانیه باشد');
       return;
     }
     setUploading(true);
@@ -87,7 +87,7 @@ export default function VoiceIntroScreen() {
       <AppBar title="معرفی صوتی" back backFallback="/profile-edit" contentGap />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.hint}>
-          یک معرفی صوتی کوتاه (بین ۳۰ تا ۶۰ ثانیه) ضبط کن تا کاربران دیگر صدات رو بشنون.
+          یک معرفی صوتی کوتاه (بین ۵ تا ۶۰ ثانیه) ضبط کن تا کاربران دیگر صدات رو بشنون.
         </Text>
 
         <View style={styles.recordArea}>

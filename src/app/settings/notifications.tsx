@@ -1,4 +1,5 @@
 import { AppBar } from '@/components/ui/AppBar';
+import { AppSwitch as Switch } from '@/components/ui/AppSwitch';
 import { Card } from '@/components/ui/Card';
 import { Colors, Fonts, Spacing } from '@/constants/colors';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -10,7 +11,7 @@ import {
 import { toast } from '@/lib/toast';
 import { Bell, BellOff } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function NotificationSettingsScreen() {
@@ -78,6 +79,7 @@ export default function NotificationSettingsScreen() {
             <ActivityIndicator color={Colors.accent} />
           ) : (
             <Switch
+              accessibilityLabel="اعلان‌ها"
               value={enabled}
               onValueChange={toggle}
               disabled={saving}

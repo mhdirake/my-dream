@@ -125,7 +125,7 @@ export const profileApi = {
       first_name?: string;
       last_name?: string | null;
       birth_date?: string;
-      gender?: 'male' | 'female' | 'other';
+      gender?: 'male' | 'female';
       bio?: string;
       height_cm?: number;
       job?: string;

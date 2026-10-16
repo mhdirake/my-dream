@@ -6,8 +6,10 @@ import { Field } from '@/components/ui/Field';
 import { KeyboardAvoider } from '@/components/ui/KeyboardAvoider';
 import { Colors, Fonts } from '@/constants/colors';
 import { authApi } from '@/lib/api/auth';
+import { ApiError } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { registrationStore } from '@/lib/registrationStore';
+import { registrationErrors } from '@/lib/registrationValidation';
 import { toast } from '@/lib/toast';
 import { router } from 'expo-router';
 import { useState } from 'react';
@@ -21,14 +23,22 @@ export default function UserPassScreen() {
   const [password, setPassword] = useState(registrationStore.get().password ?? '');
   const [passwordConfirm, setPasswordConfirm] = useState(registrationStore.get().password_confirmation ?? '');
   const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [serverErrors, setServerErrors] = useState<Record<string, string>>({});
 
-  const passwordsMatch = password === passwordConfirm;
-  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  const canSubmit = username.length >= 3 && emailValid && password.length >= 8 && passwordsMatch;
+  const validationErrors = registrationErrors({ username, email, password, password_confirmation: passwordConfirm });
+  const canSubmit = !Object.values(validationErrors).some(Boolean);
+  const updateField = (key: string, set: (value: string) => void) => (value: string) => {
+    set(value);
+    setServerErrors(previous => ({ ...previous, [key]: '' }));
+  };
+  const fieldError = (key: string, value: string) => serverErrors[key] || ((submitted || value.length > 0) ? validationErrors[key] : undefined);
 
   const handleNext = async () => {
-    if (!passwordsMatch) {
-      toast.error('رمز عبور و تکرار آن یکسان نیستند');
+    if (loading) return;
+    setSubmitted(true);
+    if (!canSubmit) {
+      toast.error(Object.values(validationErrors).find(Boolean)!);
       return;
     }
     const { registration_token } = registrationStore.get();
@@ -41,16 +51,20 @@ export default function UserPassScreen() {
     try {
       const res = await authApi.register({
         registration_token,
-        username,
-        email: email || undefined,
+        username: username.trim(),
+        email: email.trim() || undefined,
         password,
         password_confirmation: passwordConfirm,
       });
       registrationStore.clear();
       const { access_token, refresh_token, expires_in } = res.data.auth;
-      await saveRegistrationSession(access_token, refresh_token, expires_in);
+      await saveRegistrationSession(access_token, refresh_token, expires_in, res.data.auth.session_expires_at);
       router.replace('/profile-setup/basic-info' as any);
     } catch (e: any) {
+      if (e instanceof ApiError && e.status === 422) {
+        const errors = (e.data as { errors?: Record<string, string[]> } | undefined)?.errors;
+        if (errors) setServerErrors(Object.fromEntries(Object.entries(errors).map(([key, messages]) => [key, messages[0] ?? 'مقدار واردشده معتبر نیست'])));
+      }
       if (isTermsError(e)) router.push({ pathname: '/terms', params: { returnTo: 'registration' } });
       toast.error(e.message ?? 'خطا در ثبت‌نام');
     } finally {
@@ -68,16 +82,20 @@ export default function UserPassScreen() {
 
         <Field
           label="نام کاربری"
+          required
           value={username}
-          onChangeText={setUsername}
-          hint="فقط حروف انگلیسی، عدد و _"
+          onChangeText={updateField('username', setUsername)}
+          hint="۳ تا ۳۰ کاراکتر؛ حروف انگلیسی، عدد، _ یا نقطه"
+          error={fieldError('username', username)}
+          maxLength={30}
           autoCapitalize="none"
           autoCorrect={false}
         />
         <Field
-          label="ایمیل"
+          label="ایمیل (اختیاری)"
           value={email}
-          onChangeText={setEmail}
+          onChangeText={updateField('email', setEmail)}
+          error={fieldError('email', email)}
           placeholder="example@email.com"
           keyboardType="email-address"
           autoCapitalize="none"
@@ -85,15 +103,23 @@ export default function UserPassScreen() {
         />
         <Field
           label="رمز عبور"
+          required
           value={password}
-          onChangeText={setPassword}
+          onChangeText={updateField('password', setPassword)}
           secureTextEntry
-          hint="حداقل ۸ کاراکتر، شامل عدد"
+          hint="حداقل ۸ کاراکتر"
+          error={fieldError('password', password)}
+          autoCapitalize="none"
+          autoCorrect={false}
         />
         <Field
           label="تکرار رمز عبور"
+          required
           value={passwordConfirm}
-          onChangeText={setPasswordConfirm}
+          onChangeText={updateField('password_confirmation', setPasswordConfirm)}
+          error={fieldError('password_confirmation', passwordConfirm)}
+          autoCapitalize="none"
+          autoCorrect={false}
           secureTextEntry
         />
 
@@ -103,7 +129,7 @@ export default function UserPassScreen() {
           </Text>
         </Card>
 
-        <Button variant="accent" onPress={handleNext} disabled={!canSubmit || loading}>
+        <Button variant="accent" onPress={handleNext} disabled={loading}>
           {loading ? 'در حال ثبت‌نام...' : 'ادامه'}
         </Button>
       </ScrollView>

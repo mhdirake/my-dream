@@ -1,4 +1,5 @@
 import { AppBar } from '@/components/ui/AppBar';
+import { AppSwitch as Switch } from '@/components/ui/AppSwitch';
 import { Card } from '@/components/ui/Card';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -10,7 +11,7 @@ import { router } from 'expo-router';
 import { Brain, ChevronLeft, Eye, MessageCircle, Shield, ShieldOff, Sparkles } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator, ScrollView, StyleSheet, Switch,
+  ActivityIndicator, ScrollView, StyleSheet,
   Text, TouchableOpacity, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -176,6 +177,7 @@ export default function PrivacyScreen() {
               </View>
               <Switch
                 value={settings?.show_same_gender_in_swipe ?? false}
+                accessibilityLabel="نمایش هم‌جنس در جستجو"
                 onValueChange={toggleSwipeGender}
                 disabled={savingSwipeGender}
                 trackColor={{ false: Colors.hair, true: Colors.accent + 'AA' }}
@@ -202,6 +204,7 @@ export default function PrivacyScreen() {
               </View>
               <Switch
                 value={settings?.safe_mode_enabled ?? false}
+                accessibilityLabel="حالت امن"
                 onValueChange={toggleSafeMode}
                 disabled={savingSafe}
                 trackColor={{ false: Colors.hair, true: Colors.purple + 'AA' }}
@@ -265,6 +268,7 @@ export default function PrivacyScreen() {
               </View>
               <Switch
                 value={insightVisible}
+                accessibilityLabel="نمایش تحلیل هوش مصنوعی"
                 onValueChange={toggleInsightVisibility}
                 disabled={savingInsight}
                 trackColor={{ false: Colors.hair, true: Colors.purple + 'AA' }}
@@ -291,6 +295,7 @@ export default function PrivacyScreen() {
               </View>
               <Switch
                 value={personalityVisible}
+                accessibilityLabel="نمایش تست شخصیت"
                 onValueChange={togglePersonalityVisibility}
                 disabled={savingPersonality}
                 trackColor={{ false: Colors.hair, true: Colors.purple + 'AA' }}

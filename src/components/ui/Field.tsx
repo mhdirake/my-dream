@@ -3,6 +3,7 @@ import { Platform, StyleSheet, Text, TextInput, View, type TextStyle } from 'rea
 
 interface FieldProps {
   label?: string;
+  required?: boolean;
   value?: string;
   placeholder?: string;
   hint?: string;
@@ -19,7 +20,7 @@ interface FieldProps {
   editable?: boolean;
 }
 
-export function Field({ label, value, placeholder, hint, error, suffix, secureTextEntry, onChangeText, keyboardType, autoCapitalize, autoCorrect, maxLength, textDirection, keepCursorAtEnd, editable = true }: FieldProps) {
+export function Field({ label, required = false, value, placeholder, hint, error, suffix, secureTextEntry, onChangeText, keyboardType, autoCapitalize, autoCorrect, maxLength, textDirection, keepCursorAtEnd, editable = true }: FieldProps) {
   const directionStyle: TextStyle | null = textDirection === 'ltr'
     ? styles.inputLtr
     : textDirection === 'rtl'
@@ -31,10 +32,11 @@ export function Field({ label, value, placeholder, hint, error, suffix, secureTe
 
   return (
     <View style={styles.wrap}>
-      {label && <Text style={styles.label}>{label}</Text>}
+      {label && <Text style={styles.label}>{label}{required && <Text style={styles.required}> *</Text>}</Text>}
       <View style={[styles.box, error && styles.boxError]}>
         <TextInput
-          style={[styles.input, directionStyle]}
+          style={[styles.input, directionStyle, error && styles.boxError]}
+          accessibilityLabel={label ? `${label}${required ? '، الزامی' : ''}` : undefined}
           value={value}
           placeholder={placeholder}
           placeholderTextColor={Colors.muted}
@@ -50,7 +52,7 @@ export function Field({ label, value, placeholder, hint, error, suffix, secureTe
         {suffix && <Text style={styles.suffix}>{suffix}</Text>}
       </View>
       {(hint || error) && (
-        <Text style={[styles.hint, error && styles.hintError]}>{error || hint}</Text>
+        <Text accessibilityLiveRegion={error ? 'polite' : 'none'} style={[styles.hint, error && styles.hintError]}>{error || hint}</Text>
       )}
     </View>
   );
@@ -59,6 +61,7 @@ export function Field({ label, value, placeholder, hint, error, suffix, secureTe
 const styles = StyleSheet.create({
   wrap: { marginBottom: 14 },
   label: { fontSize: 12, color: Colors.inkSoft, marginBottom: 7, fontFamily: Fonts.semiBold },
+  required: { color: Colors.danger },
   box: {
     // borderWidth: 1.5,
     // borderColor: Colors.lineSoft,
