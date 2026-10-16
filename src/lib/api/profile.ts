@@ -2,6 +2,7 @@ import { File as FSFile, UploadType } from 'expo-file-system';
 import { Platform } from 'react-native';
 import { api } from './client';
 import { apiUrl } from './url';
+import { recordedAudioFile, voiceUploadError } from '../recordedAudio';
 
 export type ProfilePhotoVariants = {
   original: string;
@@ -160,12 +161,12 @@ export const profileApi = {
       });
       const data = JSON.parse(result.body || '{}');
       if (result.status < 200 || result.status >= 300)
-        throw new Error(data?.message ?? `HTTP ${result.status}`);
+        throw new Error(voiceUploadError(data, result.status));
       return data;
     }
 
     const blob = await fetch(uri).then(r => r.blob());
-    const file = new File([blob], 'voice-intro.m4a', { type: blob.type || mimeType });
+    const file = recordedAudioFile(blob, mimeType);
     const form = new FormData();
     form.append('voice', file);
     form.append('duration_seconds', String(durationSeconds));
@@ -175,7 +176,7 @@ export const profileApi = {
       body: form,
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data?.message ?? `HTTP ${res.status}`);
+    if (!res.ok) throw new Error(voiceUploadError(data, res.status));
     return data;
   },
 

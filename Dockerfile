@@ -33,6 +33,12 @@ RUN npx eslint \
   src/lib/api/client.test.ts \
   src/lib/api/media.ts \
   src/lib/api/media.test.ts \
+  src/lib/api/profile.ts \
+  src/lib/api/profile.test.ts \
+  src/lib/recordedAudio.ts \
+  src/lib/religiosity.ts \
+  src/lib/religiosity.test.ts \
+  src/app/profile-setup/religion.tsx \
   src/lib/auth/AuthContext.tsx \
   src/lib/auth/storage.ts \
   src/lib/auth/storage.test.ts \
@@ -78,6 +84,9 @@ RUN npx eslint \
   src/lib/webViewport.test.ts \
   src/lib/chat/controls.ts \
   src/lib/chat/controls.test.ts \
+  src/lib/chat/activities.ts \
+  src/lib/chat/activities.test.ts \
+  src/app/chat/group-info.tsx \
   src/lib/chat/senderDirectory.ts \
   src/lib/chat/senderDirectory.test.ts \
   src/lib/chat/useSenderDirectory.ts \

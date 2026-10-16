@@ -2,6 +2,7 @@ import { AppBar } from '@/components/ui/AppBar';
 import { Colors, Fonts, Radius } from '@/constants/colors';
 import { ClientProfile, profileApi } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { religiosityLabel } from '@/lib/religiosity';
 import { router, useFocusEffect } from 'expo-router';
 import {
   ChevronLeft,
@@ -109,6 +110,15 @@ function buildSections(profile: ClientProfile): Section[] {
       onPress: () => push('/profile-setup/red-flags', {
         mode: 'edit',
         currentFlags: JSON.stringify(profile.dealbreakers.map(d => d.body).filter(Boolean)),
+      }),
+    },
+    {
+      icon: Sliders,
+      iconColor: Colors.trust,
+      label: 'میزان مذهبی بودن',
+      value: religiosityLabel(profile.religiosity_level),
+      onPress: () => push('/profile-setup/religion', {
+        mode: 'edit', currentLevel: String(profile.religiosity_level ?? ''),
       }),
     },
     {

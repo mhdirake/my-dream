@@ -1,14 +1,18 @@
 import { Button } from '@/components/ui/Button';
+import { AppBar } from '@/components/ui/AppBar';
 import { Card } from '@/components/ui/Card';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { profileApi } from '@/lib/api/profile';
 import { toast } from '@/lib/toast';
-import { router } from 'expo-router';
+import { useSafeBack } from '@/lib/useSafeBack';
+import { religiosityIndex, RELIGIOSITY_LEVELS } from '@/lib/religiosity';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Check, Info, Sparkles } from 'lucide-react-native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Pressable,
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,28 +20,39 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const LEVELS = [
-  'اصلاً مذهبی نیستم',
-  'خیلی کم',
-  'متوسط',
-  'نسبتاً مذهبی',
-  'مذهبی',
-];
-
 const toPersian = (n: number) => String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
 
 export default function ReligionScreen() {
   const insets = useSafeAreaInsets();
   const { session } = useAuth();
-  const [selected, setSelected] = useState<number | null>(null);
+  const { mode, currentLevel } = useLocalSearchParams<{ mode?: string; currentLevel?: string }>();
+  const isEdit = mode === 'edit';
+  const safeBack = useSafeBack('/profile-edit');
+  const [selected, setSelected] = useState<number | null>(() => religiosityIndex(currentLevel));
+  const [loading, setLoading] = useState(isEdit);
+  const [loadError, setLoadError] = useState(false);
+  const [reload, setReload] = useState(0);
   const [saving, setSaving] = useState(false);
 
+  useEffect(() => {
+    if (!isEdit || !session?.accessToken) return;
+    let active = true;
+    profileApi.getProfile(session.accessToken)
+      .then(profile => { if (active) setSelected(religiosityIndex(profile.religiosity_level)); })
+      .catch(() => { if (active) setLoadError(true); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [isEdit, session?.accessToken, reload]);
+
   const handleSave = async () => {
-    if (!session?.accessToken || selected === null) return;
+    if (!session?.accessToken || selected === null || loading || loadError || saving) return;
     setSaving(true);
     try {
       await profileApi.updateProfile(session.accessToken, { religiosity_level: selected + 1 });
-      router.push('/profile-setup/red-flags' as any);
+      if (isEdit) {
+        toast.success('میزان مذهبی بودن ذخیره شد');
+        safeBack();
+      } else router.push('/profile-setup/red-flags' as any);
     } catch (e: any) {
       toast.error(e.message ?? 'خطا در ذخیره');
     } finally {
@@ -47,14 +62,19 @@ export default function ReligionScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
-      <OptStepper idx={5} />
+      {isEdit ? <AppBar title="میزان مذهبی بودن" back backFallback="/profile-edit" /> : <OptStepper idx={5} />}
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>میزان مذهبی بودن</Text>
         <Text style={styles.sub}>اختیاری · فقط برای تطابق بهتر، طیفی محاسبه می‌شود</Text>
 
-        {LEVELS.map((l, i) => (
+        {loading && <ActivityIndicator color={Colors.accent} />}
+        {loadError && <Button variant="ghost" onPress={() => { setLoading(true); setLoadError(false); setReload(value => value + 1); }}>تلاش دوباره برای دریافت اطلاعات</Button>}
+        {RELIGIOSITY_LEVELS.map((l, i) => (
           <Pressable
             key={i}
+            disabled={loading || loadError || saving}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: selected === i, disabled: loading || loadError || saving }}
             onPress={() => setSelected(i)}
             style={[styles.option, selected === i && styles.optionActive]}
           >
@@ -84,9 +104,9 @@ export default function ReligionScreen() {
 
       <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <View style={styles.btnRow}>
-          <Button variant="ghost" onPress={() => router.back()} full={false} style={styles.btnSkip}>فعلاً نه</Button>
-          <Button variant="accent" onPress={handleSave} disabled={selected === null || saving} full={false} style={styles.btnSave}>
-            {saving ? 'در حال ذخیره…' : 'ذخیره و ادامه'}
+          <Button variant="ghost" onPress={() => isEdit ? safeBack() : router.push('/profile-setup/red-flags' as any)} disabled={saving} full={false} style={styles.btnSkip}>{isEdit ? 'انصراف' : 'فعلاً نه'}</Button>
+          <Button variant="accent" onPress={handleSave} disabled={selected === null || saving || loading || loadError} full={false} style={styles.btnSave}>
+            {saving ? 'در حال ذخیره…' : isEdit ? 'ذخیره تغییرات' : 'ذخیره و ادامه'}
           </Button>
         </View>
       </View>

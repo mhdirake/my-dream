@@ -19,6 +19,7 @@ export type DiscoverProfile = {
   is_verified: boolean;
   likes_count: number;
   liked_by_me: boolean;
+  anonymous_interest?: { sent_by_me: boolean; is_mutual: boolean; can_remove: boolean };
 };
 
 export type InteractionType = 'like' | 'pass' | 'swipe_like' | 'swipe_pass' | 'anonymous_interest';

@@ -111,6 +111,12 @@ export type ConversationPage = {
   next_cursor: string | null;
 };
 
+export type GroupInfo = {
+  id: number; title: string | null; group_key: 'silver' | 'gold'; plan: string;
+  access_reason: string; participant_count: number; online_count: number | null;
+  online_checked_at: string | null; rules: string[];
+};
+
 export { conversationPeer } from '@/lib/chat/conversationIdentity';
 
 export type ConversationTemplate = {
@@ -340,8 +346,11 @@ export const chatApi = {
       token,
     ),
 
-  sendTyping: (token: string, conversationId: number) =>
-    api.post(`/api/client/conversations/${conversationId}/typing`, {}, token),
+  sendTyping: (token: string, conversationId: number, activity: 'typing' | 'recording' = 'typing', active = true) =>
+    api.post(`/api/client/conversations/${conversationId}/typing`, { activity, active }, token),
+
+  getGroupInfo: (token: string, conversationId: number) =>
+    api.get<{ data: GroupInfo }>(`/api/client/conversations/${conversationId}/group-info`, token).then(result => result.data),
 
   deleteMessage: (token: string, conversationId: number, messageId: string) =>
     api.delete(`/api/client/conversations/${conversationId}/messages/${messageId}`, token),

@@ -793,6 +793,11 @@ export default function DiscoverScreen() {
           likes_count: res.data?.likes_count ?? 0,
         });
       }
+      if (type === 'swipe_like' && res.data?.sent_by_me) {
+        updateProfile(userId, { anonymous_interest: {
+          sent_by_me: true, is_mutual: !!res.data.mutual, can_remove: true,
+        } });
+      }
       if (res.data?.mutual && res.data.mutual_user) {
         setMatchInfo({ user: res.data.mutual_user, message: res.data.mutual_message });
       }

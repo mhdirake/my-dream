@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Message, Reaction, TypedMessagePayload, chatApi } from '@/lib/api/chat';
 import { useCentrifugoCtx } from './CentrifugoContext';
 import { chatRepository } from './chatRepository';
 import { ChatOutboxItem } from './chatRepository.types';
 import { applyReceiptWatermark, mergeMessages, messageFromOutbox } from './timeline';
+import { updateActivities, type ChatActivity } from './activities';
 
 // Go service publishes PascalCase until JSON tags are fixed on the backend.
 // This normalizer accepts both PascalCase and snake_case so the fix is backward-compatible.
@@ -94,14 +95,13 @@ function uuidv4(): string {
   });
 }
 
-const TYPING_CLEAR_MS = 4000;
-
 export interface ChatMessagesHook {
   messages: Message[];
   loading: boolean;
   loadError: boolean;
   sending: boolean;
   typingUserId: number | null;
+  activities: ChatActivity[];
   send: (body: string) => Promise<void>;
   sendTyped: (payload: TypedMessagePayload, localUri?: string) => Promise<void>;
   retryMessage: (clientMessageId: string) => Promise<void>;
@@ -131,8 +131,10 @@ export function useChatMessages(
   const [loadError, setLoadError] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [highlightId, setHighlightId] = useState<string | null>(null);
-  const [typingUserId, setTypingUserId] = useState<number | null>(null);
-  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activityScope = `${accountId}:${conversationPublicId}`;
+  const [activityState, setActivityState] = useState<{ scope: string; items: ChatActivity[] }>({ scope: activityScope, items: [] });
+  const activities = activityState.scope === activityScope ? activityState.items : [];
+  const typingUserId = activities.find(item => item.kind === 'typing')?.userId ?? null;
 
   const { subscribeConversation, onConnect } = useCentrifugoCtx();
 
@@ -218,7 +220,10 @@ export function useChatMessages(
       if (!raw) return;
 
       if (data.event === 'message.created') {
-        pushMessage(normalizeMessage(raw));
+        const message = normalizeMessage(raw);
+        pushMessage(message);
+        setActivityState(previous => ({ scope: activityScope, items: previous.scope === activityScope
+          ? previous.items.filter(item => item.userId !== message.sender_user_id) : [] }));
 
       } else if (data.event === 'message.deleted') {
         const id = (raw.message_id ?? raw.MessageID) as string;
@@ -279,17 +284,19 @@ export function useChatMessages(
         }
 
       } else if (data.event === 'typing') {
-        const userId = Number(raw.user_id);
-        setTypingUserId(userId);
-        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-        typingTimeoutRef.current = setTimeout(() => setTypingUserId(null), TYPING_CLEAR_MS);
+        setActivityState(previous => ({ scope: activityScope,
+          items: updateActivities(previous.scope === activityScope ? previous.items : [], raw, accountId) }));
       }
     }, () => fetchMessages(false));
-  }, [accountId, conversationPublicId, subscribeConversation, pushMessage, fetchMessages]);
+  }, [accountId, activityScope, conversationPublicId, subscribeConversation, pushMessage, fetchMessages]);
 
-  useEffect(() => () => {
-    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-  }, []);
+  useEffect(() => {
+    if (activityState.scope !== activityScope || !activityState.items.length) return;
+    const deadline = Math.min(...activityState.items.map(item => item.expiresAt));
+    const timer = setTimeout(() => setActivityState(previous => ({ ...previous,
+      items: previous.items.filter(item => item.expiresAt > Date.now()) })), Math.max(0, deadline - Date.now()));
+    return () => clearTimeout(timer);
+  }, [activityState, activityScope]);
 
   const send = useCallback(async (body: string) => {
     if (!body.trim() || !token || accountId <= 0) return;
@@ -565,7 +572,7 @@ export function useChatMessages(
   const clearHighlight = useCallback(() => setHighlightId(null), []);
 
   return {
-    messages, loading, loadError, sending: pendingSendCount > 0, typingUserId,
+    messages, loading, loadError, sending: pendingSendCount > 0, typingUserId, activities,
     send, sendTyped, retryMessage, pushMessage, loadMore, refresh, hasMore,
     deleteMsg, editMsg,
     setReaction, removeReaction,

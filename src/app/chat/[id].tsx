@@ -10,6 +10,7 @@ import { conversationStatusFromEvent } from '@/lib/chat/conversationEvents';
 import { CHAT_SEND_TARGET, CHAT_SEND_HIT_SLOP } from '@/lib/chat/controls';
 import { displayUserName, senderPhotoUrl } from '@/lib/chat/senderDirectory';
 import { useSenderDirectory } from '@/lib/chat/useSenderDirectory';
+import { activitySummary } from '@/lib/chat/activities';
 import { selectInitialChatPosition, type InitialChatPosition } from '@/lib/chat/initialPosition';
 import { formatPersianDate, formatPersianTime } from '@/lib/date/persian';
 import { useVoiceRecorder } from '@/lib/chat/useVoiceRecorder';
@@ -432,20 +433,22 @@ export default function ConversationScreen() {
   const isGroup = conversationType === 'group';
 
   const {
-    messages, loading, loadError, send, sendTyped, retryMessage, pushMessage, typingUserId,
+    messages, loading, loadError, send, sendTyped, retryMessage, pushMessage, activities,
     loadMore, hasMore, deleteMsg, editMsg,
     setReaction, removeReaction,
     loadContext, highlightId, clearHighlight, refresh,
   } = useChatMessages(conversationId, publicId ?? '', token, myId, isGroup ? 'group' : 'direct');
   const { connectionState, addUserEventHandler } = useCentrifugoCtx();
-  const senderDirectory = useSenderDirectory(token, conversationId, messages, myId, [Number(otherId), typingUserId ?? 0]);
+  const senderDirectory = useSenderDirectory(token, conversationId, messages, myId, [Number(otherId), ...activities.map(item => item.userId)]);
   const displayMessages = messages.map(message => ({
     ...message, sender: senderDirectory.get(message.sender_user_id) ?? message.sender,
   }));
   const peerName = isGroup ? name ?? 'گفتگوی گروهی'
     : displayUserName(senderDirectory.get(Number(otherId)), displayUserName({ first_name: name }));
 
-  const otherTyping = typingUserId != null && (isGroup ? typingUserId !== myId : String(typingUserId) === otherId);
+  const activityText = isGroup ? activitySummary(activities, id => displayUserName(senderDirectory.get(id)))
+    : activities.find(item => String(item.userId) === otherId)?.kind === 'recording' ? 'در حال ضبط صدا...'
+    : activities.some(item => String(item.userId) === otherId) ? 'در حال تایپ...' : '';
 
   const [text, setText] = useState('');
   const [pendingImage, setPendingImage] = useState<{ uri: string; mimeType: string } | null>(null);
@@ -462,6 +465,16 @@ export default function ConversationScreen() {
   const [failedImageUris, setFailedImageUris] = useState<Set<string>>(new Set());
   const [sendingVoice, setSendingVoice] = useState(false);
   const voiceRecorder = useVoiceRecorder();
+  useFocusEffect(useCallback(() => {
+    if (!voiceRecorder.isRecording || !token || !conversationId) return;
+    const signal = () => { void chatApi.sendTyping(token, conversationId, 'recording').catch(() => {}); };
+    signal();
+    const interval = setInterval(signal, 2500);
+    return () => {
+      clearInterval(interval);
+      void chatApi.sendTyping(token, conversationId, 'recording', false).catch(() => {});
+    };
+  }, [voiceRecorder.isRecording, token, conversationId]));
   const [editingId, setEditingId] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [stickerPickerOpen, setStickerPickerOpen] = useState(false);
@@ -867,6 +880,7 @@ export default function ConversationScreen() {
   const handleTextChange = (val: string) => {
     setText(val);
     if (val.length > 0) sendTypingSignal();
+    else if (token && conversationId) void chatApi.sendTyping(token, conversationId, 'typing', false).catch(() => {});
   };
 
   useFocusEffect(useCallback(() => {
@@ -1189,7 +1203,11 @@ export default function ConversationScreen() {
 
         <Pressable
           style={styles.headerUser}
-          onPress={() => !isGroup && otherId && router.push({ pathname: '/user/[id]', params: { id: otherId } } as never)}
+          accessibilityRole="button"
+          accessibilityLabel={isGroup ? 'اطلاعات و قوانین گروه' : 'نمایش پروفایل'}
+          onPress={() => isGroup
+            ? router.push({ pathname: '/chat/group-info', params: { id } } as never)
+            : otherId && router.push({ pathname: '/user/[id]', params: { id: otherId } } as never)}
         >
           <View style={styles.avatarWrap}>
             {avatar && !isGroup ? (
@@ -1203,12 +1221,12 @@ export default function ConversationScreen() {
             )}
             {!isGroup && isOnline && <View style={styles.onlineDot} />}
           </View>
-          <View>
+          <View style={{ flex: 1 }}>
             <Text style={styles.headerName}>{peerName}</Text>
-            <Text style={styles.headerSub}>
-              {isGroup ? `${groupKey === 'gold' ? 'گروه طلایی' : 'گروه نقره‌ای'} · ${toFaDigits(memberCount ?? '0')} عضو` :
+            <Text style={styles.headerSub} numberOfLines={3}>
+              {isGroup ? activityText || `${groupKey === 'gold' ? 'گروه طلایی' : 'گروه نقره‌ای'} · ${toFaDigits(memberCount ?? '0')} عضو` :
                isPending ? 'در انتظار تأیید' :
-               otherTyping ? 'در حال تایپ...' :
+               activityText ? activityText :
                isOnline ? 'آنلاین' :
                lastSeen ? `آخرین بازدید: ${formatLastSeen(lastSeen)}` : ''}
             </Text>
