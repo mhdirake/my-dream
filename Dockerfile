@@ -48,6 +48,8 @@ RUN npx eslint \
   src/lib/auth/sessionLifetime.test.ts \
   src/lib/registrationValidation.ts \
   src/lib/registrationValidation.test.ts \
+  src/lib/iranMobile.ts \
+  src/lib/iranMobile.test.ts \
   src/app/onboarding/userpass.tsx \
   src/components/ui/AppSwitch.tsx \
   src/lib/passwordResetStore.ts \

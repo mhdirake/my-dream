@@ -5,6 +5,7 @@ import { KeyboardAvoider } from '@/components/ui/KeyboardAvoider';
 import { Colors, Fonts } from '@/constants/colors';
 import { onboardingApi } from '@/lib/api/onboarding';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { loginMobileNumber, normalizeIranMobileInput } from '@/lib/iranMobile';
 import { toast } from '@/lib/toast';
 import { router } from 'expo-router';
 import { KeyRound } from 'lucide-react-native';
@@ -14,14 +15,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function LoginScreen() {
   const { loginWithPassword } = useAuth();
-  const [username, setUsername] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const mobile = loginMobileNumber(phone);
+  const canSubmit = mobile !== null && password.length >= 8;
 
   const handleLogin = async () => {
+    if (!canSubmit || !mobile || loading) return;
     setLoading(true);
     try {
-      const session = await loginWithPassword(username.trim(), password);
+      const session = await loginWithPassword(mobile, password);
       try {
         const status = await onboardingApi.getStatus(session.accessToken);
         if (!status.can_enter_app) {
@@ -50,8 +54,6 @@ export default function LoginScreen() {
     }
   };
 
-  const canSubmit = username.length >= 3 && password.length >= 8;
-
   return (
     <SafeAreaView style={styles.root}>
       <AppBar title="ورود" back />
@@ -63,9 +65,12 @@ export default function LoginScreen() {
         <Field
           label="شماره موبایل"
           required
-          value={username}
-          onChangeText={v => setUsername(v.replace(/[۰-۹]/g, d => String(d.charCodeAt(0) - 1776)))}
-          placeholder=""
+          value={phone}
+          onChangeText={v => setPhone(normalizeIranMobileInput(v))}
+          prefix="+98"
+          placeholder="9123456789"
+          hint="۱۰ رقم بدون صفر اول وارد کن؛ مثلاً ۹۱۲۳۴۵۶۷۸۹"
+          error={phone && !phone.startsWith('9') ? 'شماره موبایل باید با ۹ شروع شود' : undefined}
           keyboardType="phone-pad"
           autoCapitalize="none"
           autoCorrect={false}
