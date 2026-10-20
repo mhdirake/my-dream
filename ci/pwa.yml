@@ -14,6 +14,7 @@ variables:
 
 test-production:
   stage: test
+  timeout: 15m
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
   script:
@@ -21,6 +22,7 @@ test-production:
 
 build-production:
   stage: build
+  timeout: 20m
   needs: [test-production]
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
@@ -36,6 +38,7 @@ build-production:
 
 .pwa-deployment:
   stage: deploy
+  timeout: 10m
   # Deploy consumes the build's release files, not another clone of the repository.
   variables:
     GIT_STRATEGY: empty
