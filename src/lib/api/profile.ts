@@ -123,6 +123,7 @@ export const profileApi = {
   updateProfile: (
     token: string,
     data: {
+      email?: string | null;
       first_name?: string;
       last_name?: string | null;
       birth_date?: string;

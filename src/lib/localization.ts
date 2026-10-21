@@ -49,6 +49,9 @@ export function localizeErrorMessage(rawMessage: unknown, status?: number): stri
     return 'سرویس هوش مصنوعی فعلاً غیرفعال است و هنوز تنظیم نشده است.';
   }
 
+  // Preserve the backend's specific explanation instead of replacing it with an upgrade prompt.
+  if (raw && /[\u0600-\u06ff]/.test(raw)) return toFaDigits(raw);
+
   if (
     /limit exceeded|daily .*limit|quota|subscription|plan limit|swipe limit|message limit|like limit/i.test(raw) ||
     /سقف|لیمیت|محدودیت|اشتراک/.test(raw) ||

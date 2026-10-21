@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import { api } from './client';
+import { defaultCoinPricing } from '../coinPurchase';
 
 // قرارداد backend (commit f3d641d): فیلد required با مقادیر web_app | mobile_app —
 // خود backend بر اساسش به FRONTEND_PAYMENT_CALLBACK_URL_MOBILE/_WEB ری‌دایرکت می‌کنه
@@ -35,6 +36,12 @@ export type PaymentStatusDetail = {
   feature_access_until: string | null;
 };
 
+export type CoinPricing = {
+  unit_price_amount: number;
+  preset_amounts: number[];
+  minimum_coins: number;
+};
+
 export type CoinPackage = {
   id: number;
   name: string;
@@ -68,6 +75,15 @@ export const paymentsApi = {
       { package_id: packageId, ...paymentPayload() },
       token,
     ),
+
+  payCoinQuantity: (token: string, coinAmount: number, unitPrice: number) =>
+    api.post<PaymentRequestResponse>('/api/client/payments/coin-packages', {
+      coin_amount: coinAmount, expected_unit_price_amount: unitPrice, ...paymentPayload(),
+    }, token),
+
+  getCoinPricing: (token: string): Promise<CoinPricing> =>
+    api.get<{ pricing?: CoinPricing | null }>('/api/client/coin-packages', token)
+      .then(r => r.pricing ?? defaultCoinPricing()),
 
   getCoinPackages: (token: string): Promise<CoinPackage[]> =>
     api.get<{ data: CoinPackage[] }>('/api/client/coin-packages', token).then(r => r.data ?? []),

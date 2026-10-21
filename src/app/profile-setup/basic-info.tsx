@@ -8,7 +8,7 @@ import { onboardingApi } from '@/lib/api/onboarding';
 import { profileApi } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { profileSetupStore } from '@/lib/profileSetupStore';
-import { IdentityHydration, identityBirthDate, normalizeDateDigits } from '@/lib/profileIdentity';
+import { IdentityHydration, identityBirthDate, identityDisplayName, normalizeDateDigits } from '@/lib/profileIdentity';
 import { toast } from '@/lib/toast';
 import { useSafeBack } from '@/lib/useSafeBack';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -41,7 +41,6 @@ export default function BasicInfoScreen() {
   const isEdit = mode === 'edit';
   const safeBack = useSafeBack('/profile-edit');
   const [name, setName] = useState('');
-  const [lastName, setLastName] = useState('');
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -60,14 +59,13 @@ export default function BasicInfoScreen() {
     let active = true;
     setLoading(true);
     setLoadError(false);
-    setName(''); setLastName(''); setYear(''); setMonth(''); setDay(''); setGender(null);
+    setName(''); setYear(''); setMonth(''); setDay(''); setGender(null);
     const loadProfile = isEdit ? profileApi.getProfile(session.accessToken)
       : onboardingApi.getStatus(session.accessToken).then(status => status.user);
     loadProfile.then(u => {
       if (!active) return;
       hydration.current.complete(scope);
-      if (u.first_name) setName(u.first_name);
-      setLastName(u.last_name ?? '');
+      setName(identityDisplayName(u.first_name, u.last_name));
       if (u.birth_date) {
         const d = u.birth_date.split('T')[0]; // "2000-10-10"
         const [gy, gm, gd] = d.split('-').map(Number);
@@ -96,7 +94,7 @@ export default function BasicInfoScreen() {
       setSaving(true);
       try {
         await profileApi.updateProfile(session.accessToken, {
-          first_name: name.trim(), last_name: lastName.trim() || null,
+          first_name: name.trim(), last_name: null,
           birth_date: birthDate!, gender: gender!,
         });
         toast.success('اطلاعات هویتی ذخیره شد');
@@ -138,7 +136,6 @@ export default function BasicInfoScreen() {
           autoCapitalize="words"
           editable={!loading && !loadError && !saving}
         />
-        {isEdit && <Field label="نام خانوادگی (اختیاری)" value={lastName} onChangeText={setLastName} autoCapitalize="words" editable={!loading && !loadError && !saving} />}
 
         <Text style={styles.fieldLabel}>تاریخ تولد (شمسی)<Text style={{ color: Colors.danger }}> *</Text></Text>
         <Text style={{ color: Colors.muted, fontFamily: Fonts.regular, fontSize: 11 }}>حداقل سن مجاز ۱۸ سال است</Text>

@@ -154,6 +154,10 @@ async function openConversation(token: string, myId: number, conversationId: num
 
 async function handleNavigation(n: AppNotification, token: string, myId: number) {
   const m = n.metadata ?? {};
+  if (n.type === 'profile_photo_approved' || n.type === 'profile_photo_rejected') {
+    router.push({pathname:'/profile-setup/photo' as any,params:{mode:'edit'}}); return;
+  }
+  if (n.type === 'subscription_activated') { router.push('/subscriptions' as any); return; }
   switch (n.type) {
     case 'new_message':
     case 'message_received':
@@ -174,8 +178,7 @@ async function handleNavigation(n: AppNotification, token: string, myId: number)
         router.push('/gifts/wallet' as any);
       } else if (giftKind === 'subscription' || giftKind === 'subscription_gift') {
         router.push({
-          pathname: '/gifts/gift-sub' as any,
-          params: { tab: 'sub', history: 'received' },
+          pathname: '/subscriptions' as any,
         });
       } else if (giftKind === 'gold_badge' || giftKind === 'gold_badge_gift') {
         router.push('/(tabs)/me' as any);
@@ -486,7 +489,7 @@ const styles = StyleSheet.create({
   rowTitle: { flex: 1, fontSize: 13, fontFamily: Fonts.semiBold, color: Colors.inkSoft },
   rowTitleBold: { fontFamily: Fonts.extraBold, color: Colors.ink },
   rowTime: { fontSize: 10.5, color: Colors.muted, fontFamily: Fonts.regular, flexShrink: 0, marginTop: 1 },
-  rowBody: { fontSize: 12, color: Colors.inkSoft, fontFamily: Fonts.regular, lineHeight: 18 },
+  rowBody: { writingDirection: 'rtl', textAlign: 'right', fontSize: 12, color: Colors.inkSoft, fontFamily: Fonts.regular, lineHeight: 18 },
   rowUser: { fontSize: 11, color: Colors.accent, fontFamily: Fonts.semiBold },
 
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 },

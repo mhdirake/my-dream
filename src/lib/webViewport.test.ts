@@ -10,10 +10,12 @@ function browser(visual = true, touch = true) {
   const win = Object.assign(new EventTarget(), {
     innerHeight: 800, innerWidth: 390, visualViewport: visual ? viewport : null,
     matchMedia: () => ({ matches: touch }),
+    getComputedStyle: () => ({ overflowY: 'auto' }),
     requestAnimationFrame: (fn: FrameRequestCallback) => { frames.set(++id, fn); return id; },
     cancelAnimationFrame: (key: number) => frames.delete(key),
   });
-  const field = { matches: () => true, getBoundingClientRect: () => ({ top: 660, bottom: 700 }), scrollIntoView: vi.fn() };
+  const scrollArea = { id: 'form', parentElement: null, scrollHeight: 1000, clientHeight: 480, scrollTop: 0, getBoundingClientRect: () => ({ top: 40, bottom: 520 }) };
+  const field = { parentElement: scrollArea as typeof scrollArea | null, matches: () => true, getBoundingClientRect: () => ({ top: 660, bottom: 700 }), scrollIntoView: vi.fn() };
   const doc = Object.assign(new EventTarget(), {
     activeElement: null as typeof field | null,
     documentElement: { style: {
@@ -27,7 +29,7 @@ function browser(visual = true, touch = true) {
   const flush = () => {
     const pending = [...frames.values()]; frames.clear(); pending.forEach(fn => fn(0));
   };
-  return { win, viewport, doc, field, css, frames, changed, cleanup, flush };
+  return { win, viewport, doc, field, scrollArea, css, frames, changed, cleanup, flush };
 }
 
 afterEach(() => vi.useRealTimers());
@@ -50,10 +52,25 @@ describe('browser viewport lifecycle', () => {
     expect(b.css.get('--app-viewport-offset-top')).toBe('40px');
     expect(b.css.get('--keyboard-inset')).toBe('280px');
     expect(b.changed).toHaveBeenLastCalledWith(true);
-    expect(b.field.scrollIntoView).toHaveBeenCalledOnce();
+    expect(b.scrollArea.scrollTop).toBe(192);
+    expect(b.field.scrollIntoView).not.toHaveBeenCalled();
     b.field.getBoundingClientRect = () => ({ top: 100, bottom: 140 });
     b.viewport.dispatchEvent(new Event('scroll')); b.flush();
-    expect(b.field.scrollIntoView).toHaveBeenCalledOnce(); b.cleanup();
+    expect(b.scrollArea.scrollTop).toBe(192);
+    expect(b.field.scrollIntoView).not.toHaveBeenCalled(); b.cleanup();
+  });
+
+  it('never scrolls the app root when the chat composer is focused during repeated keyboard resize/pan', () => {
+    const b = browser(); b.doc.activeElement = b.field;
+    b.scrollArea.id = 'root';
+    for (const height of [600, 480, 450, 480]) {
+      b.viewport.height = height; b.viewport.offsetTop = 40;
+      b.viewport.dispatchEvent(new Event('resize')); b.flush();
+    }
+    expect(b.scrollArea.scrollTop).toBe(0);
+    expect(b.field.scrollIntoView).not.toHaveBeenCalled();
+    expect(b.css.get('--app-viewport-height')).toBe('480px');
+    b.cleanup();
   });
 
   it.each([true, false])('supports layout-resizing keyboards (VisualViewport=%s)', visual => {

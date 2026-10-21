@@ -1,3 +1,4 @@
+import { identityDisplayName } from './profileIdentity';
 import { describe, expect, it } from 'vitest';
 import { IdentityHydration, identityBirthDate, normalizeDateDigits } from './profileIdentity';
 
@@ -40,4 +41,9 @@ describe('editable profile identity', () => {
       expect(identityBirthDate(year, month, day, new Date(2026, 9, 12))).toBeNull();
     },
   );
+});
+
+it('preserves the full legacy name and does not repeat a cleared family name', () => {
+  expect(identityDisplayName('مهدی', 'رشید')).toBe('مهدی رشید');
+  expect(identityDisplayName('مهدی رشید', null)).toBe('مهدی رشید');
 });

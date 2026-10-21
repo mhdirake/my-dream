@@ -10,7 +10,7 @@ import { toast } from '@/lib/toast';
 import { router } from 'expo-router';
 import { KeyRound } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function LoginScreen() {
@@ -62,21 +62,24 @@ export default function LoginScreen() {
         <Text style={styles.headline}>خوش برگشتی</Text>
         <Text style={styles.sub}>با شماره موبایل و رمز عبورت وارد شو</Text>
 
-        <Field
-          label="شماره موبایل"
-          required
-          value={phone}
-          onChangeText={v => setPhone(normalizeIranMobileInput(v))}
-          prefix="+98"
-          placeholder="9123456789"
-          hint="۱۰ رقم بدون صفر اول وارد کن؛ مثلاً ۹۱۲۳۴۵۶۷۸۹"
-          error={phone && !phone.startsWith('9') ? 'شماره موبایل باید با ۹ شروع شود' : undefined}
-          keyboardType="phone-pad"
-          autoCapitalize="none"
-          autoCorrect={false}
-          textDirection="ltr"
-          keepCursorAtEnd
-        />
+        <View style={styles.phoneRow}>
+          <TextInput
+            style={styles.phoneInput}
+            accessibilityLabel="شماره موبایل"
+            value={phone}
+            onChangeText={v => setPhone(normalizeIranMobileInput(v))}
+            placeholder="912 345 6789"
+            placeholderTextColor={Colors.muted}
+            keyboardType="phone-pad"
+            autoCapitalize="none"
+            autoCorrect={false}
+            textContentType="telephoneNumber"
+          />
+          <View style={styles.countryCode}>
+            <Text style={styles.countryText}>98</Text>
+            <Text style={styles.countryText}>+</Text>
+          </View>
+        </View>
         <Field
           label="رمز عبور"
           required
@@ -115,6 +118,33 @@ const styles = StyleSheet.create({
   content: { padding: 24, gap: 12 },
   headline: { fontSize: 20, fontFamily: Fonts.bold, color: Colors.ink },
   sub: { fontSize: 13, fontFamily: Fonts.regular, color: Colors.muted, lineHeight: 22 },
+  phoneRow: { flexDirection: 'row', gap: 8 },
+  countryCode: {
+    width: 64,
+    borderWidth: 1.5,
+    borderColor: Colors.lineSoft,
+    borderRadius: 10,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.surface,
+  },
+  countryText: { fontSize: 14, fontFamily: Fonts.bold, color: Colors.ink },
+  phoneInput: {
+    flex: 1,
+    borderWidth: 1.5,
+    borderColor: Colors.lineSoft,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    fontFamily: Fonts.regular,
+    color: Colors.ink,
+    backgroundColor: Colors.surface,
+    textAlign: 'left',
+    writingDirection: 'ltr',
+  },
   forgotPasswordLink: {
     alignSelf: 'flex-start',
     flexDirection: 'row-reverse',

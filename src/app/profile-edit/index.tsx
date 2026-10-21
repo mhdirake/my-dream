@@ -1,3 +1,4 @@
+import { photoStatusLabel } from '@/lib/profilePhoto';
 import { AppBar } from '@/components/ui/AppBar';
 import { Colors, Fonts, Radius } from '@/constants/colors';
 import { ClientProfile, profileApi } from '@/lib/api/profile';
@@ -52,6 +53,8 @@ function buildSections(profile: ClientProfile): Section[] {
   const locationPreview = [profile.city, profile.province].filter(Boolean).join('، ') || '—';
 
   return [
+    { icon: Pencil, iconColor: Colors.accent, label: 'ایمیل', value: profile.email ? `\u2066${profile.email}\u2069` : 'ثبت نشده (اختیاری)', onPress: () => router.push('/profile-edit/email' as any) },
+    { icon: Pencil, iconColor: Colors.accent, label: 'عکس پروفایل', value: photoStatusLabel(profile.profile_photo_status), onPress: () => push('/profile-setup/photo', { mode: 'edit' }) },
     {
       icon: Pencil,
       iconColor: Colors.accent,

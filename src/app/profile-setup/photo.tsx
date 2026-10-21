@@ -7,7 +7,9 @@ import { ApiError } from '@/lib/api/client';
 import { onboardingApi } from '@/lib/api/onboarding';
 import { profileApi } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
+import { AppBar } from '@/components/ui/AppBar';
+import { photoStatusLabel } from '@/lib/profilePhoto';
 import * as ImagePicker from 'expo-image-picker';
 import { Camera, CheckCircle, Image as ImageIcon } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
@@ -34,6 +36,9 @@ const BASE = process.env.EXPO_PUBLIC_API_URL ?? '';
 
 export default function PhotoScreen() {
   const insets = useSafeAreaInsets();
+  const { mode } = useLocalSearchParams<{mode?:string}>();
+  const isEdit = mode === 'edit';
+  const [photoStatus,setPhotoStatus] = useState<string | null>(null);
   const { session, logout } = useAuth();
   // existingPhotoUrl = عکس فعلی از سرور (برای نمایش)
   // newPhotoUri = عکس جدید انتخاب‌شده توسط کاربر (برای آپلود)
@@ -53,10 +58,11 @@ export default function PhotoScreen() {
     if (!session?.accessToken) return;
     profileApi.getProfile(session.accessToken)
       .then(p => {
-        const url = p.profile_photo?.urls.medium;
+        setPhotoStatus(p.profile_photo_status);
+        const url = p.profile_photo?.urls.medium ?? p.profile_photo?.urls.original;
         if (url) setExistingPhotoUrl(url.startsWith('http') ? url : `${BASE}${url}`);
       })
-      .catch(() => {});
+      .catch(() => setError('دریافت عکس فعلی ناموفق بود؛ اتصال را بررسی و صفحه را دوباره باز کن.'));
   }, [session]);
 
   const displayUri = newPhotoUri ?? existingPhotoUrl;
@@ -107,7 +113,7 @@ export default function PhotoScreen() {
   const handleNext = async () => {
     if (!session?.accessToken) return;
     if (!newPhotoUri && !existingPhotoUrl) {
-      router.push('/profile-setup/account-ready' as any);
+      if (isEdit) { router.replace('/me' as any); } else { router.push('/profile-setup/account-ready' as any); }
       return;
     }
     setError('');
@@ -116,7 +122,7 @@ export default function PhotoScreen() {
       if (newPhotoUri) {
         await onboardingApi.uploadPhoto(session.accessToken, newPhotoUri);
       }
-      router.push('/profile-setup/account-ready' as any);
+      if (isEdit) { router.replace('/me' as any); } else { router.push('/profile-setup/account-ready' as any); }
     } catch (e: any) {
       if (e instanceof ApiError && e.status === 401) { handleTokenExpired(); return; }
       setError(e.message ?? 'خطا در آپلود عکس');
@@ -141,7 +147,7 @@ export default function PhotoScreen() {
           setError('');
         }}
       />
-      <Stepper step={3} />
+      {isEdit ? <AppBar title="عکس پروفایل" back backFallback="/me" /> : <Stepper step={3} />}
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -167,9 +173,10 @@ export default function PhotoScreen() {
           )}
         </View>
 
+        {!newPhotoUri && existingPhotoUrl && <Text style={[styles.sub, {alignSelf:'center',color:photoStatus === 'rejected' ? Colors.danger : Colors.inkSoft}]}>{photoStatusLabel(photoStatus)}{photoStatus === 'rejected' ? '؛ عکس تازه و مطابق راهنما انتخاب کن.' : ''}</Text>}
         <View style={styles.actionRow}>
           <Button variant="outline" onPress={pickFromGallery} full={false} style={styles.actionBtn}>
-            انتخاب از گالری
+            {photoStatus === 'rejected' ? 'تعویض عکس' : 'انتخاب از گالری'}
           </Button>
           <Button variant="ghost" onPress={pickFromCamera} full={false} style={styles.actionBtn}>
             گرفتن عکس
@@ -208,7 +215,7 @@ export default function PhotoScreen() {
             full={false}
             style={styles.btnNext}
           >
-            {uploading ? 'در حال آپلود…' : newPhotoUri ? 'آپلود و ادامه' : existingPhotoUrl ? 'ادامه' : 'رد کردن'}
+            {uploading ? 'در حال آپلود…' : newPhotoUri ? (isEdit ? 'ذخیره عکس' : 'آپلود و ادامه') : existingPhotoUrl ? 'ادامه' : 'رد کردن'}
           </Button>
         </View>
       </View>

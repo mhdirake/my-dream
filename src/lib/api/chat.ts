@@ -1,6 +1,6 @@
 import { File as FSFile, UploadType } from 'expo-file-system';
 import { Platform } from 'react-native';
-import { api } from './client';
+import { api, ApiError } from './client';
 import { apiUrl } from './url';
 
 export type ConversationUserPhoto = {
@@ -272,7 +272,7 @@ export const chatApi = {
       });
       const data = JSON.parse(result.body || '{}');
       if (result.status < 200 || result.status >= 300)
-        throw new Error(data?.message ?? `HTTP ${result.status}`);
+        throw new ApiError(result.status, data?.message ?? `HTTP ${result.status}`, data);
       return toMediaUploadResult(data.data as RawMediaFilePayload);
     }
 
@@ -287,7 +287,7 @@ export const chatApi = {
       body: form,
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data?.message ?? `HTTP ${res.status}`);
+    if (!res.ok) throw new ApiError(res.status, data?.message ?? `HTTP ${res.status}`, data);
     return toMediaUploadResult(data.data as RawMediaFilePayload);
   },
 
@@ -312,7 +312,7 @@ export const chatApi = {
       });
       const data = JSON.parse(result.body || '{}');
       if (result.status < 200 || result.status >= 300)
-        throw new Error(data?.message ?? `HTTP ${result.status}`);
+        throw new ApiError(result.status, data?.message ?? `HTTP ${result.status}`, data);
       return toMediaUploadResult(data.data as RawMediaFilePayload);
     }
 
@@ -328,7 +328,7 @@ export const chatApi = {
       body: form,
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data?.message ?? `HTTP ${res.status}`);
+    if (!res.ok) throw new ApiError(res.status, data?.message ?? `HTTP ${res.status}`, data);
     return toMediaUploadResult(data.data as RawMediaFilePayload);
   },
 

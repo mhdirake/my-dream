@@ -1,3 +1,4 @@
+import { photoStatusLabel } from '@/lib/profilePhoto';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { WebImageCropModal } from '@/components/ui/WebImageCropModal';
@@ -33,11 +34,12 @@ const MENU_ITEMS: MenuItem[] = [
   { icon: Pencil,      iconColor: Colors.purple,   label: 'ویرایش پروفایل',    sub: 'اطلاعات، عکس، بیو',          route: '/profile-edit' },
   { icon: LayoutGrid,  iconColor: Colors.accent,   label: 'پیش‌نمایش پروفایل', sub: 'درصد تکمیل و موارد ناقص',   route: '/profile-setup/profile-preview' },
   { icon: Brain,       iconColor: Colors.purple,   label: 'تست شخصیت',          sub: 'تست شخصیت · بج طلایی',      route: '/profile-setup/personality-test-intro' },
-  { icon: Sparkles,   iconColor: Colors.purple,   label: 'آنالیز هوش مصنوعی', sub: 'تحلیل شخصیتی من',            route: '/ai-insight/self' },
+  { icon: Sparkles,   iconColor: Colors.purple,   label: 'آنالیز هوش مصنوعی', sub: 'تحلیل شخصیتی من',            comingSoon: true },
   { icon: Bot,        iconColor: Colors.accent,   label: 'مربی هوش مصنوعی',  sub: 'گفتگو با مربی هوش مصنوعی',     comingSoon: true },
   { icon: Shield,     iconColor: Colors.trust,    label: 'احراز هویت',         sub: 'تأیید پایه · AI · جامعه',    route: '/verification' },
   { icon: Bell,        iconColor: Colors.trust,    label: 'اعلان‌ها',           sub: 'مدیریت اعلان‌ها',            route: '/notifications' },
   { icon: Shield,      iconColor: Colors.ok,       label: 'حریم خصوصی',        sub: 'حالت امن · کنترل پیام',      route: '/settings/privacy' },
+  { icon: Star, iconColor: Colors.goldDeep, label: 'اشتراک‌های من', sub: 'فعال، در صف و تاریخچه', route: '/subscriptions' },
   { icon: Star,        iconColor: Colors.goldDeep, label: 'اشتراک و ارتقا',    sub: 'نقره‌ای · طلایی',            route: '/subscription' },
   { icon: Coins,       iconColor: Colors.goldDeep, label: 'کیف پول و سکه',     sub: 'سکه‌های من',                  route: '/gifts/wallet' },
   { icon: AlertTriangle, iconColor: Colors.danger,  label: 'محدودیت‌ها',         sub: 'وضعیت حساب',                 route: '/settings/restrictions' },
@@ -163,7 +165,7 @@ export default function MeScreen() {
   const displayName = [profile?.first_name ?? user?.first_name, profile?.last_name ?? user?.last_name]
     .filter(Boolean).join(' ') || user?.username || '—';
 
-  const photoUrl = absoluteUrl(profile?.profile_photo?.urls.medium);
+  const photoUrl = absoluteUrl(profile?.profile_photo?.urls.medium ?? profile?.profile_photo?.urls.original);
   const completion = profile?.profile_completion_percent ?? 0;
   const PLAN_FA: Record<string, string> = { basic: 'پایه', silver: 'نقره‌ای', gold: 'طلایی' };
   const rawPlan = (profile?.active_subscription?.plan?.slug ?? 'basic').toLowerCase();
@@ -208,7 +210,10 @@ export default function MeScreen() {
             </TouchableOpacity>
 
             <View style={styles.profileInfo}>
-              <View style={styles.nameRow}>
+              <TouchableOpacity onPress={() => router.push({pathname:'/profile-setup/photo' as any,params:{mode:'edit'}})} accessibilityRole="button">
+              <Text style={{fontFamily:Fonts.regular,fontSize:12,color:profile?.profile_photo_status === 'rejected' ? Colors.danger : Colors.muted,textAlign:'right'}}>{photoStatusLabel(profile?.profile_photo_status)}</Text>
+            </TouchableOpacity>
+            <View style={styles.nameRow}>
                 <Text style={styles.name}>{displayName}</Text>
               </View>
               <View style={styles.badgesRow}>

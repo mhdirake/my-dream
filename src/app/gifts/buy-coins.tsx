@@ -3,55 +3,56 @@ import { Button } from '@/components/ui/Button';
 import { DetailCard } from '@/components/ui/DetailCard';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { paymentsApi, type CoinPackage } from '@/lib/api/payments';
+import { paymentsApi, type CoinPricing } from '@/lib/api/payments';
 import { payAndWait } from '@/lib/payments/payAndWait';
+import { coinPurchaseQuote, normalizeCoinQuantity } from '@/lib/coinPurchase';
 import { toast } from '@/lib/toast';
 import { router } from 'expo-router';
 import { Coins, Gift, Lightbulb, Sparkles, Star, VenetianMask } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View,
+  ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const toPersian = (n: number) => String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
 
 function formatPrice(amountRial: number): string {
-  const toman = Math.round(amountRial / 10);
-  const withSep = toman.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  return withSep.replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]).replace(/,/g, '٬') + ' تومان';
+  return (amountRial / 10).toLocaleString('fa-IR', { maximumFractionDigits: 1 }) + ' تومان';
 }
 
 export default function BuyCoinsScreen() {
   const insets = useSafeAreaInsets();
   const { session } = useAuth();
-  const [packages, setPackages] = useState<CoinPackage[]>([]);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [pricing, setPricing] = useState<CoinPricing | null>(null);
+  const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
+  const [customAmount, setCustomAmount] = useState('');
+  const [loadError, setLoadError] = useState('');
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
 
-  useEffect(() => {
+  const loadPricing = async () => {
     if (!session?.accessToken) return;
-    paymentsApi.getCoinPackages(session.accessToken)
-      .then(pkgs => {
-        // فقط پکیج‌هایی که metadata معتبر دارن — پکیج بدون قیمت/تعداد سکه crash و UI خراب می‌سازه
-        const valid = pkgs.filter(
-          p => typeof p.metadata?.coin_amount === 'number' && typeof p.metadata?.price_amount === 'number',
-        );
-        setPackages(valid);
-        if (valid.length > 0) setSelectedId(valid[0].id);
-      })
-      .catch(() => toast.error('خطا در بارگذاری بسته‌ها'))
-      .finally(() => setLoading(false));
-  }, [session?.accessToken]);
+    setLoading(true); setLoadError('');
+    try {
+      const next = await paymentsApi.getCoinPricing(session.accessToken);
+      setPricing(next);
+      setSelectedAmount(next.preset_amounts[0] ?? null);
+    } catch (error) {
+      setPricing(null);
+      setLoadError(error instanceof Error ? error.message : 'دریافت قیمت سکه انجام نشد.');
+    } finally { setLoading(false); }
+  };
+  useEffect(() => { void loadPricing(); }, [session?.accessToken]);
 
-  const pkg = packages.find(p => p.id === selectedId) ?? null;
+  const rawAmount = selectedAmount === null ? customAmount : String(selectedAmount);
+  const quote = pricing ? coinPurchaseQuote(rawAmount, pricing.unit_price_amount, pricing.minimum_coins) : null;
 
   const handleBuy = async () => {
-    if (!session?.accessToken || !pkg || paying) return;
+    if (!session?.accessToken || !quote || paying) return;
     setPaying(true);
     try {
-      const res = await paymentsApi.payCoinPackage(session.accessToken, pkg.id);
+      const res = await paymentsApi.payCoinQuantity(session.accessToken, quote.coins, pricing!.unit_price_amount);
       const result = await payAndWait(session.accessToken, res.data.id, res.payment_url);
       if (result.status === 'completed') {
         toast.success('سکه با موفقیت اضافه شد!');
@@ -81,52 +82,55 @@ export default function BuyCoinsScreen() {
             <DetailCard
               style={styles.header}
               icon={<Coins size={30} color={Colors.gold} strokeWidth={1.8} />}
-              title="بسته سکه انتخاب کن"
+              title="تعداد سکه را انتخاب کن"
               subtitle="سکه‌ها برای ارسال هدیه، بج طلایی و آنالیز هوش مصنوعی استفاده می‌شن"
             />
 
-            {/* Packages */}
-            {packages.map(p => {
-              const isSelected = p.id === selectedId;
-              return (
-                <TouchableOpacity
-                  key={p.id}
-                  style={[styles.pkgCard, isSelected && styles.pkgCardActive]}
-                  onPress={() => setSelectedId(p.id)}
-                  activeOpacity={0.8}
-                >
+            {!!loadError && <View style={styles.summaryCard}>
+              <Text style={styles.emptyTxt}>{loadError}</Text>
+              <Button variant="ghost" onPress={loadPricing}>تلاش مجدد</Button>
+            </View>}
+            {pricing && <>
+              <Text style={styles.summaryLabel}>قیمت هر سکه: {formatPrice(pricing.unit_price_amount)}</Text>
+              {pricing.preset_amounts.map(amount => {
+                const selected = amount === selectedAmount;
+                return <TouchableOpacity key={amount} style={[styles.pkgCard, selected && styles.pkgCardActive]} onPress={() => setSelectedAmount(amount)} disabled={paying} accessibilityRole="radio" accessibilityState={{ checked: selected }}>
                   <View style={styles.pkgLeft}>
-                    <View style={styles.radioOuter}>
-                      {isSelected && <View style={styles.radioDot} />}
-                    </View>
-                    <Text style={[styles.pkgCoins, isSelected && styles.pkgCoinsActive]}>
-                      {toPersian(p.metadata.coin_amount)} سکه
-                    </Text>
+                    <View style={styles.radioOuter}>{selected && <View style={styles.radioDot} />}</View>
+                    <Text style={[styles.pkgCoins, selected && styles.pkgCoinsActive]}>{toPersian(amount)} سکه</Text>
                   </View>
-                  <Text style={[styles.pkgPrice, isSelected && styles.pkgPriceActive]}>
-                    {formatPrice(p.metadata.price_amount)}
-                  </Text>
+                  <Text style={[styles.pkgPrice, selected && styles.pkgPriceActive]}>{formatPrice(amount * pricing.unit_price_amount)}</Text>
+                </TouchableOpacity>;
+              })}
+              <View style={[styles.summaryCard, selectedAmount === null && styles.pkgCardActive]}>
+                <TouchableOpacity onPress={() => setSelectedAmount(null)} disabled={paying} accessibilityRole="radio" accessibilityState={{ checked: selectedAmount === null }}>
+                  <Text style={styles.pkgCoins}>تعداد دلخواه</Text>
                 </TouchableOpacity>
-              );
-            })}
-
-            {packages.length === 0 && (
-              <Text style={styles.emptyTxt}>بسته‌ای موجود نیست</Text>
-            )}
-
-            {/* Summary */}
-            {pkg && (
-              <View style={styles.summaryCard}>
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>بسته انتخابی</Text>
-                  <Text style={styles.summaryVal}>{toPersian(pkg.metadata.coin_amount)} سکه</Text>
-                </View>
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>مبلغ</Text>
-                  <Text style={styles.summaryPrice}>{formatPrice(pkg.metadata.price_amount)}</Text>
-                </View>
+                <TextInput
+                  accessibilityLabel="تعداد دلخواه سکه"
+                  style={styles.customInput}
+                  value={customAmount}
+                  onFocus={() => setSelectedAmount(null)}
+                  onChangeText={value => { setSelectedAmount(null); setCustomAmount(normalizeCoinQuantity(value)); }}
+                  keyboardType="number-pad"
+                  placeholder="مثلاً ۷۵۰"
+                  placeholderTextColor={Colors.muted}
+                  editable={!paying}
+                />
+                <Text style={styles.summaryLabel}>حداقل {toPersian(pricing.minimum_coins)} سکه؛ بدون سقف تعداد</Text>
+                {selectedAmount === null && customAmount !== '' && !quote && <Text style={styles.validationTxt}>تعداد معتبر و حداقل {toPersian(pricing.minimum_coins)} سکه وارد کن.</Text>}
               </View>
-            )}
+              {quote && <View style={styles.summaryCard}>
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>تعداد انتخابی</Text>
+                  <Text style={styles.summaryVal}>{toPersian(quote.coins)} سکه</Text>
+                </View>
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>مبلغ قابل پرداخت</Text>
+                  <Text style={styles.summaryPrice}>{formatPrice(quote.amount)}</Text>
+                </View>
+              </View>}
+            </>}
 
             {/* What coins are used for */}
             <DetailCard
@@ -144,8 +148,8 @@ export default function BuyCoinsScreen() {
           </ScrollView>
 
           <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
-            <Button variant="accent" onPress={handleBuy} disabled={!pkg || paying}>
-              {paying ? 'در حال اتصال به درگاه…' : pkg ? `پرداخت ${formatPrice(pkg.metadata.price_amount)}` : 'پرداخت'}
+            <Button variant="accent" onPress={handleBuy} disabled={!quote || paying}>
+              {paying ? 'در حال اتصال به درگاه…' : quote ? `پرداخت ${formatPrice(quote.amount)}` : 'پرداخت'}
             </Button>
           </View>
         </>
@@ -160,6 +164,8 @@ const styles = StyleSheet.create({
   content: { padding: Spacing.lg, gap: 12 },
   emptyTxt: { fontSize: 13, color: Colors.muted, fontFamily: Fonts.regular, textAlign: 'center', paddingVertical: 20 },
 
+  customInput: { color: Colors.ink, backgroundColor: Colors.bg, borderColor: Colors.lineSoft, borderWidth: 1, borderRadius: 10, padding: 12, fontFamily: Fonts.regular, fontSize: 16, textAlign: 'right' },
+  validationTxt: { color: Colors.danger, fontFamily: Fonts.regular, fontSize: 12 },
   header: { marginBottom: 8 },
 
   pkgCard: {

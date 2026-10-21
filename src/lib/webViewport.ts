@@ -9,6 +9,22 @@ function editable(element: Element | null): element is HTMLElement {
   );
 }
 
+/** Reveal form fields without panning the fixed app window or chat composer. */
+function revealField(win: Window, doc: Document, field: HTMLElement, top: number, bottom: number) {
+  for (let parent = field.parentElement; parent && parent !== doc.body && parent !== doc.documentElement; parent = parent.parentElement) {
+    if (parent.id === 'root') break;
+    if (!/^(auto|scroll)$/.test(win.getComputedStyle(parent).overflowY) || parent.scrollHeight <= parent.clientHeight) continue;
+    const bounds = parent.getBoundingClientRect();
+    const rect = field.getBoundingClientRect();
+    const visibleTop = Math.max(top, bounds.top) + 12;
+    const visibleBottom = Math.min(bottom, bounds.bottom) - 12;
+    const delta = rect.bottom > visibleBottom ? rect.bottom - visibleBottom
+      : rect.top < visibleTop ? rect.top - visibleTop : 0;
+    parent.scrollTop = Math.max(0, Math.min(parent.scrollHeight - parent.clientHeight, parent.scrollTop + delta));
+    break;
+  }
+}
+
 /** One owner for browser viewport sizing, including portals outside #root. */
 export function mountWebViewport(win: Window, doc: Document, onKeyboard: (visible: boolean) => void) {
   const viewport = win.visualViewport;
@@ -47,7 +63,7 @@ export function mountWebViewport(win: Window, doc: Document, onKeyboard: (visibl
     if (editable(field) && inset > 0) {
       const rect = field.getBoundingClientRect();
       if (rect.top < metrics.offsetTop + 12 || rect.bottom > metrics.offsetTop + metrics.height - 12) {
-        field.scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'nearest' });
+        revealField(win, doc, field, metrics.offsetTop, metrics.offsetTop + metrics.height);
       }
     }
   };

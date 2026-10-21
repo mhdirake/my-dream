@@ -1,3 +1,4 @@
+import { ChatSendButton } from '@/components/ui/ChatSendButton';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { ApiError } from '@/lib/api/client';
 import { Message, type MessageSender, chatApi } from '@/lib/api/chat';
@@ -13,6 +14,7 @@ import { useSenderDirectory } from '@/lib/chat/useSenderDirectory';
 import { activitySummary } from '@/lib/chat/activities';
 import { selectInitialChatPosition, type InitialChatPosition } from '@/lib/chat/initialPosition';
 import { formatPersianDate, formatPersianTime } from '@/lib/date/persian';
+import { chatSendError, dailyMessageLimitMessage, requiredMessagePlan } from '@/lib/chat/sendError';
 import { useVoiceRecorder } from '@/lib/chat/useVoiceRecorder';
 import { toFaDigits } from '@/lib/localization';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
@@ -73,12 +75,13 @@ function formatDuration(totalSeconds: number) {
 const VOICE_WAVE_BARS = [3, 5, 10, 18, 18, 15, 18, 9, 8, 10, 7, 5, 6, 13, 16, 14, 19, 12, 10, 16, 20, 8, 6, 13, 9, 17, 19, 17, 16, 13, 11, 10, 8];
 
 function VoiceBubblePlayer({
-  uri, durationSeconds, isMine, tint,
+  uri, durationSeconds, isMine, tint, fullWidth = false,
 }: {
   uri: string;
   durationSeconds: number;
   isMine: boolean;
   tint: string;
+  fullWidth?: boolean;
 }) {
   const player = useAudioPlayer(uri);
   const status = useAudioPlayerStatus(player);
@@ -93,7 +96,7 @@ function VoiceBubblePlayer({
 
   if (status.error) {
     return (
-      <View style={styles.voicePlayerRow}>
+      <View style={[styles.voicePlayerRow, fullWidth && styles.voicePlayerFullWidth]}>
         <ImageOff size={16} color={tint} strokeWidth={1.8} />
         <Text style={[styles.voiceDurationTxt, { color: tint }]}>پیام صوتی در دسترس نیست</Text>
       </View>
@@ -105,7 +108,7 @@ function VoiceBubblePlayer({
     : durationSeconds;
 
   return (
-    <View style={styles.voicePlayerRow}>
+    <View style={[styles.voicePlayerRow, fullWidth && styles.voicePlayerFullWidth]}>
       <TouchableOpacity style={[styles.voicePlayBtn, { backgroundColor: isMine ? 'rgba(255,255,255,0.84)' : Colors.surface3 }]} onPress={toggle} activeOpacity={0.8}>
         {status.playing
           ? <Pause size={18} color={isMine ? Colors.accent : Colors.ink} strokeWidth={2.6} />
@@ -157,7 +160,7 @@ function formatDayLabel(iso: string) {
   return formatPersianDate(iso, { year: d.getFullYear() !== now.getFullYear() });
 }
 
-function MsgLimitCard() {
+function MsgLimitCard({ plan }: { plan: string }) {
   return (
     <View style={msgLimitStyles.card}>
       <View style={msgLimitStyles.row}>
@@ -167,14 +170,14 @@ function MsgLimitCard() {
         <Text style={msgLimitStyles.title}>سقف پیام روزانه</Text>
       </View>
       <Text style={msgLimitStyles.body}>
-        به سقف پیام روزانه رسیدی. می‌تونی پاسخ‌ها رو ببینی و فردا دوباره پیام بفرستی.
+        {dailyMessageLimitMessage(plan)}
       </Text>
       <TouchableOpacity
         style={msgLimitStyles.btn}
         activeOpacity={0.85}
         onPress={() => router.push('/subscription' as never)}
       >
-        <Text style={msgLimitStyles.btnTxt}>ارتقا به Silver — ۵۰۰ پیام در روز</Text>
+        <Text style={msgLimitStyles.btnTxt}>{plan === 'silver' ? 'مشاهدهٔ اشتراک طلایی' : plan === 'gold' ? 'مشاهدهٔ اشتراک فعلی' : 'مشاهدهٔ اشتراک نقره‌ای و طلایی'}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -545,18 +548,6 @@ export default function ConversationScreen() {
     }
   }, []);
 
-  const preventComposerBlurOnWeb = useCallback((event: unknown) => {
-    if (Platform.OS !== 'web') return;
-
-    const maybeEvent = event as {
-      preventDefault?: () => void;
-      nativeEvent?: { preventDefault?: () => void };
-    };
-    maybeEvent.preventDefault?.();
-    maybeEvent.nativeEvent?.preventDefault?.();
-    composerRef.current?.focus();
-  }, []);
-
   useEffect(() => () => {
     for (const timer of composerFocusTimersRef.current) clearTimeout(timer);
     composerFocusTimersRef.current = [];
@@ -905,7 +896,7 @@ export default function ConversationScreen() {
       return;
     }
     if (myPlan !== 'gold') {
-      toast.error('ارسال تصویر مخصوص اشتراک طلایی است');
+      toast.error(requiredMessagePlan('image'));
       router.push('/subscription' as never);
       return;
     }
@@ -958,15 +949,9 @@ export default function ConversationScreen() {
       setText('');
       setReplyingTo(null);
     } catch (err: unknown) {
-      const status = err instanceof ApiError ? err.status : null;
-      const msg = err instanceof Error ? err.message : '';
-      if (status === 403 || msg.includes('403') || msg.includes('مجاز') || msg.toLowerCase().includes('forbidden')) {
-        toast.error('ارسال تصویر مخصوص اشتراک طلایی است');
-      } else if (status === 429 || msg.includes('limit exceeded') || msg.includes('Daily messages')) {
-        setLimitReached(true);
-      } else {
-        toast.error('ارسال تصویر ناموفق بود');
-      }
+      const failure = chatSendError(err, 'image', myPlan);
+      if (failure.dailyLimit) setLimitReached(true);
+      toast.error(failure.message);
     } finally {
       setUploadingImage(false);
       focusComposerOnWeb();
@@ -977,7 +962,7 @@ export default function ConversationScreen() {
     setAttachmentTrayOpen(false);
     setStickerPickerOpen(false);
     if (myPlan === 'basic') {
-      toast.error('ارسال پیام صوتی مخصوص اشتراک نقره‌ای یا طلایی است');
+      toast.error(requiredMessagePlan('voice'));
       router.push('/subscription' as never);
       return;
     }
@@ -1015,15 +1000,9 @@ export default function ConversationScreen() {
       voiceRecorder.reset();
       setReplyingTo(null);
     } catch (err: unknown) {
-      const status = err instanceof ApiError ? err.status : null;
-      const msg = err instanceof Error ? err.message : '';
-      if (status === 403 || msg.includes('403') || msg.includes('مجاز') || msg.toLowerCase().includes('forbidden')) {
-        toast.error('ارسال پیام صوتی مخصوص اشتراک نقره‌ای یا طلایی است');
-      } else if (status === 429 || msg.includes('limit exceeded') || msg.includes('Daily messages')) {
-        setLimitReached(true);
-      } else {
-        toast.error('ارسال پیام صوتی ناموفق بود');
-      }
+      const failure = chatSendError(err, 'voice', myPlan);
+      if (failure.dailyLimit) setLimitReached(true);
+      toast.error(failure.message);
     } finally {
       setSendingVoice(false);
     }
@@ -1153,12 +1132,9 @@ export default function ConversationScreen() {
         await send(body);
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : '';
-      if (msg.includes('limit exceeded') || msg.includes('Daily messages')) {
-        setLimitReached(true);
-      } else {
-        toast.error('ارسال پیام ناموفق بود');
-      }
+      const failure = chatSendError(err, 'text', myPlan);
+      if (failure.dailyLimit) setLimitReached(true);
+      toast.error(failure.message);
     } finally {
       focusComposerOnWeb();
     }
@@ -1674,7 +1650,7 @@ export default function ConversationScreen() {
                 </View>
               ) : null
             }
-            ListFooterComponent={limitReached ? <MsgLimitCard /> : null}
+            ListFooterComponent={limitReached ? <MsgLimitCard plan={myPlan} /> : null}
           />
           {unseenMessageCount > 0 && (
             <TouchableOpacity
@@ -1828,17 +1804,6 @@ export default function ConversationScreen() {
           </View>
         )}
 
-        {!voiceRecorder.isRecording && voiceRecorder.recordedUri && (
-          <View style={styles.voicePreviewBar}>
-            <VoiceBubblePlayer uri={voiceRecorder.recordedUri} durationSeconds={voiceRecorder.recordedDuration} isMine tint={Colors.ink} />
-            {!sendingVoice && (
-              <TouchableOpacity onPress={voiceRecorder.reset} hitSlop={8}>
-                <Trash2 size={16} color={Colors.danger} strokeWidth={2} />
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
-
         {attachmentTrayOpen && !editingId && !pendingImage && !voiceRecorder.recordedUri && (
           <View style={styles.attachmentTray}>
             {!isGroup && (
@@ -1890,7 +1855,7 @@ export default function ConversationScreen() {
           </View>
         )}
 
-        <View style={[styles.inputBar, { paddingBottom: inputBottomPadding }, (!canChat || limitReached) && styles.inputBarDisabled]}>
+        <View style={[styles.inputBar, !!voiceRecorder.recordedUri && styles.voiceComposerBar, { paddingBottom: inputBottomPadding }, (!canChat || limitReached) && styles.inputBarDisabled]}>
           {!canChat || limitReached ? (
             <View style={styles.inputLocked}>
               <Lock size={14} color={Colors.muted} strokeWidth={1.8} />
@@ -1903,30 +1868,36 @@ export default function ConversationScreen() {
               <Check size={18} color={Colors.accent} strokeWidth={2.5} />
             </TouchableOpacity>
           ) : voiceRecorder.recordedUri ? (
-            <TouchableOpacity
-              style={[styles.sendBtn, styles.sendBtnActive]}
-              onPress={handleSendVoice}
-              hitSlop={CHAT_SEND_HIT_SLOP}
-              accessibilityRole="button"
-              accessibilityLabel="ارسال پیام صوتی"
-              disabled={sendingVoice}
-              activeOpacity={0.8}
-            >
-              {sendingVoice ? <ActivityIndicator size="small" color={Colors.accent} /> : <Send size={18} color={Colors.accent} strokeWidth={2} />}
-            </TouchableOpacity>
+            <>
+              <ChatSendButton
+                style={[styles.sendBtn, styles.sendBtnActive]}
+                onPress={handleSendVoice}
+                accessibilityLabel="ارسال پیام صوتی"
+                disabled={sendingVoice}
+              >
+                {sendingVoice ? <ActivityIndicator size="small" color={Colors.accent} /> : <Send size={18} color={Colors.accent} strokeWidth={2} />}
+              </ChatSendButton>
+              <View style={styles.voicePreviewBar}>
+                <VoiceBubblePlayer uri={voiceRecorder.recordedUri} durationSeconds={voiceRecorder.recordedDuration} isMine tint={Colors.ink} fullWidth />
+                <TouchableOpacity
+                  style={styles.voiceDeleteBtn}
+                  onPress={voiceRecorder.reset}
+                  disabled={sendingVoice}
+                  accessibilityRole="button"
+                  accessibilityLabel="حذف صدای ضبط‌شده"
+                >
+                  <Trash2 size={19} color={sendingVoice ? Colors.muted : Colors.danger} strokeWidth={2} />
+                </TouchableOpacity>
+              </View>
+            </>
           ) : (
             <>
-              <TouchableOpacity
+              <ChatSendButton
                 style={[styles.sendBtn, (!!text.trim() || !!pendingImage) && myId > 0 && styles.sendBtnActive]}
-                onPressIn={event => {
-                  if (text.trim() || pendingImage || editingId) preventComposerBlurOnWeb(event);
-                }}
+                preserveFocus={!!text.trim() || !!pendingImage || !!editingId}
                 onPress={pendingImage ? handleSendImage : text.trim() ? handleSend : handleMicPress}
-                hitSlop={CHAT_SEND_HIT_SLOP}
-                accessibilityRole="button"
                 accessibilityLabel={pendingImage ? 'ارسال تصویر' : text.trim() ? (editingId ? 'ذخیره ویرایش پیام' : 'ارسال پیام') : 'ضبط پیام صوتی'}
                 disabled={uploadingImage || myId <= 0}
-                activeOpacity={0.8}
               >
                 {uploadingImage ? (
                   <ActivityIndicator size="small" color={Colors.accent} />
@@ -1940,7 +1911,7 @@ export default function ConversationScreen() {
                     }
                   </>
                 )}
-              </TouchableOpacity>
+              </ChatSendButton>
               <View style={styles.composerShell}>
                 <TextInput
                   ref={composerRef}
@@ -1958,7 +1929,7 @@ export default function ConversationScreen() {
                   value={text}
                   onChangeText={handleTextChange}
                   onFocus={() => { setAttachmentTrayOpen(false); setStickerPickerOpen(false); }}
-                  placeholder={editingId ? 'ویرایش پیام' : pendingImage ? 'افزودن توضیح…' : 'پیام بنویسید…'}
+                  placeholder={editingId ? 'ویرایش پیام' : pendingImage ? '\u200fافزودن توضیح…' : '\u200fپیام بنویسید…'}
                   placeholderTextColor={Colors.muted}
                   multiline
                   maxLength={pendingImage ? 500 : isGroup ? 1000 : 2000}
@@ -2422,12 +2393,19 @@ const styles = StyleSheet.create({
     width: 9, height: 9, borderRadius: 5, backgroundColor: Colors.danger,
   },
   voiceRecordingTxt: { flex: 1, fontFamily: Fonts.semiBold, fontSize: 13, color: Colors.ink },
+  voiceComposerBar: { alignItems: 'center' },
   voicePreviewBar: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingHorizontal: Spacing.lg, paddingVertical: 10,
-    backgroundColor: Colors.surface,
-    borderTopWidth: 1, borderTopColor: Colors.hair,
+    flex: 1, minWidth: 0, minHeight: 56,
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingHorizontal: 10, paddingVertical: 8,
+    backgroundColor: Colors.surface3,
+    borderRadius: 23, borderWidth: 1, borderColor: Colors.lineSoft,
   },
+  voiceDeleteBtn: {
+    width: 44, height: 44, flexShrink: 0,
+    alignItems: 'center', justifyContent: 'center', borderRadius: 22,
+  },
+  voicePlayerFullWidth: { flex: 1, minWidth: 0 },
   voicePlayerRow: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
@@ -2824,6 +2802,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 45,
     maxHeight: 130,
+    writingDirection: 'rtl',
     textAlign: 'right',
     paddingHorizontal: 14,
     paddingTop: 10,

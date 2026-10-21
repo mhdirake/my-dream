@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { localizeErrorMessage } from './localization';
 
 describe('localizeErrorMessage', () => {
+  it('preserves specific Persian subscription explanations', () => {
+    const message = 'برای ارسال عکس باید اشتراک طلایی تهیه کنی.';
+    expect(localizeErrorMessage(message, 403)).toBe(message);
+  });
   it('explains subscription limits clearly', () => {
     expect(localizeErrorMessage('Daily messages limit exceeded', 429)).toBe(
       'به محدودیت اشتراک فعلی‌ات رسیدی. برای ادامه، اشتراکت را ارتقا بده یا بعداً دوباره تلاش کن.',

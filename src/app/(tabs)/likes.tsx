@@ -372,17 +372,19 @@ function ReceivedSection({
           onPress={() => router.push({ pathname: '/user/[id]' as any, params: { id: String(item.sender.id) } })}
           activeOpacity={0.85}
         >
+          <View style={styles.mutualTagSlot}>
           {item.is_mutual && (
             <View style={styles.mutualTag}>
               <Heart size={9} color="#fff" strokeWidth={2} fill="#fff" />
               <Text style={styles.mutualTagTxt}>متقابل</Text>
             </View>
           )}
-          <Avatar size={72} name={item.sender.first_name} photoUrl={mediaUrl(item.sender.profile_photo)} />
+          </View>
+          <Avatar size={Math.min(72, Math.max(40, cardWidth - 27))} name={item.sender.first_name} photoUrl={mediaUrl(item.sender.profile_photo)} />
           <Text style={styles.cardName} numberOfLines={1}>
             {item.sender.first_name}
           </Text>
-          <Text style={styles.cardTime}>{timeAgo(item.sent_at)}</Text>
+          <Text style={styles.cardTime} numberOfLines={1}>{timeAgo(item.sent_at)}</Text>
         </TouchableOpacity>
       ))}
     </View>
@@ -511,17 +513,17 @@ const styles = StyleSheet.create({
   // Real received cards
   receivedCard: {
     backgroundColor: Colors.surface, borderRadius: Radius.xl,
-    padding: 12, alignItems: 'center', gap: 6,
+    paddingHorizontal: 10, paddingTop: 10, paddingBottom: 14, alignItems: 'center', gap: 8,
     borderWidth: 1.5, borderColor: Colors.hair, overflow: 'hidden',
   },
   receivedCardMutual: { borderColor: Colors.accent, backgroundColor: Colors.accentSoft },
+  mutualTagSlot: { height: 24, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center' },
   mutualTag: {
-    position: 'absolute', top: 0, left: 0, right: 0,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
-    backgroundColor: Colors.accent, paddingVertical: 3,
+    backgroundColor: Colors.accent, paddingVertical: 3, paddingHorizontal: 8, borderRadius: Radius.pill,
   },
   mutualTagTxt: { fontSize: 9.5, fontFamily: Fonts.bold, color: '#fff' },
-  cardName: { fontSize: 13, fontFamily: Fonts.bold, color: Colors.ink, marginTop: 4 },
+  cardName: { alignSelf: 'stretch', textAlign: 'center', fontSize: 13, fontFamily: Fonts.bold, color: Colors.ink, marginTop: 2 },
   cardTime: { fontSize: 10.5, color: Colors.muted, fontFamily: Fonts.regular },
 
   // Sent list

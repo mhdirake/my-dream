@@ -42,9 +42,14 @@ function toPersianDigits(value: string | number): string {
 }
 
 export function isolateMixedDirectionText(value: string): string {
-  return value.replace(/[A-Za-z0-9][A-Za-z0-9._@+\- ]*[A-Za-z0-9]|\b[A-Za-z0-9]\b/g, match =>
-    `\u2068${match.trim()}\u2069`,
-  );
+  return value.replace(/[A-Za-z0-9][A-Za-z0-9.,٬٫_@+\- ]*[A-Za-z0-9]|\b[A-Za-z0-9]\b/g, match => {
+    const token = match.trim();
+    if (/^[0-9][0-9.,٬٫]*$/.test(token)) {
+      // Keep thousands groups together instead of isolating "2" and "000".
+      return `\u2066${toPersianDigits(token).replace(/,/g, '٬').replace(/\./g, '٫')}\u2069`;
+    }
+    return `\u2068${token}\u2069`;
+  });
 }
 
 export function giftNotificationDetail(notification: AppNotification): string | null {

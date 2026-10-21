@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   type AppNotification,
   giftNotificationDetail,
+  isolateMixedDirectionText,
   isGroupMessageNotification,
 } from './notifications';
 
@@ -86,5 +87,16 @@ describe('giftNotificationDetail', () => {
         duration_days: 30,
       }),
     )).toBe('اشتراک طلایی، ۳۰ روزه');
+  });
+});
+
+describe('notification text direction', () => {
+  it('keeps a grouped amount in one LTR isolate with Persian digits', () => {
+    expect(isolateMixedDirectionText('مهدی تعداد 2,000 سکه فرستاد.')).toBe('مهدی تعداد \u2066۲٬۰۰۰\u2069 سکه فرستاد.');
+    expect(isolateMixedDirectionText('مبلغ 12,345,678 ریال')).toBe('مبلغ \u2066۱۲٬۳۴۵٬۶۷۸\u2069 ریال');
+  });
+  it('localizes ungrouped numbers without changing Latin gift names', () => {
+    expect(isolateMixedDirectionText('تعداد 200 سکه')).toBe('تعداد \u2066۲۰۰\u2069 سکه');
+    expect(isolateMixedDirectionText('هدیه Golden Heart')).toBe('هدیه \u2068Golden Heart\u2069');
   });
 });

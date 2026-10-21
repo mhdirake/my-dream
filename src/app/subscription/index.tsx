@@ -111,6 +111,7 @@ export default function PlansScreen() {
     <SafeAreaView style={styles.root}>
       <AppBar title="اشتراک و ارتقا" back contentGap />
 
+      <TouchableOpacity onPress={() => router.push('/subscriptions' as any)} style={{padding:16,alignItems:'center'}} accessibilityRole="button"><Text style={{fontFamily:Fonts.bold,color:Colors.accent}}>اشتراک‌های من · فعال، در صف و تاریخچه</Text></TouchableOpacity>
       {/* Period tabs */}
       <View style={styles.periodRow}>
         {PERIODS.map(p => (
