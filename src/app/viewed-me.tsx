@@ -201,7 +201,7 @@ export default function ViewedMeScreen() {
     }
   }, [session]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { void Promise.resolve().then(load); }, [load]);
 
   const onRefresh = () => { setRefreshing(true); load(); };
 

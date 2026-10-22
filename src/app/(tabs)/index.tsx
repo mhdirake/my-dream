@@ -90,11 +90,20 @@ function badgeKind(slug: string): 'ai' | 'community' | 'gold' | 'complete' | 'pe
 function LikeButton({ onPress, liked }: { onPress: () => void; liked: boolean }) {
   const scale = useSharedValue(1);
   const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const pressIn = () => {
+    // Reanimated shared values are mutable animation state, not React render state.
+    // eslint-disable-next-line react-hooks/immutability
+    scale.value = withSpring(0.86, { damping: 20, stiffness: 300 });
+  };
+  const pressOut = () => {
+    // eslint-disable-next-line react-hooks/immutability
+    scale.value = withSpring(1, { damping: 10, stiffness: 200 });
+  };
   return (
     <Pressable
       onPress={onPress}
-      onPressIn={() => { scale.value = withSpring(0.86, { damping: 20, stiffness: 300 }); }}
-      onPressOut={() => { scale.value = withSpring(1, { damping: 10, stiffness: 200 }); }}
+      onPressIn={pressIn}
+      onPressOut={pressOut}
     >
       <Animated.View style={[styles.actionLike, animStyle]}>
         <Heart style={styles.actionLikeIcon} size={30} color={Colors.accent} fill={liked ? Colors.accent : 'none'} strokeWidth={liked ? 0 : 2} />
@@ -159,6 +168,8 @@ function SwipeCard({
       translateX.value = e.translationX;
       translateY.value = e.translationY;
     })
+    // Gesture callbacks execute outside React rendering and may use shared values and refs.
+    // eslint-disable-next-line react-hooks/refs
     .onEnd((e) => {
       if (Math.abs(e.translationX) > SWIPE_THRESHOLD) {
         const dir = e.translationX > 0 ? 1 : -1;
@@ -389,6 +400,8 @@ function SwipeView({
   const profileIdsSignature = profiles.map(profile => profile.id).join(',');
 
   useEffect(() => {
+    // A new server-provided pool starts at its first card.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIndex(0);
     setLiked(false);
     refilledRef.current = false;
@@ -406,6 +419,8 @@ function SwipeView({
   }, [current, profiles, loading, onExhausted]);
 
   useEffect(() => {
+    // Reconcile the card-local like state after the active candidate changes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLiked(current?.liked_by_me ?? false);
   }, [index, current]);
 
@@ -790,6 +805,7 @@ function FloatingHeader({
 export default function DiscoverScreen() {
   const [mode, setMode] = useState<Mode>('swipe');
   const { session, user } = useAuth();
+  const accessToken = session?.accessToken;
   const [safeMode, setSafeMode] = useState(false);
   const [hasUnread, setHasUnread] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -802,13 +818,13 @@ export default function DiscoverScreen() {
   } = useDailySuggestions(session?.accessToken, mode === 'daily', user?.id ?? session?.userId);
 
   const fetchUnread = useCallback(() => {
-    if (!session?.accessToken) return;
-    notificationsApi.list(session.accessToken, 1, true)
+    if (!accessToken) return;
+    notificationsApi.list(accessToken, 1, true)
       .then(response => setHasUnread(response.data.some(notification =>
         !notification.read_at && !isGroupMessageNotification(notification),
       )))
       .catch(() => {});
-  }, [session?.accessToken]);
+  }, [accessToken]);
 
   useFocusEffect(useCallback(() => { fetchUnread(); }, [fetchUnread]));
 

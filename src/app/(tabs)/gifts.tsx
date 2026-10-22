@@ -58,6 +58,7 @@ const SCREEN_TABS = [
 
 export default function GiftsScreen() {
   const { session } = useAuth();
+  const accessToken = session?.accessToken;
   const { bottom, left, right } = useSafeAreaInsets();
   const contentWidth = Math.max(0, useAppWidth() - left - right);
   const storeCardWidth = (contentWidth - Spacing.lg * 2 - GRID_GAP * (STORE_COLUMNS - 1)) / STORE_COLUMNS;
@@ -74,11 +75,11 @@ export default function GiftsScreen() {
   const [loadingReceived, setLoadingReceived] = useState(false);
 
   const loadStore = useCallback(() => {
-    if (!session?.accessToken) return;
+    if (!accessToken) return;
     setLoading(true);
     Promise.all([
-      giftsApi.list(session.accessToken),
-      paymentsApi.getWallet(session.accessToken),
+      giftsApi.list(accessToken),
+      paymentsApi.getWallet(accessToken),
     ])
       .then(([giftList, wallet]) => {
         setGifts(giftList);
@@ -86,26 +87,28 @@ export default function GiftsScreen() {
       })
       .catch(() => toast.error('خطا در بارگذاری هدایا'))
       .finally(() => setLoading(false));
-  }, [session?.accessToken]);
+  }, [accessToken]);
 
   const loadReceived = useCallback(() => {
-    if (!session?.accessToken) return;
+    if (!accessToken) return;
     setLoadingReceived(true);
-    giftsApi.mine(session.accessToken)
+    giftsApi.mine(accessToken)
       .then(setReceived)
       .catch(e => toast.error(e.message ?? 'خطا'))
       .finally(() => setLoadingReceived(false));
-  }, [session?.accessToken]);
+  }, [accessToken]);
 
-  useEffect(() => { loadStore(); }, [loadStore]);
+  useEffect(() => { void Promise.resolve().then(loadStore); }, [loadStore]);
 
   useEffect(() => {
+    // Route parameters are external navigation state, so sync the selected tab when they change.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (params.tab === 'received') setScreenTab('received');
   }, [params.tab]);
 
   useEffect(() => {
-    if (screenTab === 'received' && received.length === 0) loadReceived();
-  }, [screenTab]);
+    if (screenTab === 'received' && received.length === 0) void Promise.resolve().then(loadReceived);
+  }, [screenTab, received.length, loadReceived]);
 
   const matchesCategory = (type: string) => filterTab === 'all' || type === filterTab;
   const filtered = gifts.filter(g => matchesCategory(g.type));

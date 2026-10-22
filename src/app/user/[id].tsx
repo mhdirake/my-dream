@@ -19,6 +19,7 @@ import { paymentsApi } from '@/lib/api/payments';
 import { toast } from '@/lib/toast';
 import { toFaDigits } from '@/lib/localization';
 import { profileApi, type ClientProfile, type UserProfile } from '@/lib/api/profile';
+import { apiUrl } from '@/lib/api/url';
 import { profileCache } from '@/lib/cache/profileCache';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { normalizeCompatibility } from '@/lib/discovery/compatibility';
@@ -117,11 +118,44 @@ function formatVoiceDuration(totalSeconds: number) {
   return toFaDigits(`${m}:${String(s).padStart(2, '0')}`);
 }
 
-function VoiceIntroPlayer({ uri, durationSeconds }: { uri: string; durationSeconds: number }) {
-  const player = useAudioPlayer(uri);
+function VoiceIntroPlayer({ uri, token, durationSeconds }: { uri: string; token: string; durationSeconds: number }) {
+  const requestKey = `${uri}:${token}`;
+  const [webAudio, setWebAudio] = useState<{ key: string; url: string } | null>(null);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+
+    const controller = new AbortController();
+    let objectUrl: string | null = null;
+    void fetch(apiUrl(uri), {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store',
+      signal: controller.signal,
+    }).then(response => {
+      if (!response.ok) throw new Error('Voice intro is unavailable');
+      return response.blob();
+    }).then(blob => {
+      if (controller.signal.aborted) return;
+      objectUrl = URL.createObjectURL(blob);
+      setWebAudio({ key: requestKey, url: objectUrl });
+    }).catch(() => {
+      if (!controller.signal.aborted) setWebAudio(null);
+    });
+
+    return () => {
+      controller.abort();
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [uri, token, requestKey]);
+
+  const source = Platform.OS === 'web'
+    ? (webAudio?.key === requestKey ? webAudio.url : null)
+    : { uri: apiUrl(uri), headers: { Authorization: `Bearer ${token}` } };
+  const player = useAudioPlayer(source);
   const status = useAudioPlayerStatus(player);
 
   const toggle = () => {
+    if (!status.isLoaded) return;
     if (status.playing) player.pause();
     else {
       if (status.currentTime >= (status.duration || durationSeconds)) player.seekTo(0);
@@ -135,7 +169,7 @@ function VoiceIntroPlayer({ uri, durationSeconds }: { uri: string; durationSecon
     : resolvedDuration;
 
   return (
-    <TouchableOpacity style={styles.voiceIntroRow} onPress={toggle} activeOpacity={0.8}>
+    <TouchableOpacity style={styles.voiceIntroRow} onPress={toggle} disabled={!status.isLoaded} activeOpacity={0.8}>
       <View style={styles.voiceIntroBtn}>
         {status.playing
           ? <Pause size={16} color="#fff" fill="#fff" strokeWidth={0} />
@@ -907,10 +941,10 @@ export default function ProfileViewScreen() {
         )}
 
         {/* ── SILVER ────────────────────────────────────────────────── */}
-        {isAtLeastSilver && profile.voice_intro_url && (
+        {isAtLeastSilver && profile.voice_intro_url && session?.accessToken && (
           <View style={styles.section}>
             <Text style={styles.infoBlockLabel}>معرفی صوتی</Text>
-            <VoiceIntroPlayer uri={profile.voice_intro_url} durationSeconds={profile.voice_intro_duration_seconds ?? 1} />
+            <VoiceIntroPlayer uri={profile.voice_intro_url} token={session.accessToken} durationSeconds={profile.voice_intro_duration_seconds ?? 1} />
           </View>
         )}
 

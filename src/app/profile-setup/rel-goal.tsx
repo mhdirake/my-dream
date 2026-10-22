@@ -66,7 +66,7 @@ export default function RelGoalScreen() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { loadGoals(); }, [session]);
+  useEffect(() => { void Promise.resolve().then(loadGoals); }, [session]);
 
   const handleSave = async () => {
     if (!session?.accessToken || selected === null) return;

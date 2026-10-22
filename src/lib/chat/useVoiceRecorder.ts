@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   AudioModule,
   RecordingPresets,
@@ -17,13 +17,27 @@ export function useVoiceRecorder() {
   const autoStopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // ref تا stop (که در setTimeout مسیر auto-stop از closure قدیمی صدا زده می‌شه) همیشه مدت واقعی رو بخونه
   const durationMsRef = useRef(0);
-  durationMsRef.current = recorderState.durationMillis ?? 0;
+  useEffect(() => {
+    durationMsRef.current = recorderState.durationMillis ?? 0;
+  }, [recorderState.durationMillis]);
 
   useEffect(() => () => {
     if (autoStopRef.current) clearTimeout(autoStopRef.current);
   }, []);
 
-  const start = useCallback(async (): Promise<boolean> => {
+  const stop = async () => {
+    if (autoStopRef.current) {
+      clearTimeout(autoStopRef.current);
+      autoStopRef.current = null;
+    }
+    if (!recorder.isRecording) return;
+    const durationMs = durationMsRef.current;
+    await recorder.stop();
+    setRecordedUri(recorder.uri ?? null);
+    setRecordedDuration(Math.min(60, Math.max(1, Math.round(durationMs / 1000))));
+  };
+
+  const start = async (): Promise<boolean> => {
     const perm = await AudioModule.requestRecordingPermissionsAsync();
     if (!perm.granted) return false;
 
@@ -34,25 +48,13 @@ export function useVoiceRecorder() {
     recorder.record();
 
     autoStopRef.current = setTimeout(() => {
-      stop();
+      void stop();
     }, MAX_DURATION_MS);
 
     return true;
-  }, [recorder]);
+  };
 
-  const stop = useCallback(async () => {
-    if (autoStopRef.current) {
-      clearTimeout(autoStopRef.current);
-      autoStopRef.current = null;
-    }
-    if (!recorder.isRecording) return;
-    const durationMs = durationMsRef.current;
-    await recorder.stop();
-    setRecordedUri(recorder.uri ?? null);
-    setRecordedDuration(Math.min(60, Math.max(1, Math.round(durationMs / 1000))));
-  }, [recorder]);
-
-  const cancel = useCallback(async () => {
+  const cancel = async () => {
     if (autoStopRef.current) {
       clearTimeout(autoStopRef.current);
       autoStopRef.current = null;
@@ -60,12 +62,12 @@ export function useVoiceRecorder() {
     if (recorder.isRecording) await recorder.stop();
     setRecordedUri(null);
     setRecordedDuration(0);
-  }, [recorder]);
+  };
 
-  const reset = useCallback(() => {
+  const reset = () => {
     setRecordedUri(null);
     setRecordedDuration(0);
-  }, []);
+  };
 
   return {
     isRecording: recorderState.isRecording,

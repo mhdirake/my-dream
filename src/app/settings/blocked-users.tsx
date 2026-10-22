@@ -49,7 +49,7 @@ export default function BlockedUsersScreen() {
   }, [token]);
 
   useEffect(() => {
-    fetchPage(1, true).finally(() => setLoading(false));
+    void Promise.resolve().then(() => fetchPage(1, true)).finally(() => setLoading(false));
   }, [fetchPage]);
 
   const loadMore = async () => {

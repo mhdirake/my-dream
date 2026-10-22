@@ -47,7 +47,7 @@ export default function SelfInsightScreen() {
     }
   };
 
-  useEffect(() => { load(); }, [session?.accessToken]);
+  useEffect(() => { void Promise.resolve().then(load); }, [session?.accessToken]);
 
   useEffect(() => {
     if (!session?.accessToken) return;

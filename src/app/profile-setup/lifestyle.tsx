@@ -53,7 +53,7 @@ export default function LifestyleScreen() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { loadTags(); }, [session]);
+  useEffect(() => { void Promise.resolve().then(loadTags); }, [session]);
 
   const byCategory = useMemo(() => {
     const map = new Map<string, LifestyleTagOption[]>();

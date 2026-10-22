@@ -45,6 +45,8 @@ export default function PaymentDetailScreen() {
     if (!token || !Number.isFinite(paymentId) || paymentId <= 0) return;
 
     let active = true;
+    // A new payment identifier starts a new status request.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     paymentsApi.getStatus(token, paymentId)
       .then(data => {
