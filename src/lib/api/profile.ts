@@ -138,10 +138,10 @@ export const profileApi = {
       last_name?: string | null;
       birth_date?: string;
       gender?: 'male' | 'female';
-      bio?: string;
-      height_cm?: number;
-      job?: string;
-      education?: string;
+      bio?: string | null;
+      height_cm?: number | null;
+      job?: string | null;
+      education?: string | null;
       religiosity_level?: number;
       safe_mode_enabled?: boolean;
       relationship_goal_id?: number;
@@ -157,9 +157,11 @@ export const profileApi = {
     answers: { profile_prompt_id: number; answer: string }[],
   ) => api.post<{ data: ClientProfile }>('/api/client/profile/prompts', { answers }, token),
 
-  uploadVoiceIntro: async (token: string, uri: string, durationSeconds: number, mimeType = 'audio/mp4') => {
+  uploadVoiceIntro: async (token: string, uri: string, durationSeconds?: number, mimeType = 'audio/mp4', visibility?: 'public' | 'hidden') => {
     const url = apiUrl('/api/client/profile/voice-intro');
-    const parameters = { duration_seconds: String(durationSeconds) };
+    const parameters: Record<string, string> = {};
+    if (durationSeconds != null) parameters.duration_seconds = String(durationSeconds);
+    if (visibility) parameters.visibility = visibility;
 
     if (Platform.OS !== 'web') {
       const file = new FSFile(uri);
@@ -180,7 +182,7 @@ export const profileApi = {
     const file = recordedAudioFile(blob, mimeType);
     const form = new FormData();
     form.append('voice', file);
-    form.append('duration_seconds', String(durationSeconds));
+    Object.entries(parameters).forEach(([key, value]) => form.append(key, value));
     const res = await fetch(url, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },

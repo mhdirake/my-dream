@@ -1,8 +1,6 @@
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
 import { KeyboardAvoider } from '@/components/ui/KeyboardAvoider';
 import { KeyboardStickyBar } from '@/components/ui/KeyboardStickyBar';
-import { BioHelperModal } from '@/components/BioHelperModal';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { profileApi } from '@/lib/api/profile';
@@ -12,12 +10,10 @@ import { useSafeBack } from '@/lib/useSafeBack';
 import { Sparkles } from 'lucide-react-native';
 import { useState } from 'react';
 import {
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -34,13 +30,12 @@ export default function BioScreen() {
   const safeBack = useSafeBack('/profile-edit');
   const [bio, setBio] = useState(typeof currentBio === 'string' ? currentBio : '');
   const [saving, setSaving] = useState(false);
-  const [helperOpen, setHelperOpen] = useState(false);
 
   const handleSave = async () => {
     if (!session?.accessToken) return;
     setSaving(true);
     try {
-      await profileApi.updateProfile(session.accessToken, { bio: bio.trim() || undefined });
+      await profileApi.updateProfile(session.accessToken, { bio: bio.trim() || null });
       if (isEdit) safeBack();
       else router.push('/profile-setup/rel-goal' as any);
     } catch (e: any) {
@@ -70,26 +65,6 @@ export default function BioScreen() {
           maxLength={MAX}
         />
         <Text style={styles.counter}>{toPersian(bio.length)} / {toPersian(MAX)}</Text>
-
-        <TouchableOpacity onPress={() => setHelperOpen(true)} activeOpacity={0.8}>
-          <Card soft style={styles.aiCard}>
-            <View style={styles.aiHeader}>
-              <Sparkles size={14} color={Colors.purple} strokeWidth={2} />
-              <Text style={styles.aiTitle}>کمک از AI Coach</Text>
-              <View style={styles.aiBadge}><Text style={styles.aiBadgeText}>پیشنهاد</Text></View>
-            </View>
-            <Text style={styles.aiBody}>
-              ضربه بزن — AI برات ۳ تا Bio پیشنهاد میده. یکی رو انتخاب کن.
-            </Text>
-          </Card>
-        </TouchableOpacity>
-
-        <BioHelperModal
-          visible={helperOpen}
-          currentBio={bio}
-          onSelect={text => setBio(text.slice(0, MAX))}
-          onClose={() => setHelperOpen(false)}
-        />
 
         <View style={{ height: 100 }} />
       </ScrollView>
@@ -145,18 +120,9 @@ const styles = StyleSheet.create({
     borderWidth: 1.5, borderColor: Colors.ink, borderRadius: 10,
     padding: 12, minHeight: 100, fontSize: 14, fontFamily: Fonts.regular,
     color: Colors.ink, lineHeight: 22, backgroundColor: Colors.surface,
-    textAlignVertical: 'top',
+    textAlignVertical: 'top', textAlign: 'right', writingDirection: 'rtl',
   },
   counter: { fontSize: 11, color: Colors.muted, textAlign: 'left', marginTop: 5, fontFamily: Fonts.regular },
-  aiCard: { marginTop: 16 },
-  aiHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
-  aiTitle: { fontSize: 12, fontFamily: Fonts.bold, color: Colors.ink, flex: 1 },
-  aiBadge: {
-    backgroundColor: Colors.accentSoft, paddingHorizontal: 8,
-    paddingVertical: 3, borderRadius: Radius.pill,
-  },
-  aiBadgeText: { fontSize: 10, color: Colors.accent, fontFamily: Fonts.semiBold },
-  aiBody: { fontSize: 11, color: Colors.muted, lineHeight: 17, fontFamily: Fonts.regular },
   bottomBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     padding: Spacing.lg, borderTopWidth: 1, borderTopColor: Colors.lineSoft,

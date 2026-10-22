@@ -68,9 +68,9 @@ export function DiscoveryFiltersSheet({ token, selection, allowed, gold, onApply
     </View> : <>
       <Text style={styles.note}>فقط نتایج جستجو محدود می‌شوند؛ ترجیحات پروفایل و پیشنهادهای روزانه تغییر نمی‌کنند. انتخاب‌ها با بسته‌شدن کامل اپ پاک می‌شوند.</Text>
       <View style={styles.row}>
-        <View style={styles.half}><Field label="حداقل سن" value={draft.minAge} keyboardType="numeric" textDirection="ltr" maxLength={3}
+        <View style={styles.half}><Field label="حداقل سن" value={draft.minAge} keyboardType="numeric" textDirection="rtl" maxLength={3}
           placeholder="بدون حد اضافی" hint="حداقل سن مجاز ۱۸ سال است" error={errors.minAge} onChangeText={minAge => setDraft(previous => ({ ...previous, minAge }))} /></View>
-        <View style={styles.half}><Field label="حداکثر سن" value={draft.maxAge} keyboardType="numeric" textDirection="ltr" maxLength={3}
+        <View style={styles.half}><Field label="حداکثر سن" value={draft.maxAge} keyboardType="numeric" textDirection="rtl" maxLength={3}
           placeholder="بدون حد اضافی" error={errors.maxAge} onChangeText={maxAge => setDraft(previous => ({ ...previous, maxAge }))} /></View>
       </View>
       <Text style={styles.label}>جنسیت</Text>

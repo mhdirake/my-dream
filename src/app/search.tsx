@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -31,6 +32,7 @@ export default function SearchScreen() {
   const token = session?.accessToken ?? '';
 
   const [query, setQuery] = useState('');
+  const [inputFocused, setInputFocused] = useState(false);
   const [results, setResults] = useState<SearchUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -126,8 +128,8 @@ export default function SearchScreen() {
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
           <ArrowRight size={20} color={Colors.ink} strokeWidth={2.5} />
         </TouchableOpacity>
-        <View style={styles.inputWrap}>
-          <Search size={15} color={Colors.muted} strokeWidth={2} style={styles.searchIcon} />
+        <View style={[styles.inputWrap, inputFocused && styles.inputWrapFocused]}>
+          <Search size={15} color={inputFocused ? Colors.accent : Colors.muted} strokeWidth={2} style={styles.searchIcon} />
           <TextInput
             ref={inputRef}
             style={styles.input}
@@ -135,6 +137,11 @@ export default function SearchScreen() {
             placeholderTextColor={Colors.muted}
             value={query}
             onChangeText={setQuery}
+            accessibilityLabel="جستجو با نام یا نام کاربری"
+            onFocus={() => setInputFocused(true)}
+            onBlur={() => setInputFocused(false)}
+            selectionColor={Colors.accent}
+            underlineColorAndroid="transparent"
             returnKeyType="search"
             autoCorrect={false}
             autoCapitalize="none"
@@ -202,10 +209,13 @@ const styles = StyleSheet.create({
     borderWidth: 1.5, borderColor: Colors.hair,
     paddingHorizontal: 12, height: 40, gap: 8,
   },
+  inputWrapFocused: { borderColor: Colors.accent, backgroundColor: Colors.surface },
   searchIcon: { flexShrink: 0 },
   input: {
     flex: 1, fontSize: 14, fontFamily: Fonts.regular,
-    color: Colors.ink, textAlign: 'auto',
+    color: Colors.ink, textAlign: 'right', writingDirection: 'rtl',
+    minWidth: 0,
+    ...Platform.select({ web: { outlineWidth: 0 } }),
     height: 40, paddingVertical: 0, margin: 0,
     textAlignVertical: 'center', includeFontPadding: false,
   },

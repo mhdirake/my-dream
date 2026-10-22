@@ -761,9 +761,9 @@ function FloatingHeader({
         <Text style={styles.headerTitle}>کشف</Text>
         <View style={styles.headerActions}>
           {mode === 'swipe' && <TouchableOpacity accessibilityRole="button" accessibilityLabel={`فیلترهای کشف${activeFilters ? `، ${toPersianDigits(activeFilters)} فیلتر فعال` : ''}`}
-            style={[styles.iconBtn, styles.filterIcon, activeFilters > 0 && styles.iconBtnSafe]} onPress={onFilters}>
-            <SlidersHorizontal size={19} color={activeFilters ? Colors.accent : Colors.ink} />
-            {activeFilters > 0 && <Text style={styles.filterButtonText}>{toPersianDigits(activeFilters)}</Text>}
+            style={[styles.iconBtn, activeFilters > 0 && styles.iconBtnFiltered]} onPress={onFilters}>
+            <SlidersHorizontal size={17} color={activeFilters ? Colors.accent : Colors.ink} strokeWidth={2} />
+            {activeFilters > 0 && <View style={styles.filterBadge}><Text style={styles.filterBadgeText}>{toPersianDigits(activeFilters)}</Text></View>}
           </TouchableOpacity>}
           <TouchableOpacity
             style={[styles.iconBtn, safeMode && styles.iconBtnSafe]}
@@ -934,7 +934,9 @@ export default function DiscoverScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
   content: { flex: 1 },
-  filterIcon: { minWidth: 44, minHeight: 44, width: 'auto', paddingHorizontal: 10, flexDirection: 'row', gap: 4 },
+  iconBtnFiltered: { backgroundColor: Colors.accentSoft },
+  filterBadge: { position: 'absolute', top: -4, right: -4, minWidth: 16, height: 16, paddingHorizontal: 3, borderRadius: 8, backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center' },
+  filterBadgeText: { fontFamily: Fonts.bold, fontSize: 10, color: Colors.bg },
   filterButton: { minHeight: 44, padding: 12, marginTop: 8, borderRadius: 14, borderWidth: 1, borderColor: Colors.accent, justifyContent: 'center' },
   filterButtonText: { fontFamily: Fonts.bold, color: Colors.accent, fontSize: 13, textAlign: 'center' },
 

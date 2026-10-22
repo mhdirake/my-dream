@@ -19,10 +19,11 @@ import {
   AlertTriangle, Bell, Bot, Brain, Camera, ChevronLeft, Coins, Eye, LayoutGrid,
   Pencil, Settings, Shield, Sparkles, Star, User, Users, type LucideIcon,
 } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { confirmSheet } from '@/lib/confirmSheet';
-import { router } from 'expo-router';
+import { watchProfileResume } from '@/lib/profileRefresh';
+import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const BASE = process.env.EXPO_PUBLIC_API_URL ?? '';
@@ -68,6 +69,7 @@ function absoluteUrl(path: string | null | undefined): string | null {
 export default function MeScreen() {
   const { user, session, logout } = useAuth();
   const { bottom } = useSafeAreaInsets();
+  const profileRequest = useRef(0);
   const [profile, setProfile] = useState<ClientProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [photoError, setPhotoError] = useState(false);
@@ -78,13 +80,22 @@ export default function MeScreen() {
   const { coins } = useCoinBalance();
   const [badgeTier, setBadgeTier] = useState<Tier | null>(null);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     if (!session?.accessToken) return;
-    profileApi.getProfile(session.accessToken)
-      .then(setProfile)
-      .catch(e => { if (e instanceof ApiError && e.status === 401) logout(); })
-      .finally(() => setLoading(false));
-  }, [logout, session]);
+    let active = true;
+    const refresh = () => {
+      const request = ++profileRequest.current;
+      profileApi.getProfile(session.accessToken)
+        .then(value => {
+          if (active && request === profileRequest.current) { setProfile(value); setPhotoError(false); }
+        })
+        .catch(e => { if (active && request === profileRequest.current && e instanceof ApiError && e.status === 401) void logout(); })
+        .finally(() => { if (active && request === profileRequest.current) setLoading(false); });
+    };
+    refresh();
+    const unsubscribe = watchProfileResume(refresh);
+    return () => { active = false; profileRequest.current++; unsubscribe(); };
+  }, [logout, session]));
 
   const uploadPhoto = async (uri: string) => {
     if (!session?.accessToken) return;
@@ -92,8 +103,9 @@ export default function MeScreen() {
     setPhotoUploading(true);
     try {
       await onboardingApi.uploadPhoto(session.accessToken, uri);
+      const request = ++profileRequest.current;
       const updated = await profileApi.getProfile(session.accessToken);
-      setProfile(updated);
+      if (request === profileRequest.current) setProfile(updated);
       setPhotoError(false);
     } catch {
       confirmSheet.show('خطا', 'آپلود عکس موفق نبود. دوباره تلاش کن.');

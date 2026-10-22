@@ -40,14 +40,14 @@ export default function RedFlagsScreen() {
   });
   const [saving, setSaving] = useState(false);
 
-  const filled = flags.filter(f => f.trim().length > 0);
+  const filled = flags.map(flag => flag.trim()).filter(Boolean);
 
   const updateFlag = (idx: number, val: string) => {
     setFlags(prev => prev.map((f, i) => (i === idx ? val.slice(0, MAX_CHARS) : f)));
   };
 
   const handleSave = async () => {
-    if (!session?.accessToken || filled.length === 0) return;
+    if (!session?.accessToken || saving) return;
     setSaving(true);
     try {
       await profileApi.updateProfile(session.accessToken, { dealbreakers: filled });
@@ -101,7 +101,7 @@ export default function RedFlagsScreen() {
       <KeyboardStickyBar style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <View style={styles.btnRow}>
           <Button variant="ghost" onPress={() => router.back()} full={false} style={styles.btnSkip}>فعلاً نه</Button>
-          <Button variant="accent" onPress={handleSave} disabled={filled.length === 0 || saving} full={false} style={styles.btnSave}>
+          <Button variant="accent" onPress={handleSave} disabled={saving} full={false} style={styles.btnSave}>
             {saving ? 'در حال ذخیره…' : isEdit ? 'ذخیره' : 'ذخیره و ادامه'}
           </Button>
         </View>

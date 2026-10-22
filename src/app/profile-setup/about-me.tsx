@@ -5,6 +5,7 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { lookupsApi, type ProfilePrompt } from '@/lib/api/onboarding';
 import { profileApi } from '@/lib/api/profile';
+import { replaceUnansweredPrompts } from '@/lib/profilePrompts';
 import { toast } from '@/lib/toast';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeBack } from '@/lib/useSafeBack';
@@ -33,6 +34,8 @@ export default function AboutMeScreen() {
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const hasUnanswered = shown.some(prompt => !answers[prompt.id]?.trim());
 
   useEffect(() => {
     if (!session?.accessToken) return;
@@ -58,37 +61,38 @@ export default function AboutMeScreen() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [session]);
+  }, [session, isEdit]);
 
   const refreshPrompts = async () => {
-    if (!session?.accessToken || loading) return;
-    setLoading(true);
+    if (!session?.accessToken || loading || refreshing || saving || !hasUnanswered) return;
+    setRefreshing(true);
     try {
       const prompts = await lookupsApi.getProfilePrompts(session.accessToken, shown.map(p => p.id));
-      setShown(prompts);
-      setAnswers({});
+      setShown(replaceUnansweredPrompts(shown, answers, prompts));
     } catch (error: any) {
       toast.error(error.message ?? 'خطا در دریافت سؤال‌های جدید');
     } finally {
-      setLoading(false);
+      setRefreshing(false);
     }
   };
 
   const filledCount = Object.values(answers).filter(a => a.trim()).length;
 
   const handleSave = async () => {
-    if (!session?.accessToken) return;
+    if (!session?.accessToken || loading || refreshing || saving) return;
     const answered = shown
       .filter(p => answers[p.id]?.trim())
       .map(p => ({ profile_prompt_id: p.id, answer: answers[p.id].trim() }));
     if (answered.length === 0) {
-      isEdit ? safeBack() : router.replace('/(tabs)/' as any);
+      if (isEdit) safeBack();
+      else router.replace('/(tabs)/' as any);
       return;
     }
     setSaving(true);
     try {
       await profileApi.answerPrompts(session.accessToken, answered);
-      isEdit ? safeBack() : router.replace('/(tabs)/' as any);
+      if (isEdit) safeBack();
+      else router.replace('/(tabs)/' as any);
     } catch (e: any) {
       toast.error(e.message ?? 'خطا در ذخیره');
     } finally {
@@ -122,6 +126,7 @@ export default function AboutMeScreen() {
                 onChangeText={v => setAnswers(prev => ({ ...prev, [p.id]: v }))}
                 placeholder="پاسخت رو بنویس…"
                 placeholderTextColor={Colors.muted}
+                editable={!refreshing && !saving}
                 multiline
                 textAlignVertical="top"
                 numberOfLines={2}
@@ -130,9 +135,10 @@ export default function AboutMeScreen() {
           ))
         )}
 
-        <Pressable style={styles.refreshBtn} onPress={refreshPrompts}>
+        <Pressable accessibilityRole="button" disabled={loading || refreshing || saving || !hasUnanswered}
+          style={[styles.refreshBtn, (loading || refreshing || saving || !hasUnanswered) && { opacity: 0.45 }]} onPress={refreshPrompts}>
           <RefreshCw size={14} color={Colors.accent} strokeWidth={2} />
-          <Text style={styles.refreshText}>سؤال‌های دیگر</Text>
+          <Text style={styles.refreshText}>{refreshing ? 'در حال دریافت سؤال‌ها…' : 'تغییر سؤال‌های بی‌پاسخ'}</Text>
         </Pressable>
 
         <View style={{ height: 100 }} />
@@ -144,7 +150,7 @@ export default function AboutMeScreen() {
           <Button variant="ghost" onPress={() => isEdit ? safeBack() : router.replace('/(tabs)/' as any)} full={false} style={styles.btnSkip}>
             {isEdit ? 'لغو' : 'بعداً'}
           </Button>
-          <Button variant="accent" onPress={handleSave} disabled={saving} full={false} style={styles.btnSave}>
+          <Button variant="accent" onPress={handleSave} disabled={saving || loading || refreshing} full={false} style={styles.btnSave}>
             {saving ? 'در حال ذخیره…' : isEdit ? 'ذخیره' : filledCount > 0 ? 'ذخیره و ورود' : 'ورود به اپ'}
           </Button>
         </View>
@@ -192,6 +198,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5, borderColor: Colors.lineSoft, borderStyle: 'dashed',
     borderRadius: 10, padding: 10, fontSize: 12,
     fontFamily: Fonts.regular, color: Colors.ink, minHeight: 44,
+    textAlign: 'right', writingDirection: 'rtl',
     backgroundColor: Colors.surface,
   },
   answerFilled: { borderStyle: 'solid', borderColor: Colors.ink },

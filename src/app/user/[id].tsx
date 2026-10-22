@@ -120,6 +120,8 @@ function formatVoiceDuration(totalSeconds: number) {
 
 function VoiceIntroPlayer({ uri, token, durationSeconds }: { uri: string; token: string; durationSeconds: number }) {
   const requestKey = `${uri}:${token}`;
+  const [failedRequest, setFailedRequest] = useState<string | null>(null);
+  const [audioRetry, setAudioRetry] = useState(0);
   const [webAudio, setWebAudio] = useState<{ key: string; url: string } | null>(null);
 
   useEffect(() => {
@@ -138,15 +140,16 @@ function VoiceIntroPlayer({ uri, token, durationSeconds }: { uri: string; token:
       if (controller.signal.aborted) return;
       objectUrl = URL.createObjectURL(blob);
       setWebAudio({ key: requestKey, url: objectUrl });
+      setFailedRequest(null);
     }).catch(() => {
-      if (!controller.signal.aborted) setWebAudio(null);
+      if (!controller.signal.aborted) { setWebAudio(null); setFailedRequest(requestKey); }
     });
 
     return () => {
       controller.abort();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [uri, token, requestKey]);
+  }, [uri, token, requestKey, audioRetry]);
 
   const source = Platform.OS === 'web'
     ? (webAudio?.key === requestKey ? webAudio.url : null)
@@ -163,6 +166,15 @@ function VoiceIntroPlayer({ uri, token, durationSeconds }: { uri: string; token:
     }
   };
 
+  if (failedRequest === requestKey || status.error) {
+    return <TouchableOpacity style={styles.voiceIntroRow} accessibilityRole="button" onPress={() => {
+      if (Platform.OS === 'web') { setFailedRequest(null); setAudioRetry(value => value + 1); }
+      else player.replace(source);
+    }}>
+      <Text style={styles.infoRowValue}>صدا پخش نشد؛ برای تلاش مجدد بزن</Text>
+    </TouchableOpacity>;
+  }
+
   const resolvedDuration = Number.isFinite(status.duration) && status.duration > 0 ? status.duration : durationSeconds;
   const remaining = status.playing || status.currentTime > 0
     ? Math.max(0, Math.ceil(resolvedDuration - status.currentTime))
@@ -171,7 +183,7 @@ function VoiceIntroPlayer({ uri, token, durationSeconds }: { uri: string; token:
   return (
     <TouchableOpacity style={styles.voiceIntroRow} onPress={toggle} disabled={!status.isLoaded} activeOpacity={0.8}>
       <View style={styles.voiceIntroBtn}>
-        {status.playing
+        {!status.isLoaded ? <ActivityIndicator color="#fff" size="small" /> : status.playing
           ? <Pause size={16} color="#fff" fill="#fff" strokeWidth={0} />
           : <Play size={16} color="#fff" fill="#fff" strokeWidth={0} />
         }
@@ -382,14 +394,17 @@ function AboutCard({
   dealbreakers: { id: number; body: string }[];
   firstName: string;
 }) {
+  const bioText = bio?.trim() ?? '';
   const hasFacts =
     !!relationshipGoal || lifestyleTags.length > 0 || languages.length > 0 ||
     religiosityLevel != null || dealbreakers.length > 0;
 
+  if (!bioText && !hasFacts) return null;
+
   return (
     <View style={styles.infoCard}>
-      {bio ? <Text style={styles.bio}>{bio}</Text> : null}
-      {bio && hasFacts && <View style={styles.infoDivider} />}
+      {bioText ? <Text style={styles.bio}>{bioText}</Text> : null}
+      {!!bioText && hasFacts && <View style={styles.infoDivider} />}
 
       {relationshipGoal && (
         <View style={styles.infoRow}>

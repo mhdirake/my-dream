@@ -44,18 +44,17 @@ export default function OptionalInfoScreen() {
   });
   const [saving, setSaving] = useState(false);
 
-  const hasSomething = height.trim() || job.trim() || education;
   const heightError = height && (Number(height) < 100 || Number(height) > 250) ? 'قد باید بین ۱۰۰ تا ۲۵۰ سانتی‌متر باشد' : undefined;
 
   const handleSave = async () => {
-    if (!session?.accessToken || !hasSomething) return;
+    if (!session?.accessToken || saving) return;
     if (heightError) { toast.error(heightError); return; }
     setSaving(true);
     try {
       await profileApi.updateProfile(session.accessToken, {
-        height_cm: height ? Number(height) : undefined,
-        job: job.trim() || undefined,
-        education: education?.name || undefined,
+        height_cm: height.trim() ? Number(height) : null,
+        job: job.trim() || null,
+        education: education?.name || null,
       });
       if (isEdit) safeBack();
       else router.push('/profile-setup/about-me' as any);
@@ -104,6 +103,9 @@ export default function OptionalInfoScreen() {
           options={EDUCATION_OPTIONS}
           onSelect={setEducation}
         />
+        {education && <Button variant="ghost" small full={false} disabled={saving} onPress={() => setEducation(null)}>
+          حذف تحصیلات
+        </Button>}
 
         <Card soft style={styles.voiceCard}>
           <View style={styles.voiceRow}>
@@ -125,7 +127,7 @@ export default function OptionalInfoScreen() {
       <KeyboardStickyBar style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <View style={styles.btnRow}>
           <Button variant="ghost" onPress={() => router.back()} full={false} style={styles.btnSkip}>فعلاً نه</Button>
-          <Button variant="accent" onPress={handleSave} disabled={!hasSomething || saving} full={false} style={styles.btnSave}>
+          <Button variant="accent" onPress={handleSave} disabled={saving} full={false} style={styles.btnSave}>
             {saving ? 'در حال ذخیره…' : isEdit ? 'ذخیره' : 'ذخیره و ادامه'}
           </Button>
         </View>

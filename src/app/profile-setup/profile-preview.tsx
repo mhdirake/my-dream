@@ -10,9 +10,10 @@ import { profileApi, type ClientProfile } from '@/lib/api/profile';
 import { toast } from '@/lib/toast';
 import { profileCompletionLabel } from '@/lib/localization';
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
+import { watchProfileResume } from '@/lib/profileRefresh';
+import { useFocusEffect, router } from 'expo-router';
 import { AlertCircle, ChevronLeft, Edit3, User } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -82,16 +83,24 @@ export default function ProfilePreviewScreen() {
   const [profile, setProfile] = useState<ClientProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     if (!session?.accessToken) return;
-    Promise.all([
-      onboardingApi.getStatus(session.accessToken),
-      profileApi.getProfile(session.accessToken),
-    ])
-      .then(([s, p]) => { setStatus(s); setProfile(p); })
-      .catch(e => toast.error(e.message ?? 'خطا در بارگذاری'))
-      .finally(() => setLoading(false));
-  }, [session?.accessToken]);
+    let active = true;
+    let version = 0;
+    const refresh = () => {
+      const request = ++version;
+      Promise.all([
+        onboardingApi.getStatus(session.accessToken),
+        profileApi.getProfile(session.accessToken),
+      ])
+        .then(([s, p]) => { if (active && request === version) { setStatus(s); setProfile(p); } })
+        .catch(e => { if (active && request === version) toast.error(e.message ?? 'خطا در بارگذاری'); })
+        .finally(() => { if (active && request === version) setLoading(false); });
+    };
+    refresh();
+    const unsubscribe = watchProfileResume(refresh);
+    return () => { active = false; unsubscribe(); };
+  }, [session]));
 
   if (loading) {
     return (
