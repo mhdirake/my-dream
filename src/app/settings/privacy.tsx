@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { api } from '@/lib/api/client';
 import { aiInsightApi } from '@/lib/api/ai-insight';
 import { profileApi } from '@/lib/api/profile';
+import { compatibilityConsents, patchCompatibilityConsent, type CompatibilityConsentKey, type CompatibilityConsentSettings } from '@/lib/api/privacy';
 import { toast } from '@/lib/toast';
 import { router } from 'expo-router';
 import { Brain, ChevronLeft, Eye, MessageCircle, Shield, ShieldOff, Sparkles } from 'lucide-react-native';
@@ -16,15 +17,32 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-type PrivacySettings = {
+type PrivacySettings = CompatibilityConsentSettings & {
+  bio_visibility: 'public' | 'hidden';
+  lifestyle_tags_visibility: 'public' | 'hidden';
+  voice_intro_visibility: 'public' | 'hidden';
+  location_visibility: 'public' | 'hidden';
+  received_gifts_visibility: 'public' | 'hidden';
   safe_mode_enabled: boolean;
   show_same_gender_in_swipe: boolean;
+  dealbreakers_visible: boolean;
   message_permission_mode: string;
   min_profile_completion: number | null;
   personality_test_visibility: 'visible' | 'hidden';
   provinces: { id: number; name: string }[];
   cities: { id: number; name: string }[];
 };
+
+type VisibilityKey = 'bio_visibility' | 'lifestyle_tags_visibility' | 'voice_intro_visibility'
+  | 'location_visibility' | 'received_gifts_visibility';
+
+const VISIBILITY_OPTIONS: { key: VisibilityKey; title: string; description: string }[] = [
+  { key: 'bio_visibility', title: 'متن معرفی', description: 'نمایش متن معرفی در پروفایل دیگران' },
+  { key: 'lifestyle_tags_visibility', title: 'علایق و سبک زندگی', description: 'نمایش همه تگ‌های انتخابی' },
+  { key: 'location_visibility', title: 'مکان', description: 'در حالت عمومی فقط استان نشان داده می‌شود؛ شهر همیشه خصوصی است.' },
+  { key: 'voice_intro_visibility', title: 'معرفی صوتی', description: 'اجازه نمایش معرفی صوتی در صورت داشتن دسترسی لازم' },
+  { key: 'received_gifts_visibility', title: 'هدایای دریافتی', description: 'نمایش مجموعه هدایا در پروفایل' },
+];
 
 const MODE_LABEL: Record<string, string> = {
   everyone:               'همه',
@@ -56,6 +74,9 @@ export default function PrivacyScreen() {
   const [insightVisible, setInsightVisible] = useState(true);
   const [savingInsight, setSavingInsight] = useState(false);
   const [savingPersonality, setSavingPersonality] = useState(false);
+  const [savingDealbreakers, setSavingDealbreakers] = useState(false);
+  const [savingCompatibility, setSavingCompatibility] = useState<CompatibilityConsentKey | null>(null);
+  const [savingVisibility, setSavingVisibility] = useState<VisibilityKey | null>(null);
 
   useEffect(() => {
     if (!session?.accessToken) return;
@@ -131,11 +152,9 @@ export default function PrivacyScreen() {
   };
 
   const togglePersonalityVisibility = async (val: boolean) => {
-    if (!session?.accessToken || !settings) return;
+    if (!session?.accessToken || !settings || savingPersonality) return;
     setSavingPersonality(true);
-    const prev = settings.personality_test_visibility;
     const next = val ? 'visible' : 'hidden';
-    setSettings(s => s ? { ...s, personality_test_visibility: next } : s);
     try {
       const res = await api.patch<{ data: PrivacySettings }>(
         '/api/client/privacy-settings',
@@ -144,15 +163,54 @@ export default function PrivacyScreen() {
       );
       setSettings(res.data);
     } catch (e: any) {
-      setSettings(s => s ? { ...s, personality_test_visibility: prev } : s);
       toast.error(e.message ?? 'خطا در ذخیره');
     } finally {
       setSavingPersonality(false);
     }
   };
 
+  const toggleDealbreakersVisibility = async (value: boolean) => {
+    if (!session?.accessToken || !settings || savingDealbreakers) return;
+    setSavingDealbreakers(true);
+    const previous = settings.dealbreakers_visible;
+    setSettings(current => current ? { ...current, dealbreakers_visible: value } : current);
+    try {
+      const response = await api.patch<{ data: PrivacySettings }>(
+        '/api/client/privacy-settings', { dealbreakers_visible: value }, session.accessToken,
+      );
+      setSettings(response.data);
+    } catch (error: any) {
+      setSettings(current => current ? { ...current, dealbreakers_visible: previous } : current);
+      toast.error(error.message ?? 'خطا در ذخیرهٔ نمایش معیارهای شخصی');
+    } finally { setSavingDealbreakers(false); }
+  };
+
   const currentMode = settings?.message_permission_mode ?? 'everyone';
-  const personalityVisible = (settings?.personality_test_visibility ?? 'visible') !== 'hidden';
+  const personalityVisible = settings?.personality_test_visibility === 'visible';
+  const toggleVisibility = async (key: VisibilityKey, visible: boolean) => {
+    if (!session?.accessToken || !settings || savingVisibility) return;
+    setSavingVisibility(key);
+    try {
+      const response = await api.patch<{ data: PrivacySettings }>('/api/client/privacy-settings',
+        { [key]: visible ? 'public' : 'hidden' }, session.accessToken);
+      setSettings(response.data);
+      toast.success('تنظیم حریم خصوصی ذخیره شد.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'ذخیره تنظیم انجام نشد.');
+    } finally { setSavingVisibility(null); }
+  };
+  const consents = compatibilityConsents(settings);
+  const toggleCompatibilityConsent = async (key: CompatibilityConsentKey, value: boolean) => {
+    if (!session?.accessToken || !settings || savingCompatibility) return;
+    setSavingCompatibility(key);
+    try {
+      const updated = await patchCompatibilityConsent<PrivacySettings>(session.accessToken, key, value);
+      setSettings(updated);
+      toast.success(value ? 'رضایت استفاده برای سازگاری ثبت شد' : 'رضایت سازگاری لغو شد');
+    } catch (error: any) {
+      toast.error(error.message ?? 'خطا در ذخیره رضایت سازگاری');
+    } finally { setSavingCompatibility(null); }
+  };
 
   return (
     <SafeAreaView style={styles.root}>
@@ -164,6 +222,22 @@ export default function PrivacyScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+
+          <Text style={styles.sectionTitle}>نمایش اطلاعات پروفایل</Text>
+          <Card soft>
+            {VISIBILITY_OPTIONS.map(option => <View key={option.key} style={[styles.safeModeRow, { paddingVertical: 9 }]}>
+              <View style={styles.modeText}>
+                <Text style={styles.modeTitle}>{option.title}</Text>
+                <Text style={styles.modeSub}>{option.description}</Text>
+                <Text style={styles.modeSub}>{settings?.[option.key] === 'public' ? 'عمومی' : 'مخفی'}</Text>
+              </View>
+              <Switch value={settings?.[option.key] === 'public'} accessibilityLabel={option.title}
+                onValueChange={value => { void toggleVisibility(option.key, value); }}
+                disabled={!settings || savingVisibility !== null}
+                trackColor={{ false: Colors.hair, true: Colors.purple + 'AA' }}
+                thumbColor={settings?.[option.key] === 'public' ? Colors.purple : Colors.muted} />
+            </View>)}
+          </Card>
 
           <Text style={styles.sectionTitle}>تنظیمات جستجو</Text>
           <Card soft>
@@ -281,6 +355,21 @@ export default function PrivacyScreen() {
           </Card>
 
           {/* Personality test visibility */}
+          <Text style={styles.sectionTitle}>معیارهای شخصی آشنایی</Text>
+          <Card soft>
+            <View style={styles.safeModeRow}>
+              <View style={styles.modeText}>
+                <Text style={styles.modeTitle}>نمایش Dealbreakers در جزئیات پروفایل</Text>
+                <Text style={styles.modeSub}>فقط موارد تأییدشده، به کاربران طلایی نشان داده می‌شوند؛ روی پیشنهاد یا امتیاز سازگاری اثر ندارند.</Text>
+              </View>
+              <Switch value={settings?.dealbreakers_visible ?? false} accessibilityLabel="نمایش Dealbreakers در پروفایل"
+                onValueChange={toggleDealbreakersVisibility} disabled={savingDealbreakers}
+                trackColor={{ false: Colors.hair, true: Colors.purple + 'AA' }}
+                thumbColor={settings?.dealbreakers_visible ? Colors.purple : Colors.muted} />
+            </View>
+          </Card>
+
+          {/* Personality test visibility */}
           <Text style={styles.sectionTitle}>تست شخصیت</Text>
           <Card soft>
             <View style={styles.safeModeRow}>
@@ -302,6 +391,30 @@ export default function PrivacyScreen() {
                 thumbColor={personalityVisible ? Colors.purple : Colors.muted}
               />
             </View>
+          </Card>
+
+          <Text style={styles.sectionTitle}>رضایت اختیاری برای مقایسه سازگاری</Text>
+          <Card soft>
+            <Text style={styles.visTxt}>
+              استفاده از این اطلاعات برای مقایسه سازگاری اختیاری است. در خروجی این مقایسه، مقدار خام باور مذهبی یا نتیجه تست شخصیت به طرف مقابل ارائه نمی‌شود.
+              این رضایت مستقل از نمایش عمومی پروفایل است و تنظیمات نمایش را تغییر نمی‌دهد. با لغو رضایت، در بررسی بعدی سرور از آن عامل استفاده نمی‌شود.
+            </Text>
+            {([
+              ['compatibility_religion_consent', 'استفاده از باور مذهبی برای مقایسه سازگاری'],
+              ['compatibility_personality_consent', 'استفاده از نتیجه تست شخصیت برای مقایسه سازگاری'],
+            ] as const).map(([key, label]) => (
+              <View key={key} style={[styles.safeModeRow, { marginTop: 16 }]}>
+                <View style={styles.modeText}><Text style={styles.modeTitle}>{label}</Text></View>
+                <Switch
+                  value={consents[key]}
+                  accessibilityLabel={label}
+                  onValueChange={value => { void toggleCompatibilityConsent(key, value); }}
+                  disabled={!settings || savingCompatibility !== null}
+                  trackColor={{ false: Colors.hair, true: Colors.purple + 'AA' }}
+                  thumbColor={consents[key] ? Colors.purple : Colors.muted}
+                />
+              </View>
+            ))}
           </Card>
 
           {/* Profile visibility note */}

@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import { api } from './client';
 import { apiUrl } from './url';
 import { recordedAudioFile, voiceUploadError } from '../recordedAudio';
+import { normalizeCompatibility, type CompatibilitySnapshot } from '../discovery/compatibility';
 
 export type ProfilePhotoVariants = {
   original: string;
@@ -19,7 +20,8 @@ export type UserProfile = {
   username: string;
   first_name: string;
   last_name: string | null;
-  birth_date: string;
+  age: number | null;
+  birth_date?: string | null;
   gender: string | null;
   province: string | null;
   city: string | null;
@@ -48,7 +50,10 @@ export type UserProfile = {
   personality_test_hidden?: boolean;
   voice_intro_url?: string | null;
   voice_intro_duration_seconds?: number | null;
-  // Preserved from cache when available — not in API response
+  compatibility?: CompatibilitySnapshot | null;
+  compatibility_day?: string;
+  compatibility_tier?: string;
+  // Legacy property is cleared by the API adapter; use compatibility only.
   compatibility_score?: number | null;
   liked_by_me?: boolean;
   likes_count?: number;
@@ -117,8 +122,13 @@ export const profileApi = {
         profile_views_count: r.profile_views_count ?? r.data.profile_views_count,
       })),
 
-  getUserProfile: (token: string, userId: number) =>
-    api.get<{ data: UserProfile }>(`/api/client/users/${userId}/profile`, token).then(r => r.data),
+  getUserProfile: (token: string, userId: number, viewerId?: number) =>
+    api.get<{ data: UserProfile }>(`/api/client/users/${userId}/profile`, token).then(r => {
+      if (r.data.id !== userId) throw new Error('پاسخ پروفایل معتبر نیست');
+      return { ...r.data, compatibility_score: null, compatibility: normalizeCompatibility(r.data.compatibility, {
+        viewerId, candidateId: userId, day: r.data.compatibility_day, tier: r.data.compatibility_tier,
+      }) };
+    }),
 
   updateProfile: (
     token: string,

@@ -16,15 +16,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function NotificationSettingsScreen() {
   const { session } = useAuth();
+  const accessToken = session?.accessToken;
   const [enabled, setEnabled] = useState(true);
   const [activeDevices, setActiveDevices] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    if (!session?.accessToken) return;
+    if (!accessToken) return;
     try {
-      const preferences = await getPushPreferences(session.accessToken);
+      const preferences = await getPushPreferences(accessToken);
       setEnabled(preferences.enabled);
       setActiveDevices(preferences.active_devices);
     } catch (error: any) {
@@ -32,10 +33,10 @@ export default function NotificationSettingsScreen() {
     } finally {
       setLoading(false);
     }
-  }, [session?.accessToken]);
+  }, [accessToken]);
 
   useEffect(() => {
-    load();
+    void Promise.resolve().then(load);
   }, [load]);
 
   const toggle = async (next: boolean) => {

@@ -35,6 +35,29 @@ RUN npx eslint \
   src/lib/api/media.test.ts \
   src/lib/api/profile.ts \
   src/lib/api/profile.test.ts \
+  src/lib/api/profileCompatibility.test.ts \
+  src/lib/api/privacy.ts \
+  src/lib/api/privacy.test.ts \
+  src/lib/api/discover.ts \
+  src/lib/api/discover.test.ts \
+  src/lib/discovery/dailySuggestions.ts \
+  src/lib/discovery/dailySuggestions.test.ts \
+  src/lib/discovery/useDailySuggestions.ts \
+  src/lib/discovery/filters.ts \
+  src/lib/discovery/filters.test.ts \
+  src/lib/discovery/swipeProfiles.ts \
+  src/lib/discovery/swipeProfiles.test.ts \
+  src/lib/discovery/useSwipeProfiles.ts \
+  src/components/discovery/DiscoveryFiltersSheet.tsx \
+  src/lib/discovery/compatibility.ts \
+  src/lib/discovery/compatibility.test.ts \
+  src/lib/cache/profileCache.ts \
+  src/lib/cache/profileCache.test.ts \
+  src/components/discovery/CompatibilitySummary.tsx \
+  src/components/discovery/CompatibilitySummary.test.tsx \
+  src/app/user/compatibility.tsx \
+  src/app/user/\[id\].tsx \
+  src/app/settings/privacy.tsx \
   src/lib/recordedAudio.ts \
   src/lib/religiosity.ts \
   src/lib/religiosity.test.ts \

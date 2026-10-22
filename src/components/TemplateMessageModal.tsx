@@ -30,6 +30,8 @@ export function TemplateMessageModal({ visible, userId, firstName, token, onClos
 
   useEffect(() => {
     if (!visible || !token) return;
+    // Opening the modal starts a template request for this viewer.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoadingTemplates(true);
     chatApi.listConversationTemplates(token)
       .then(setTemplates)

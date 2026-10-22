@@ -14,7 +14,7 @@ export type PaymentTransactionStatus =
 
 export type PaymentTransaction = {
   id: number;
-  purchase_type: 'subscription' | 'gold_badge' | 'coin_bundle' | 'subscription_gift';
+  purchase_type: 'subscription' | 'gold_badge' | 'gold_badge_gift' | 'coin_bundle' | 'subscription_gift';
   status: PaymentTransactionStatus;
   amount: number;
   currency: string;
@@ -23,7 +23,7 @@ export type PaymentTransaction = {
 
 export type PaymentStatusDetail = {
   id: number;
-  purchase_type: 'subscription' | 'gold_badge' | 'coin_bundle' | 'subscription_gift';
+  purchase_type: 'subscription' | 'gold_badge' | 'gold_badge_gift' | 'coin_bundle' | 'subscription_gift';
   status: PaymentTransactionStatus;
   amount: number;
   currency: string;
@@ -63,10 +63,10 @@ export const paymentsApi = {
       token,
     ),
 
-  payGoldBadge: (token: string, packageId: number) =>
+  payGoldBadge: (token: string, packageId: number, expectedCashPrice?: number) =>
     api.post<PaymentRequestResponse>(
       '/api/client/payments/gold-badge',
-      { package_id: packageId, ...paymentPayload() },
+      { package_id: packageId, expected_cash_price: expectedCashPrice, ...paymentPayload() },
       token,
     ),
 

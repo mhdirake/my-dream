@@ -17,6 +17,8 @@ export default function Index() {
       return;
     }
 
+    // Entering the authenticated route begins its onboarding status check.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setChecking(true);
     onboardingApi
       .getStatus(session!.accessToken)

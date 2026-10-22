@@ -1,6 +1,7 @@
 import { useCoinBalance } from '@/lib/CoinBalanceContext';
 import { GiftModal } from '@/components/GiftModal';
 import { MatchCelebrationModal } from '@/components/MatchCelebrationModal';
+import { CompatibilitySummary } from '@/components/discovery/CompatibilitySummary';
 import { TemplateMessageModal } from '@/components/TemplateMessageModal';
 import { Sheet } from '@/components/ui/Sheet';
 import { AppBar } from '@/components/ui/AppBar';
@@ -18,13 +19,14 @@ import { giftsApi, giftDisplayTitle, type SentGift } from '@/lib/api/gifts';
 import { toast } from '@/lib/toast';
 import { toFaDigits } from '@/lib/localization';
 import { profileApi, type ClientProfile, type UserProfile } from '@/lib/api/profile';
+import { apiUrl } from '@/lib/api/url';
 import { profileCache } from '@/lib/cache/profileCache';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { normalizeCompatibility } from '@/lib/discovery/compatibility';
 import { Image } from 'expo-image';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import {
-  AlertTriangle,
   Brain,
   Briefcase,
   Coins,
@@ -49,9 +51,10 @@ import {
   VenetianMask,
   X,
 } from 'lucide-react-native';
-import { type ReactNode, useCallback, useEffect, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  AppState,
   Platform,
   Pressable,
   ScrollView,
@@ -61,7 +64,6 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Circle } from 'react-native-svg';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -116,11 +118,44 @@ function formatVoiceDuration(totalSeconds: number) {
   return toFaDigits(`${m}:${String(s).padStart(2, '0')}`);
 }
 
-function VoiceIntroPlayer({ uri, durationSeconds }: { uri: string; durationSeconds: number }) {
-  const player = useAudioPlayer(uri);
+function VoiceIntroPlayer({ uri, token, durationSeconds }: { uri: string; token: string; durationSeconds: number }) {
+  const requestKey = `${uri}:${token}`;
+  const [webAudio, setWebAudio] = useState<{ key: string; url: string } | null>(null);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+
+    const controller = new AbortController();
+    let objectUrl: string | null = null;
+    void fetch(apiUrl(uri), {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store',
+      signal: controller.signal,
+    }).then(response => {
+      if (!response.ok) throw new Error('Voice intro is unavailable');
+      return response.blob();
+    }).then(blob => {
+      if (controller.signal.aborted) return;
+      objectUrl = URL.createObjectURL(blob);
+      setWebAudio({ key: requestKey, url: objectUrl });
+    }).catch(() => {
+      if (!controller.signal.aborted) setWebAudio(null);
+    });
+
+    return () => {
+      controller.abort();
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [uri, token, requestKey]);
+
+  const source = Platform.OS === 'web'
+    ? (webAudio?.key === requestKey ? webAudio.url : null)
+    : { uri: apiUrl(uri), headers: { Authorization: `Bearer ${token}` } };
+  const player = useAudioPlayer(source);
   const status = useAudioPlayerStatus(player);
 
   const toggle = () => {
+    if (!status.isLoaded) return;
     if (status.playing) player.pause();
     else {
       if (status.currentTime >= (status.duration || durationSeconds)) player.seekTo(0);
@@ -134,7 +169,7 @@ function VoiceIntroPlayer({ uri, durationSeconds }: { uri: string; durationSecon
     : resolvedDuration;
 
   return (
-    <TouchableOpacity style={styles.voiceIntroRow} onPress={toggle} activeOpacity={0.8}>
+    <TouchableOpacity style={styles.voiceIntroRow} onPress={toggle} disabled={!status.isLoaded} activeOpacity={0.8}>
       <View style={styles.voiceIntroBtn}>
         {status.playing
           ? <Pause size={16} color="#fff" fill="#fff" strokeWidth={0} />
@@ -180,53 +215,6 @@ function buildPersonalityTraits(scores: unknown): { key: string; label: string; 
       };
     })
     .filter(trait => Number.isFinite(trait.value));
-}
-
-function computeLifestyleMatch(mine: { id: number }[], theirs: { id: number }[]) {
-  if (!mine.length || !theirs.length) return null;
-  const myIds = new Set(mine.map(t => t.id));
-  const matched = theirs.filter(t => myIds.has(t.id)).length;
-  return Math.round((matched / Math.max(theirs.length, mine.length)) * 100);
-}
-
-function religiosityDiff(mine: number | null | undefined, theirs: number | null | undefined) {
-  if (mine == null || theirs == null) return null;
-  const diff = Math.abs(mine - theirs);
-  if (diff === 0) return 'یکسان';
-  if (diff === 1) return `اختلاف ۱ سطح (نزدیک)`;
-  if (diff === 2) return `اختلاف ۲ سطح (متوسط)`;
-  return `اختلاف ${diff} سطح (زیاد)`;
-}
-
-// ── ProgressRing ──────────────────────────────────────────────────────────────
-
-function ProgressRing({
-  value, size = 74, stroke = 8, color = Colors.accent,
-  children,
-}: {
-  value: number; size?: number; stroke?: number; color?: string;
-  children?: React.ReactNode;
-}) {
-  const r = (size - stroke) / 2;
-  const circ = 2 * Math.PI * r;
-  const safeValue = Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : 0;
-  const fill = circ * (1 - safeValue / 100);
-  return (
-    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
-      <Svg width={size} height={size} style={{ position: 'absolute' }}>
-        <Circle cx={size / 2} cy={size / 2} r={r} stroke={Colors.lineSoft} strokeWidth={stroke} fill="none" />
-        <Circle
-          cx={size / 2} cy={size / 2} r={r}
-          stroke={color} strokeWidth={stroke} fill="none"
-          strokeDasharray={`${circ}`}
-          strokeDashoffset={fill}
-          strokeLinecap="round"
-          transform={`rotate(-90, ${size / 2}, ${size / 2})`}
-        />
-      </Svg>
-      <View style={{ alignItems: 'center' }}>{children}</View>
-    </View>
-  );
 }
 
 function TraitBar({ label, value }: { label: string; value: number }) {
@@ -501,11 +489,19 @@ export default function ProfileViewScreen() {
   const { session, user } = useAuth();
   const userId = Number(id);
   const myId = user?.id ?? -1;
+  const viewerId = user?.id ?? session?.userId;
+  const requestVersion = useRef(0);
+  const currentIdentity = useRef({ userId, token: session?.accessToken });
+  useEffect(() => {
+    currentIdentity.current = { userId, token: session?.accessToken };
+  }, [userId, session?.accessToken]);
 
   const cached = profileCache.get(userId);
   const [profile, setProfile] = useState<UserProfile | null>(
     cached ? {
       ...cached,
+      compatibility: null,
+      compatibility_score: null,
       last_name: null,
       job: null,
       education: null,
@@ -543,9 +539,13 @@ export default function ProfileViewScreen() {
 
   const fetchProfile = useCallback(async () => {
     if (!session) return;
+    const version = ++requestVersion.current;
+    const isCurrent = () => requestVersion.current === version
+      && currentIdentity.current.userId === userId && currentIdentity.current.token === session.accessToken;
+    setProfile(previous => previous ? { ...previous, compatibility: null, compatibility_score: null } : previous);
     try {
       const [data, me, bStatus, gifts, convs, pendingIn, pendingOut] = await Promise.all([
-        profileApi.getUserProfile(session.accessToken, userId),
+        profileApi.getUserProfile(session.accessToken, userId, viewerId),
         profileApi.getProfile(session.accessToken),
         blockApi.getBlockStatus(session.accessToken, userId).catch(() => null),
         giftsApi.listUserGifts(session.accessToken, userId).catch(() => [] as SentGift[]),
@@ -553,10 +553,9 @@ export default function ProfileViewScreen() {
         chatApi.listPendingIncoming(session.accessToken).catch(() => [] as Conversation[]),
         chatApi.listPendingOutgoing(session.accessToken).catch(() => [] as Conversation[]),
       ]);
-      setProfile(prev => ({
-        ...data,
-        compatibility_score: prev?.compatibility_score ?? data.compatibility_score,
-      }));
+      if (!isCurrent()) return;
+      // Fresh null/unavailable is authoritative: never preserve a cached score.
+      setProfile(data);
       setLiked(!!data.liked_by_me);
       setMyProfile(me);
       setBlockStatus(bStatus);
@@ -568,13 +567,19 @@ export default function ProfileViewScreen() {
       );
       setError(false);
     } catch {
+      if (!isCurrent()) return;
+      setProfile(previous => previous?.id === userId ? { ...previous, compatibility: null, compatibility_score: null } : null);
       if (!cached) setError(true);
     } finally {
-      setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
-  }, [session, userId, cached]);
+  }, [session, viewerId, userId, cached]);
 
-  useEffect(() => { fetchProfile(); }, [fetchProfile]);
+  useFocusEffect(useCallback(() => {
+    void fetchProfile();
+    const subscription = AppState.addEventListener('change', state => { if (state === 'active') void fetchProfile(); });
+    return () => { requestVersion.current++; subscription.remove(); };
+  }, [fetchProfile]));
 
   // ── Loading ──────────────────────────────────────────────────────────────
   if (loading) {
@@ -588,7 +593,7 @@ export default function ProfileViewScreen() {
     );
   }
 
-  if (error || !profile) {
+  if (error || !profile || profile.id !== userId) {
     return (
       <SafeAreaView style={styles.root}>
         <AppBar title="" back onBack={goBack} />
@@ -612,7 +617,7 @@ export default function ProfileViewScreen() {
   }
 
   // ── Derived data ─────────────────────────────────────────────────────────
-  const age = calcAge(profile.birth_date);
+  const age = profile.age ?? (profile.birth_date ? calcAge(profile.birth_date) : null);
   const photoUrl = profile.profile_photo?.urls.large;
   const plan = (myProfile?.active_subscription?.plan?.slug ?? 'basic').toLowerCase() as 'basic' | 'silver' | 'gold';
   const isAtLeastSilver = plan === 'silver' || plan === 'gold';
@@ -622,20 +627,6 @@ export default function ProfileViewScreen() {
   const tierPrefixes = TIERS.map(t => t.slug.split('_')[0]);
   const otherBadges = profile.badges.filter(b => !tierPrefixes.some(p => (b.slug ?? '').includes(p)));
 
-  const myDealbreakers = myProfile?.dealbreakers?.map(d => d.body) ?? [];
-  const redFlags = myDealbreakers.filter(d =>
-    profile.lifestyle_tags.some(
-      t =>
-        t.title.toLowerCase().includes(d.toLowerCase()) ||
-        d.toLowerCase().includes(t.title.toLowerCase()),
-    ),
-  );
-
-  const lifestyleMatchPct = computeLifestyleMatch(
-    myProfile?.lifestyle_tags ?? [],
-    profile.lifestyle_tags,
-  );
-  const religioDiff = religiosityDiff(myProfile?.religiosity_level, profile.religiosity_level);
   const myTagIds = new Set((myProfile?.lifestyle_tags ?? []).map(t => t.id));
   const promptAnswers = (profile.prompt_answers ?? []).filter(
     a => a.answer?.trim() && a.moderation_status === 'approved',
@@ -783,7 +774,7 @@ export default function ProfileViewScreen() {
   const stats: { label: string; value: string; accent?: boolean; icon?: ReactNode; onPress?: () => void }[] = [
     {
       label: 'سن',
-      value: toFaDigits(age),
+      value: age == null ? '—' : toFaDigits(age),
     },
     {
       label: 'لایک',
@@ -793,12 +784,6 @@ export default function ProfileViewScreen() {
     },
   ];
   if (profile.height_cm != null) stats.push({ label: 'قد', value: toFaDigits(profile.height_cm) });
-  if (profile.compatibility_score != null) {
-    stats.push({
-      label: 'تطابق', value: `${toFaDigits(profile.compatibility_score)}٪`, accent: true,
-      onPress: () => router.push(`/user/compatibility?id=${profile.id}` as never),
-    });
-  }
 
   return (
     <View style={styles.root}>
@@ -902,22 +887,16 @@ export default function ProfileViewScreen() {
         </View>
       </View>
 
-      {/* ── Red Flag Banner ───────────────────────────────────────────────── */}
-      {redFlags.length > 0 && (
-        <View style={styles.redFlagBanner}>
-          <AlertTriangle size={14} color={Colors.danger} strokeWidth={2} />
-          <Text style={styles.redFlagTxt}>
-            این پروفایل با {redFlags.length > 1 ? 'چند' : 'یک'} خط قرمز تو همخوانی داره
-          </Text>
-        </View>
-      )}
-
       {/* ── Content by tier ───────────────────────────────────────────────── */}
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        <CompatibilitySummary compatibility={normalizeCompatibility(profile.compatibility, {
+          viewerId, candidateId: userId,
+          day: profile.compatibility_day, tier: profile.compatibility_tier,
+        })} detailed />
         {/* ── BASIC ─────────────────────────────────────────────────── */}
         {!isAtLeastSilver && (
           <>
@@ -927,7 +906,7 @@ export default function ProfileViewScreen() {
                 <Lock size={20} color={Colors.purple} strokeWidth={2} />
               </View>
               <Text style={styles.upsellTxt}>
-                برای دیدن سازگاری، سبک زندگی و موارد بیشتر، اشتراکت رو ارتقا بده
+                برای دیدن امتیاز سازگاری، سبک زندگی و موارد بیشتر، اشتراکت رو ارتقا بده
               </Text>
               <TouchableOpacity
                 style={styles.upsellBtn}
@@ -961,33 +940,15 @@ export default function ProfileViewScreen() {
         )}
 
         {/* ── SILVER ────────────────────────────────────────────────── */}
-        {isAtLeastSilver && profile.voice_intro_url && (
+        {isAtLeastSilver && profile.voice_intro_url && session?.accessToken && (
           <View style={styles.section}>
             <Text style={styles.infoBlockLabel}>معرفی صوتی</Text>
-            <VoiceIntroPlayer uri={profile.voice_intro_url} durationSeconds={profile.voice_intro_duration_seconds ?? 1} />
+            <VoiceIntroPlayer uri={profile.voice_intro_url} token={session.accessToken} durationSeconds={profile.voice_intro_duration_seconds ?? 1} />
           </View>
         )}
 
         {isAtLeastSilver && !isGold && (
           <>
-            {/* Lifestyle Match ring card */}
-            {lifestyleMatchPct != null && (
-              <View style={styles.matchCard}>
-                <ProgressRing value={lifestyleMatchPct} size={72} stroke={7} color={Colors.accent}>
-                  <Text style={styles.ringNum}>{lifestyleMatchPct}</Text>
-                </ProgressRing>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.matchTitle}>تطابق سبک زندگی</Text>
-                  <Text style={styles.matchSub}>
-                    {profile.lifestyle_tags.filter(t => myTagIds.has(t.id)).length} تگ مشترک با شما
-                  </Text>
-                  {profile.relationship_goal && (
-                    <Text style={styles.matchSub}>هدف رابطه: {profile.relationship_goal.title}</Text>
-                  )}
-                </View>
-              </View>
-            )}
-
             <AboutCard
               bio={profile.bio}
               relationshipGoal={profile.relationship_goal}
@@ -996,8 +957,8 @@ export default function ProfileViewScreen() {
               matchCount={profile.lifestyle_tags.filter(t => myTagIds.has(t.id)).length}
               languages={profile.languages}
               religiosityLevel={profile.religiosity_level}
-              religioDiff={religioDiff}
-              dealbreakers={dealbreakers}
+              religioDiff={null}
+              dealbreakers={[]}
               firstName={profile.first_name}
             />
 
@@ -1009,42 +970,6 @@ export default function ProfileViewScreen() {
         {/* ── GOLD ──────────────────────────────────────────────────── */}
         {isGold && (
           <>
-            {/* Compatibility card */}
-            {profile.compatibility_score != null ? (
-              <TouchableOpacity
-                style={styles.compatCard}
-                onPress={() => router.push(`/user/compatibility?id=${profile.id}` as never)}
-                activeOpacity={0.85}
-              >
-                <ProgressRing value={profile.compatibility_score} size={80} stroke={9} color={Colors.purple}>
-                  <Text style={styles.ringNumLg}>{toFaDigits(profile.compatibility_score)}</Text>
-                  <Text style={styles.ringLabel}>سازگاری</Text>
-                </ProgressRing>
-                <View style={{ flex: 1 }}>
-                  <View style={styles.compatTitleRow}>
-                    <Text style={styles.compatTitle}>
-                      {profile.compatibility_score >= 80 ? 'تطابق عالی' :
-                        profile.compatibility_score >= 60 ? 'تطابق خوب' : 'تطابق متوسط'}
-                    </Text>
-                    <Badge kind="gold" label="طلایی" />
-                  </View>
-                  <Text style={styles.compatSubTxt}>
-                    هدف، سبک زندگی و سبک ارتباطی{redFlags.length === 0 ? ' · بدون هشدار' : ''}
-                  </Text>
-                  <Text style={[styles.compatSubTxt, { color: Colors.purple, marginTop: 4 }]}>
-                    جزئیات تطابق ←
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            ) : (
-              <View style={styles.noCompatCard}>
-                <Sparkles size={16} color={Colors.purple} strokeWidth={2} />
-                <Text style={styles.noCompatTxt}>
-                  امتیاز سازگاری در پیشنهادهای روزانه نمایش داده می‌شود
-                </Text>
-              </View>
-            )}
-
             <AboutCard
               bio={profile.bio}
               relationshipGoal={profile.relationship_goal}
@@ -1052,7 +977,7 @@ export default function ProfileViewScreen() {
               myTagIds={myTagIds}
               languages={profile.languages}
               religiosityLevel={profile.religiosity_level}
-              religioDiff={religioDiff}
+              religioDiff={null}
               dealbreakers={dealbreakers}
               firstName={profile.first_name}
             />

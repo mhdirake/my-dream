@@ -1,3 +1,4 @@
+/* global require */
 // Poolakey 3.1.2 assumes a Java synthetic property on its module base class.
 // React Native 0.85 implements that base class in Kotlin; use ReactContext's
 // currentActivity instead. Apply before native compilation, not in generated

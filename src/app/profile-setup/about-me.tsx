@@ -36,6 +36,8 @@ export default function AboutMeScreen() {
 
   useEffect(() => {
     if (!session?.accessToken) return;
+    // Opening this step starts the profile prompt request.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     Promise.all([
       lookupsApi.getProfilePrompts(session.accessToken),

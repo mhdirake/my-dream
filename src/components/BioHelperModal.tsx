@@ -55,7 +55,7 @@ export function BioHelperModal({ visible, currentBio, onSelect, onClose }: Props
   };
 
   useEffect(() => {
-    if (visible) fetch();
+    if (visible) void Promise.resolve().then(() => fetch());
   }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleUse = () => {

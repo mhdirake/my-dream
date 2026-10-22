@@ -1,11 +1,13 @@
 import { api } from './client';
 import { ProfilePhotoUrls, LifestyleTag } from './onboarding';
+import { normalizeCompatibility, compatibilityScore, compatibilityTier, type CompatibilitySnapshot } from '../discovery/compatibility';
+import { appendDiscoveryFilters, type DiscoveryFilters } from '../discovery/filters';
 
 export type DiscoverProfile = {
   id: number;
   username: string;
   first_name: string;
-  birth_date: string;
+  age: number | null;
   gender: string;
   city: string | null;
   province: string | null;
@@ -15,6 +17,7 @@ export type DiscoverProfile = {
   profile_photo: { urls: ProfilePhotoUrls } | null;
   lifestyle_tags: LifestyleTag[];
   compatibility_score: number | null;
+  compatibility?: CompatibilitySnapshot | null;
   badges: { id: number; title: string; slug: string; is_active: boolean }[];
   is_verified: boolean;
   likes_count: number;
@@ -22,7 +25,7 @@ export type DiscoverProfile = {
   anonymous_interest?: { sent_by_me: boolean; is_mutual: boolean; can_remove: boolean };
 };
 
-export type InteractionType = 'like' | 'pass' | 'swipe_like' | 'swipe_pass' | 'anonymous_interest';
+export type InteractionType = 'like' | 'pass' | 'reject' | 'swipe_like' | 'swipe_pass' | 'anonymous_interest';
 
 export type SwipePoolMeta = {
   daily_limit: number | null;
@@ -30,6 +33,9 @@ export type SwipePoolMeta = {
   remaining_today: number | null;
   available: boolean;
   unlocks_at: string | null;
+  tier?: string;
+  filters_available?: boolean;
+  filters_valid_until?: string | null;
 };
 
 export type MutualUser = {
@@ -50,27 +56,22 @@ export type InteractionResult = {
   mutual_message?: string | null;
 };
 
-export type DailyCompatibility = {
-  labels?: string[];
-  percentage?: number;
-  score?: number;
-  explanation?: {
-    summary?: string;
-    score?: number;
-    shared_lifestyle_tags?: number;
-    shared_languages?: number;
-  };
+export type DailySuggestionProfile = DiscoverProfile & {
+  reason_text?: string;
 };
 
-export type DailySuggestionProfile = DiscoverProfile & {
-  compatibility?: DailyCompatibility;
-};
+export type DailySuggestionStatus = 'queued' | 'processing' | 'ready' | 'ready_partial' | 'empty' | 'failed' | 'restricted';
 
 export type DailySuggestionsMeta = {
   plan: string;
   daily_limit: number;
   generated_count: number;
   remaining_today: number;
+  day?: string;
+  status?: DailySuggestionStatus;
+  count?: number;
+  tier?: string;
+  limit?: number;
 };
 
 export type ProfileView = {
@@ -138,14 +139,17 @@ export type BackendGift = {
 };
 
 export const discoverApi = {
-  getProfiles: async (token: string, limit = 10, safeMode = false) => {
+  getProfiles: async (token: string, limit = 10, safeMode = false, filters?: DiscoveryFilters) => {
     const params = new URLSearchParams({ limit: String(limit) });
     if (safeMode) params.set('safe_mode', '1');
+    appendDiscoveryFilters(params, filters);
     const res = await api.get<{ data: DiscoverProfile[]; meta: SwipePoolMeta }>(
       `/api/client/discovery/swipe-pool?${params}`,
       token,
     );
-    return { data: res.data ?? [], meta: res.meta };
+    // Swipe does not supply a current-day, viewer-bound score snapshot. Never
+    // display the old profile-level numeric compatibility field as one.
+    return { data: (res.data ?? []).map(profile => ({ ...profile, compatibility_score: null, compatibility: null })), meta: res.meta };
   },
 
   interact: (token: string, userId: number, type: InteractionType) =>
@@ -199,15 +203,22 @@ export const discoverApi = {
       token,
     ),
 
-  getDailySuggestions: async (token: string) => {
+  getDailySuggestions: async (token: string, viewerId?: number, currentTier?: string) => {
     const res = await api.get<{ data: DailySuggestionProfile[]; meta: DailySuggestionsMeta }>(
       '/api/client/discovery/daily-suggestions',
       token,
     );
-    const data = (res.data ?? []).map(p => ({
-      ...p,
-      compatibility_score: p.compatibility?.score ?? p.compatibility?.percentage ?? p.compatibility_score ?? null,
-    }));
-    return { data, meta: res.meta };
+    const serverTier = compatibilityTier(res.meta?.tier ?? res.meta?.plan) ?? 'basic';
+    const knownTier = compatibilityTier(currentTier);
+    const quotas = { basic: 3, silver: 5, gold: 10 } as const;
+    const tier = knownTier && quotas[knownTier] < quotas[serverTier] ? knownTier : serverTier;
+    const data = (res.data ?? []).slice(0, quotas[tier]).map(p => {
+      const compatibility = normalizeCompatibility(p.compatibility, {
+        viewerId, candidateId: p.id, day: res.meta?.day, tier,
+      });
+      return { ...p, compatibility, compatibility_score: compatibilityScore(compatibility),
+        reason_text: tier !== serverTier ? 'پروفایل پیشنهادی برای آشنایی' : p.reason_text };
+    });
+    return { data, meta: { ...res.meta, tier, plan: tier, limit: quotas[tier], daily_limit: quotas[tier], count: data.length } };
   },
 };

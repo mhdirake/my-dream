@@ -28,20 +28,21 @@ export function useModerationCtx() {
 
 export function ModerationProvider({ children }: { children: React.ReactNode }) {
   const { session } = useAuth();
+  const accessToken = session?.accessToken;
   const [moderationStatus, setModerationStatus] = useState<ModerationStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [ackedLevel, setAckedLevel] = useState<number | null>(null);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
 
   const fetchStatus = useCallback(async () => {
-    if (!session?.accessToken) return;
+    if (!accessToken) return;
     try {
-      const status = await moderationApi.getStatus(session.accessToken);
+      const status = await moderationApi.getStatus(accessToken);
       setModerationStatus(status);
     } catch {
       // silent — don't block the app on moderation fetch failure
     }
-  }, [session?.accessToken]);
+  }, [accessToken]);
 
   // Load acked level from storage on mount
   useEffect(() => {
@@ -52,9 +53,9 @@ export function ModerationProvider({ children }: { children: React.ReactNode }) 
 
   // Initial fetch
   useEffect(() => {
-    if (!session?.accessToken) { setIsLoading(false); return; }
-    fetchStatus().finally(() => setIsLoading(false));
-  }, [session?.accessToken, fetchStatus]);
+    if (!accessToken) return;
+    void Promise.resolve().then(fetchStatus).finally(() => setIsLoading(false));
+  }, [accessToken, fetchStatus]);
 
   // Refresh on foreground
   useEffect(() => {
@@ -86,7 +87,7 @@ export function ModerationProvider({ children }: { children: React.ReactNode }) 
   return (
     <Ctx.Provider value={{
       moderationStatus,
-      isLoading,
+      isLoading: Boolean(accessToken) && isLoading,
       hasUnacknowledgedRestriction,
       acknowledgeRestriction,
       refreshModeration,

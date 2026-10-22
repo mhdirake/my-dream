@@ -42,6 +42,8 @@ export default function LocationScreen() {
 
   useEffect(() => {
     if (!session?.accessToken) return;
+    // Opening location setup begins the location lookup request.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoadingProvinces(true);
     Promise.all([
       locationsApi.getProvinces(session.accessToken),

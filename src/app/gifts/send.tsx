@@ -69,7 +69,12 @@ export default function SendGiftScreen() {
   useEffect(() => {
     if (hasParamUser) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (query.trim().length < 2) { setResults([]); return; }
+    if (query.trim().length < 2) {
+      // Clear stale suggestions as soon as the entered query is too short.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setResults([]);
+      return;
+    }
 
     debounceRef.current = setTimeout(async () => {
       if (!session?.accessToken) return;

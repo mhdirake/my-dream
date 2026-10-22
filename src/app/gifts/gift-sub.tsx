@@ -71,6 +71,8 @@ export default function GiftSubScreen() {
   };
 
   useEffect(() => {
+    // Navigation parameters may change while this screen stays mounted.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (params.tab === 'sub' || params.tab === 'coin') setTab(params.tab);
     if (params.history === 'sent' || params.history === 'received') setHistoryDir(params.history);
   }, [params.history, params.tab]);
@@ -80,6 +82,8 @@ export default function GiftSubScreen() {
     const cleaned = username.trim().replace(/^@/, '');
 
     if (!token || hasUserId || selectedReceiverId || cleaned.length < 2) {
+      // Clear search results immediately when the query or receiver is invalidated.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSuggestions([]);
       setSearching(false);
       return;
@@ -108,6 +112,8 @@ export default function GiftSubScreen() {
 
   useEffect(() => {
     if (!session?.accessToken) return;
+    // The active history tab determines the loading state for this request.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHistoryLoading(true);
     if (tab === 'sub' && !subHistory) {
       Promise.all([

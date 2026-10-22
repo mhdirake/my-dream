@@ -60,7 +60,7 @@ export default function LanguagesScreen() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { loadLanguages(); }, [session]);
+  useEffect(() => { void Promise.resolve().then(loadLanguages); }, [session]);
 
   const toggleLang = (id: number) => {
     setSelected(prev => {

@@ -46,7 +46,12 @@ export default function SearchScreen() {
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (query.trim().length < 2) { setResults([]); return; }
+    if (query.trim().length < 2) {
+      // Do not retain results for a query that can no longer match.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setResults([]);
+      return;
+    }
 
     debounceRef.current = setTimeout(async () => {
       setLoading(true);

@@ -19,7 +19,12 @@ export default function PersonalityTestIntroScreen() {
   const [latestTest, setLatestTest] = useState<LatestTest>(null);
 
   useEffect(() => {
-    if (!session?.accessToken) { setChecking(false); return; }
+    if (!session?.accessToken) {
+      // No authenticated test result can be loaded without a session.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setChecking(false);
+      return;
+    }
     api
       .get<{ data: { latest_test: LatestTest } }>('/api/client/profile/personality-test', session.accessToken)
       .then(res => setLatestTest(res.data.latest_test ?? null))
