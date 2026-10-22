@@ -1,3 +1,4 @@
+import { CoinBalanceProvider } from '@/lib/CoinBalanceContext';
 import { TermsProvider } from '@/lib/terms/TermsContext';
 import { AuthProvider } from '@/lib/auth/AuthContext';
 import { CentrifugoProvider } from '@/lib/chat/CentrifugoContext';
@@ -56,6 +57,7 @@ export default function RootLayout() {
             <TermsProvider>
             <ModerationProvider>
               <CentrifugoProvider>
+                <CoinBalanceProvider>
                 <KeyboardViewport>
                   <Stack screenOptions={{ headerShown: false }}>
                     <Stack.Screen name="(tabs)" />
@@ -68,6 +70,7 @@ export default function RootLayout() {
                     <Stack.Screen name="search" options={{ animation: 'fade_from_bottom' }} />
                   </Stack>
                 </KeyboardViewport>
+                </CoinBalanceProvider>
               </CentrifugoProvider>
             </ModerationProvider>
             </TermsProvider>

@@ -1,3 +1,4 @@
+import { coinBalanceStore } from '../coinBalanceStore';
 import { Platform } from 'react-native';
 import { api } from './client';
 import { defaultCoinPricing } from '../coinPurchase';
@@ -92,5 +93,5 @@ export const paymentsApi = {
     api.get<{ data: PaymentStatusDetail }>(`/api/client/payments/${paymentId}`, token).then(r => r.data),
 
   getWallet: (token: string): Promise<{ coin_balance: number }> =>
-    api.get<{ coin_balance: number }>('/api/client/wallet', token),
+    coinBalanceStore.read(token, () => api.get<{ coin_balance: number }>('/api/client/wallet', token)),
 };

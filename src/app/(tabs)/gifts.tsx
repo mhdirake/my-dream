@@ -1,3 +1,4 @@
+import { useCoinBalance } from '@/lib/CoinBalanceContext';
 import { DetailCard } from '@/components/ui/DetailCard';
 import { Avatar } from '@/components/ui/Avatar';
 import { CoinBadge } from '@/components/ui/CoinBadge';
@@ -69,7 +70,7 @@ export default function GiftsScreen() {
   const [filterTab, setFilterTab] = useState<string>('all');
   const [gifts, setGifts] = useState<BackendGift[]>([]);
   const [received, setReceived] = useState<SentGift[]>([]);
-  const [coins, setCoins] = useState<number | null>(null);
+  const { coins } = useCoinBalance();
   const [loading, setLoading] = useState(true);
   const [loadingReceived, setLoadingReceived] = useState(false);
 
@@ -80,9 +81,8 @@ export default function GiftsScreen() {
       giftsApi.list(session.accessToken),
       paymentsApi.getWallet(session.accessToken),
     ])
-      .then(([giftList, wallet]) => {
+      .then(([giftList, _wallet]) => {
         setGifts(giftList);
-        setCoins(wallet.coin_balance);
       })
       .catch(() => toast.error('خطا در بارگذاری هدایا'))
       .finally(() => setLoading(false));

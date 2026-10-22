@@ -104,6 +104,22 @@ describe('browser viewport lifecycle', () => {
     b.cleanup();
   });
 
+  it('keeps the payment/footer at the keyboard when standalone WebKit resizes innerHeight and pans together', () => {
+    const b = browser(); b.doc.activeElement = b.field; b.scrollArea.id = 'root';
+    for (const [height, offsetTop, scrollY] of [[480, 280, 0], [450, 310, 20], [480, 280, 0]]) {
+      b.win.innerHeight = height; b.viewport.height = height;
+      b.viewport.offsetTop = offsetTop; b.win.scrollY = scrollY;
+      b.win.dispatchEvent(new Event('resize')); b.viewport.dispatchEvent(new Event('scroll')); b.flush();
+      const top = parseFloat(b.css.get('--app-viewport-page-top')!);
+      const rootHeight = parseFloat(b.css.get('--app-viewport-height')!);
+      expect(top - scrollY - offsetTop).toBe(0);
+      expect(top + rootHeight - scrollY - offsetTop).toBe(height);
+      expect(b.css.get('--app-viewport-offset-top')).toBe(`${offsetTop}px`);
+      expect(b.changed).toHaveBeenLastCalledWith(true);
+    }
+    b.cleanup();
+  });
+
   it.each([true, false])('supports layout-resizing keyboards (VisualViewport=%s)', visual => {
     const b = browser(visual); b.doc.activeElement = b.field;
     b.win.innerHeight = 480; b.viewport.height = 480;

@@ -1,9 +1,9 @@
+import { useCoinBalance } from '@/lib/CoinBalanceContext';
 import { AppBar } from '@/components/ui/AppBar';
 import { CoinBadge } from '@/components/ui/CoinBadge';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { aiInsightApi, type AiInsightPurchase, type SelfInsight, type SelfInsightUnlocked, type GenerateError } from '@/lib/api/ai-insight';
 import { ApiError } from '@/lib/api/client';
-import { paymentsApi } from '@/lib/api/payments';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { toast } from '@/lib/toast';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -33,7 +33,7 @@ export default function SelfInsightScreen() {
   const [generating, setGenerating] = useState(false);
   const [insight, setInsight] = useState<SelfInsight | null>(null);
   const [purchases, setPurchases] = useState<AiInsightPurchase[]>([]);
-  const [coins, setCoins] = useState<number | null>(null);
+  const { coins } = useCoinBalance();
 
   const load = async () => {
     if (!session?.accessToken) return;
@@ -52,7 +52,6 @@ export default function SelfInsightScreen() {
   useEffect(() => {
     if (!session?.accessToken) return;
     aiInsightApi.getPurchases(session.accessToken).then(setPurchases).catch(() => {});
-    paymentsApi.getWallet(session.accessToken).then(w => setCoins(w.coin_balance)).catch(() => {});
   }, [session?.accessToken]);
 
   const handleGenerate = async () => {

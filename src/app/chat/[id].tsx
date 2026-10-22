@@ -2130,7 +2130,8 @@ export default function ConversationScreen() {
                 <Text style={styles.giftNoteQuestion}>می‌خوای یه پیام همراهش بفرستی؟</Text>
                 <TextInput
                   style={styles.giftNoteInput}
-                  placeholder="یه پیام کوتاه بنویس… (اختیاری)"
+                  placeholder="پیامت را همراه هدیه بنویس… (اختیاری)"
+                  accessibilityLabel="پیام همراه هدیه"
                   placeholderTextColor={Colors.muted}
                   value={giftNote}
                   onChangeText={setGiftNote}
@@ -2481,6 +2482,7 @@ const styles = StyleSheet.create({
     marginTop: 14, marginBottom: 6, textAlign: 'right',
   },
   giftNoteInput: {
+    writingDirection: 'rtl',
     marginTop: 16, minHeight: 60, maxHeight: 100,
     borderWidth: 1.5, borderColor: Colors.hair, borderRadius: Radius.lg,
     paddingHorizontal: 14, paddingVertical: 10,

@@ -11,10 +11,13 @@ export function getKeyboardViewportMetrics(
 ): KeyboardViewportMetrics {
   const fallback = Number.isFinite(windowHeight) && windowHeight > 0 ? windowHeight : 1;
   // Browsers can report zero/invalid intermediate values on resume/rotation.
-  const height = Math.round(Number.isFinite(viewportHeight) && viewportHeight! > 0
-    ? Math.min(viewportHeight!, fallback) : fallback);
+  // In standalone WebKit, innerHeight can already match the shrunken visual
+  // viewport while offsetTop still describes a pan in layout coordinates.
+  // Neither value can be bounded by innerHeight without discarding that pan.
+  const height = Math.max(1, Math.round(Number.isFinite(viewportHeight) && viewportHeight! > 0
+    ? viewportHeight! : fallback));
   const offsetTop = Math.round(Number.isFinite(viewportOffsetTop)
-    ? Math.min(Math.max(0, viewportOffsetTop), Math.max(0, fallback - height)) : 0);
+    ? Math.max(0, viewportOffsetTop) : 0);
 
   return {
     height,

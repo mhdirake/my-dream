@@ -30,9 +30,9 @@ describe('getKeyboardViewportMetrics', () => {
     expect(getKeyboardViewportMetrics(780, height)).toEqual({ height: 780, offsetTop: 0, keyboardInset: 0 });
   });
 
-  it('clamps offsets/oversized viewports and keeps non-finite values out of CSS', () => {
-    expect(getKeyboardViewportMetrics(800, 900, -40)).toEqual({ height: 800, offsetTop: 0, keyboardInset: 0 });
-    expect(getKeyboardViewportMetrics(800, 500, 900)).toEqual({ height: 500, offsetTop: 300, keyboardInset: 0 });
+  it('preserves visual viewport coordinates independently of a resized or stale innerHeight', () => {
+    expect(getKeyboardViewportMetrics(800, 900, -40)).toEqual({ height: 900, offsetTop: 0, keyboardInset: 0 });
+    expect(getKeyboardViewportMetrics(480, 480, 280)).toEqual({ height: 480, offsetTop: 280, keyboardInset: 0 });
     expect(getKeyboardViewportMetrics(800, 500, NaN).offsetTop).toBe(0);
     expect(getKeyboardViewportMetrics(NaN, NaN, NaN)).toEqual({ height: 1, offsetTop: 0, keyboardInset: 0 });
   });

@@ -1,3 +1,4 @@
+import { useCoinBalance } from '@/lib/CoinBalanceContext';
 import { AppBar } from '@/components/ui/AppBar';
 import { Button } from '@/components/ui/Button';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
@@ -55,7 +56,7 @@ export default function GoldBadgeScreen() {
   const { session } = useAuth();
   const params = useLocalSearchParams<{ userId?: string; userName?: string }>();
   const giftUserId = params.userId ? Number(params.userId) : null;
-  const [coins, setCoins] = useState<number | null>(null);
+  const { coins } = useCoinBalance();
   const [pkg, setPkg] = useState<Package | null>(null);
   const [loading, setLoading] = useState(true);
   const [buying, setBuying] = useState(false);
@@ -69,8 +70,7 @@ export default function GoldBadgeScreen() {
       paymentsApi.getWallet(session.accessToken),
       api.get<{ data: Package[] }>('/api/client/packages', session.accessToken),
     ])
-      .then(([wallet, res]) => {
-        setCoins(wallet.coin_balance);
+      .then(([_wallet, res]) => {
         const badge = res.data.find((p: Package) => p.slug === 'gold_badge_1_month');
         if (badge) setPkg(badge);
       })

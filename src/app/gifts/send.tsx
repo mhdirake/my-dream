@@ -1,3 +1,4 @@
+import { useCoinBalance } from '@/lib/CoinBalanceContext';
 import { Avatar } from '@/components/ui/Avatar';
 import { AppBar } from '@/components/ui/AppBar';
 import { Button } from '@/components/ui/Button';
@@ -38,7 +39,7 @@ export default function SendGiftScreen() {
     userName: string;
   }>();
 
-  const [coins, setCoins] = useState<number | null>(null);
+  const { coins } = useCoinBalance();
   const [note, setNote] = useState('');
   const [sending, setSending] = useState(false);
   const [loadingCoins, setLoadingCoins] = useState(true);
@@ -61,7 +62,6 @@ export default function SendGiftScreen() {
   useEffect(() => {
     if (!session?.accessToken) return;
     paymentsApi.getWallet(session.accessToken)
-      .then(w => setCoins(w.coin_balance))
       .catch(() => {})
       .finally(() => setLoadingCoins(false));
   }, [session?.accessToken]);
@@ -158,7 +158,8 @@ export default function SendGiftScreen() {
               <Search size={15} color={Colors.muted} strokeWidth={2} style={styles.searchIcon} />
               <TextInput
                 style={styles.searchInput}
-                placeholder="جستجو با نام یا نام کاربری…"
+                placeholder="نام یا نام کاربری گیرنده…"
+                accessibilityLabel="گیرنده هدیه"
                 placeholderTextColor={Colors.muted}
                 value={query}
                 onChangeText={setQuery}
@@ -208,7 +209,8 @@ export default function SendGiftScreen() {
           </View>
           <TextInput
             style={styles.noteInput}
-            placeholder="یه پیام کوتاه بنویس..."
+            placeholder="پیامت را همراه هدیه بنویس…"
+            accessibilityLabel="پیام همراه هدیه"
             placeholderTextColor={Colors.muted}
             multiline
             numberOfLines={3}
@@ -296,6 +298,7 @@ const styles = StyleSheet.create({
   },
   searchIcon: { flexShrink: 0 },
   searchInput: {
+    textAlign: 'right', writingDirection: 'rtl',
     flex: 1, fontSize: 13.5, fontFamily: Fonts.regular,
     color: Colors.ink, height: 46, paddingVertical: 0,
   },
@@ -324,6 +327,7 @@ const styles = StyleSheet.create({
   noteHeader: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 8 },
   noteLabel: { fontSize: 11.5, fontFamily: Fonts.semiBold, color: Colors.muted },
   noteInput: {
+    textAlign: 'right', writingDirection: 'rtl',
     fontSize: 13, fontFamily: Fonts.regular, color: Colors.ink,
     minHeight: 72, paddingTop: 0,
   },

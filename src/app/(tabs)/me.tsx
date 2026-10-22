@@ -1,3 +1,4 @@
+import { useCoinBalance } from '@/lib/CoinBalanceContext';
 import { photoStatusLabel } from '@/lib/profilePhoto';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
@@ -10,7 +11,6 @@ import { Colors, Fonts, Spacing } from '@/constants/colors';
 import { hasBadge, TIERS, type Tier } from '@/constants/verificationTiers';
 import { ApiError } from '@/lib/api/client';
 import { onboardingApi } from '@/lib/api/onboarding';
-import { paymentsApi } from '@/lib/api/payments';
 import type { ClientProfile } from '@/lib/api/profile';
 import { profileApi } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -75,7 +75,7 @@ export default function MeScreen() {
   const [cropUri, setCropUri] = useState<string | null>(null);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [scoreOpen, setScoreOpen] = useState(false);
-  const [coins, setCoins] = useState<number | null>(null);
+  const { coins } = useCoinBalance();
   const [badgeTier, setBadgeTier] = useState<Tier | null>(null);
 
   useEffect(() => {
@@ -84,7 +84,6 @@ export default function MeScreen() {
       .then(setProfile)
       .catch(e => { if (e instanceof ApiError && e.status === 401) logout(); })
       .finally(() => setLoading(false));
-    paymentsApi.getWallet(session.accessToken).then(w => setCoins(w.coin_balance)).catch(() => {});
   }, [logout, session]);
 
   const uploadPhoto = async (uri: string) => {

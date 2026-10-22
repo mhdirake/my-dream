@@ -1,3 +1,4 @@
+import { useCoinBalance } from '@/lib/CoinBalanceContext';
 import { AppBar } from '@/components/ui/AppBar';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { paymentsApi, type PaymentStatusDetail } from '@/lib/api/payments';
@@ -34,6 +35,7 @@ function formatAmount(amount: number, currency: string) {
 export default function PaymentDetailScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { session } = useAuth();
+  const { coins } = useCoinBalance();
   const [detail, setDetail] = useState<PaymentStatusDetail | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -98,7 +100,7 @@ export default function PaymentDetailScreen() {
 
           <View style={styles.walletBox}>
             <Coins size={18} color={Colors.goldDeep} strokeWidth={2} />
-            <Text style={styles.walletTxt}>موجودی فعلی: {toPersian(detail.coin_balance)} سکه</Text>
+            <Text style={styles.walletTxt}>موجودی فعلی: {coins === null ? '—' : toPersian(coins)} سکه</Text>
           </View>
 
           {detail.failure_message ? (

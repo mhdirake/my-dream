@@ -1,3 +1,4 @@
+import { coinBalanceStore, isCoinMutation } from '../coinBalanceStore';
 import { localizeErrorMessage } from '@/lib/localization';
 import { apiUrl } from './url';
 
@@ -38,6 +39,7 @@ async function request<T>(
   if (authenticated && !retried && authHandlers) {
     token = await authHandlers.accessToken(token!) ?? token;
   }
+  const walletStamp = coinBalanceStore.capture(token);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 20_000);
   let res: Response;
@@ -80,6 +82,8 @@ async function request<T>(
     );
   }
 
+  coinBalanceStore.observe(token, data, walletStamp, method === 'GET');
+  if (method !== 'GET' && isCoinMutation(path)) coinBalanceStore.invalidate(token);
   return data as T;
 }
 

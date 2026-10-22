@@ -1,3 +1,4 @@
+import { useCoinBalance } from '@/lib/CoinBalanceContext';
 import { GiftModal } from '@/components/GiftModal';
 import { MatchCelebrationModal } from '@/components/MatchCelebrationModal';
 import { TemplateMessageModal } from '@/components/TemplateMessageModal';
@@ -14,7 +15,6 @@ import { chatApi, type Conversation } from '@/lib/api/chat';
 import { confirmSheet } from '@/lib/confirmSheet';
 import { discoverApi, type MutualUser } from '@/lib/api/discover';
 import { giftsApi, giftDisplayTitle, type SentGift } from '@/lib/api/gifts';
-import { paymentsApi } from '@/lib/api/payments';
 import { toast } from '@/lib/toast';
 import { toFaDigits } from '@/lib/localization';
 import { profileApi, type ClientProfile, type UserProfile } from '@/lib/api/profile';
@@ -534,7 +534,7 @@ export default function ProfileViewScreen() {
   const [reactionSubmitting, setReactionSubmitting] = useState<'like' | null>(null);
   const [badgeTier, setBadgeTier] = useState<Tier | null>(null);
   const [otherBadgeKind, setOtherBadgeKind] = useState<'gold' | 'complete' | 'personality' | null>(null);
-  const [coins, setCoins] = useState<number | null>(null);
+  const { coins } = useCoinBalance();
 
   const goBack = () => {
     if (router.canGoBack()) router.back();
@@ -572,7 +572,6 @@ export default function ProfileViewScreen() {
     } finally {
       setLoading(false);
     }
-    paymentsApi.getWallet(session.accessToken).then(w => setCoins(w.coin_balance)).catch(() => {});
   }, [session, userId, cached]);
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);

@@ -1,3 +1,4 @@
+import { useCoinBalance } from '@/lib/CoinBalanceContext';
 import { Avatar } from '@/components/ui/Avatar';
 import { Modal } from '@/components/ui/BlurredModal';
 import { CoinBadge } from '@/components/ui/CoinBadge';
@@ -10,7 +11,6 @@ import {
   RevealPackage, SentAnonInterest, SentLike, likesApi, mediaUrl,
 } from '@/lib/api/likes';
 import { ApiError } from '@/lib/api/client';
-import { paymentsApi } from '@/lib/api/payments';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { toast } from '@/lib/toast';
 import { router, useFocusEffect } from 'expo-router';
@@ -57,7 +57,7 @@ export default function LikesScreen() {
   const [purchasing, setPurchasing] = useState(false);
   const [purchaseModalOpen, setPurchaseModalOpen] = useState(false);
   const [coinShortageOpen, setCoinShortageOpen] = useState(false);
-  const [coins, setCoins] = useState<number | null>(null);
+  const { coins } = useCoinBalance();
 
   const load = useCallback(async (showRefresh = false) => {
     if (!accessToken) return;
@@ -85,7 +85,6 @@ export default function LikesScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-    paymentsApi.getWallet(accessToken).then(w => setCoins(w.coin_balance)).catch(() => {});
   }, [accessToken]);
 
   useFocusEffect(useCallback(() => {

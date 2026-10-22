@@ -1,9 +1,9 @@
+import { useCoinBalance } from '@/lib/CoinBalanceContext';
 import { AppBar } from '@/components/ui/AppBar';
 import { CoinBadge } from '@/components/ui/CoinBadge';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
 import { aiInsightApi, type UserInsight, type UserInsightUnlocked, type GenerateError } from '@/lib/api/ai-insight';
 import { ApiError } from '@/lib/api/client';
-import { paymentsApi } from '@/lib/api/payments';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { toast } from '@/lib/toast';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -32,7 +32,7 @@ export default function UserInsightScreen() {
   const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState(false);
   const [insight, setInsight] = useState<UserInsight | null>(null);
-  const [coins, setCoins] = useState<number | null>(null);
+  const { coins } = useCoinBalance();
 
   useEffect(() => {
     if (!session?.accessToken || !uid) return;
@@ -40,7 +40,6 @@ export default function UserInsightScreen() {
       .then(setInsight)
       .catch(() => toast.error('خطا در بارگذاری'))
       .finally(() => setLoading(false));
-    paymentsApi.getWallet(session.accessToken).then(w => setCoins(w.coin_balance)).catch(() => {});
   }, [session?.accessToken, uid]);
 
   const handlePurchase = () => {

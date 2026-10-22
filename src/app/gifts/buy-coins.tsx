@@ -1,3 +1,4 @@
+import { useAppKeyboardVisible } from '@/components/ui/KeyboardViewport';
 import { AppBar } from '@/components/ui/AppBar';
 import { Button } from '@/components/ui/Button';
 import { DetailCard } from '@/components/ui/DetailCard';
@@ -23,6 +24,7 @@ function formatPrice(amountRial: number): string {
 
 export default function BuyCoinsScreen() {
   const insets = useSafeAreaInsets();
+  const keyboardVisible = useAppKeyboardVisible();
   const { session } = useAuth();
   const [pricing, setPricing] = useState<CoinPricing | null>(null);
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
@@ -70,14 +72,14 @@ export default function BuyCoinsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.root}>
+    <SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
       <AppBar title="خرید سکه" back contentGap />
 
       {loading ? (
         <View style={styles.center}><ActivityIndicator color={Colors.gold} /></View>
       ) : (
         <>
-          <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             {/* Header */}
             <DetailCard
               style={styles.header}
@@ -147,7 +149,7 @@ export default function BuyCoinsScreen() {
             <View style={{ height: 110 }} />
           </ScrollView>
 
-          <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
+          <View style={[styles.bottomBar, { paddingBottom: (keyboardVisible ? 0 : insets.bottom) + Spacing.lg }]}>
             <Button variant="accent" onPress={handleBuy} disabled={!quote || paying}>
               {paying ? 'در حال اتصال به درگاه…' : quote ? `پرداخت ${formatPrice(quote.amount)}` : 'پرداخت'}
             </Button>

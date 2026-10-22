@@ -1,3 +1,4 @@
+import { useCoinBalance } from '@/lib/CoinBalanceContext';
 import { AppBar } from '@/components/ui/AppBar';
 import { Avatar } from '@/components/ui/Avatar';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/colors';
@@ -47,7 +48,7 @@ function formatDate(iso: string): string {
 export default function WalletScreen() {
   const { session } = useAuth();
   const [profile, setProfile] = useState<ClientProfile | null>(null);
-  const [coins, setCoins] = useState(0);
+  const { coins } = useCoinBalance();
   const [received, setReceived] = useState<CoinGiftRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
@@ -63,10 +64,9 @@ export default function WalletScreen() {
       paymentsApi.getWallet(token),
       giftsApi.coinGiftsReceived(token),
     ])
-      .then(([p, w, r]) => {
+      .then(([p, _wallet, r]) => {
         if (!active) return;
         setProfile(p);
-        setCoins(w.coin_balance);
         setReceived(r.slice(0, 10));
         setHasLoadedOnce(true);
       })
@@ -101,7 +101,7 @@ export default function WalletScreen() {
             <View style={styles.coinIcon}>
               <Coins size={26} color={Colors.gold} strokeWidth={2} />
             </View>
-            <Text style={styles.balanceAmt}>{toPersian(coins)} سکه</Text>
+            <Text style={styles.balanceAmt}>{coins === null ? '—' : toPersian(coins)} سکه</Text>
             <Text style={styles.balanceLabel}>موجودی سکه</Text>
 
             {sub ? (() => {

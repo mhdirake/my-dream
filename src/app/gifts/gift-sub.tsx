@@ -1,3 +1,4 @@
+import { useCoinBalance } from '@/lib/CoinBalanceContext';
 import { AppBar } from '@/components/ui/AppBar';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -11,9 +12,9 @@ import { paymentsApi } from '@/lib/api/payments';
 import { searchApi, type SearchUser } from '@/lib/api/search';
 import { payAndWait } from '@/lib/payments/payAndWait';
 import { toast } from '@/lib/toast';
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft, Coins, Gift, Star } from 'lucide-react-native';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -46,7 +47,7 @@ export default function GiftSubScreen() {
   const [tab, setTab] = useState<'sub' | 'coin'>((params.tab as any) ?? 'sub');
   const [plans, setPlans] = useState<Plan[]>([]);
   const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null);
-  const [coins, setCoins] = useState<number | null>(null);
+  const { coins } = useCoinBalance();
   const [coinAmount, setCoinAmount] = useState(100);
   const [username, setUsername] = useState(params.userName ?? '');
   const [note, setNote] = useState('');
@@ -73,20 +74,6 @@ export default function GiftSubScreen() {
     if (params.tab === 'sub' || params.tab === 'coin') setTab(params.tab);
     if (params.history === 'sent' || params.history === 'received') setHistoryDir(params.history);
   }, [params.history, params.tab]);
-
-  useFocusEffect(useCallback(() => {
-    const token = session?.accessToken;
-    if (!token) return undefined;
-
-    let active = true;
-    paymentsApi.getWallet(token)
-      .then(wallet => {
-        if (active) setCoins(wallet.coin_balance);
-      })
-      .catch(() => undefined);
-
-    return () => { active = false; };
-  }, [session?.accessToken]));
 
   useEffect(() => {
     const token = session?.accessToken;
@@ -155,9 +142,7 @@ export default function GiftSubScreen() {
         } else {
           toast.error('خطا در بارگذاری پلن‌های اشتراک');
         }
-        if (wallet) {
-          setCoins(wallet.coin_balance);
-        } else {
+        if (!wallet) {
           toast.error('خطا در بارگذاری موجودی سکه');
         }
       })
@@ -231,13 +216,12 @@ export default function GiftSubScreen() {
         }
         toast.success('هدیه اشتراک ارسال شد!');
       } else {
-        const response = await giftsApi.sendCoinGift(
+        await giftsApi.sendCoinGift(
           session.accessToken,
           receiverId,
           coinAmount,
           note.trim() || undefined,
         );
-        setCoins(response.sender_coin_balance);
         toast.success('هدیه سکه ارسال شد!');
       }
       router.back();
@@ -276,7 +260,8 @@ export default function GiftSubScreen() {
               <Text style={styles.fieldLabel}>نام کاربری گیرنده</Text>
               <TextInput
                 style={styles.input}
-                placeholder="@username"
+                placeholder="نام کاربری گیرنده…"
+                accessibilityLabel="نام کاربری گیرنده هدیه"
                 placeholderTextColor={Colors.muted}
                 value={username}
                 onChangeText={value => {
@@ -382,7 +367,8 @@ export default function GiftSubScreen() {
             <Text style={styles.fieldLabel}>پیام همراه هدیه (اختیاری)</Text>
             <TextInput
               style={styles.noteInput}
-              placeholder="یه پیام مهربان بنویس..."
+              placeholder="پیامت را همراه هدیه بنویس…"
+              accessibilityLabel="پیام همراه هدیه"
               placeholderTextColor={Colors.muted}
               multiline
               numberOfLines={2}
@@ -545,6 +531,7 @@ const styles = StyleSheet.create({
 
   fieldLabel: { fontSize: 10.5, color: Colors.muted, fontFamily: Fonts.regular, marginBottom: 6 },
   input: {
+    textAlign: 'right', writingDirection: 'rtl',
     fontSize: 14, fontFamily: Fonts.regular, color: Colors.ink,
     borderBottomWidth: 1, borderBottomColor: Colors.hair, paddingBottom: 6,
   },
@@ -600,6 +587,7 @@ const styles = StyleSheet.create({
   insuffTxt: { fontSize: 11, color: Colors.danger, fontFamily: Fonts.regular, marginTop: 6 },
 
   noteInput: {
+    textAlign: 'right', writingDirection: 'rtl',
     fontSize: 13, fontFamily: Fonts.regular, color: Colors.ink,
     minHeight: 54, paddingTop: 0,
   },
