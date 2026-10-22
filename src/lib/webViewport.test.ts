@@ -8,7 +8,7 @@ function browser(visual = true, touch = true) {
   let id = 0;
   const viewport = Object.assign(new EventTarget(), { height: 800, offsetTop: 0, scale: 1 });
   const win = Object.assign(new EventTarget(), {
-    innerHeight: 800, innerWidth: 390, visualViewport: visual ? viewport : null,
+    innerHeight: 800, innerWidth: 390, scrollY: 0, visualViewport: visual ? viewport : null,
     matchMedia: () => ({ matches: touch }),
     getComputedStyle: () => ({ overflowY: 'auto' }),
     requestAnimationFrame: (fn: FrameRequestCallback) => { frames.set(++id, fn); return id; },
@@ -50,7 +50,7 @@ describe('browser viewport lifecycle', () => {
     b.viewport.dispatchEvent(new Event('resize')); b.flush();
     expect(b.css.get('--app-viewport-height')).toBe('480px');
     expect(b.css.get('--app-viewport-offset-top')).toBe('40px');
-    expect(b.css.get('--keyboard-inset')).toBe('280px');
+    expect(b.css.get('--keyboard-inset')).toBe('320px');
     expect(b.changed).toHaveBeenLastCalledWith(true);
     expect(b.scrollArea.scrollTop).toBe(192);
     expect(b.field.scrollIntoView).not.toHaveBeenCalled();
@@ -70,6 +70,37 @@ describe('browser viewport lifecycle', () => {
     expect(b.scrollArea.scrollTop).toBe(0);
     expect(b.field.scrollIntoView).not.toHaveBeenCalled();
     expect(b.css.get('--app-viewport-height')).toBe('480px');
+    b.cleanup();
+  });
+
+  it('keeps the app bottom at the visible viewport bottom when Safari scrolls the document on focus', () => {
+    const b = browser(); b.doc.activeElement = b.field;
+    b.scrollArea.id = 'root';
+    for (const [height, offsetTop, scrollY] of [[480, 40, 280], [450, 60, 310], [480, 0, 320]]) {
+      b.viewport.height = height; b.viewport.offsetTop = offsetTop; b.win.scrollY = scrollY;
+      b.win.dispatchEvent(new Event('scroll')); b.viewport.dispatchEvent(new Event('resize')); b.flush();
+      const rootTop = parseFloat(b.css.get('--app-viewport-page-top')!);
+      const rootHeight = parseFloat(b.css.get('--app-viewport-height')!);
+      // Convert document coordinates to visual viewport coordinates: no gap
+      // may remain between the action bar and the keyboard.
+      expect(rootTop - scrollY - offsetTop).toBe(0);
+      expect(rootTop + rootHeight - scrollY - offsetTop).toBe(height);
+      expect(b.scrollArea.scrollTop).toBe(0);
+      expect(b.changed).toHaveBeenLastCalledWith(true);
+    }
+    b.doc.activeElement = null; b.viewport.height = 800; b.viewport.offsetTop = 0; b.win.scrollY = 0;
+    b.win.dispatchEvent(new Event('scroll')); b.viewport.dispatchEvent(new Event('resize')); b.flush();
+    expect(b.css.get('--app-viewport-page-top')).toBe('0px');
+    expect(b.css.get('--app-viewport-height')).toBe('800px');
+    b.cleanup();
+  });
+
+  it('keeps keyboard-only controls hidden even when viewport panning accounts for the entire shrink', () => {
+    const b = browser(); b.doc.activeElement = b.field;
+    b.viewport.height = 480; b.viewport.offsetTop = 320;
+    b.viewport.dispatchEvent(new Event('resize')); b.flush();
+    expect(b.css.get('--keyboard-inset')).toBe('320px');
+    expect(b.changed).toHaveBeenLastCalledWith(true);
     b.cleanup();
   });
 

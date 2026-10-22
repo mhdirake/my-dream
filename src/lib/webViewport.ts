@@ -30,7 +30,7 @@ export function mountWebViewport(win: Window, doc: Document, onKeyboard: (visibl
   const viewport = win.visualViewport;
   const style = doc.documentElement.style;
   const timers = new Set<ReturnType<typeof setTimeout>>();
-  const properties = ['--app-viewport-height', '--app-viewport-offset-top', '--keyboard-inset'];
+  const properties = ['--app-viewport-height', '--app-viewport-offset-top', '--keyboard-inset', '--app-viewport-page-top'];
   const previous = properties.map(name => style.getPropertyValue(name));
   let frame: number | undefined;
   let restingHeight = win.innerHeight;
@@ -50,11 +50,16 @@ export function mountWebViewport(win: Window, doc: Document, onKeyboard: (visibl
     }
     const metrics = getKeyboardViewportMetrics(win.innerHeight, viewport?.height, viewport?.offsetTop);
     const touch = win.matchMedia?.('(any-pointer: coarse)').matches ?? false;
-    const obstruction = focused ? Math.max(metrics.keyboardInset, touch ? restingHeight - win.innerHeight : 0) : 0;
+    // Panning can cancel keyboardInset even though the visible height is still reduced.
+    const obstruction = focused ? Math.max(metrics.keyboardInset, touch ? restingHeight - metrics.height : 0) : 0;
     const inset = obstruction >= KEYBOARD_THRESHOLD ? obstruction : 0;
     style.setProperty(properties[0], `${metrics.height}px`);
     style.setProperty(properties[1], `${metrics.offsetTop}px`);
     style.setProperty(properties[2], `${inset}px`);
+    // The root is positioned in document coordinates. Safari may scroll the
+    // document as well as pan the visual viewport while focusing an input.
+    const scrollY = Number.isFinite(win.scrollY) ? win.scrollY : 0;
+    style.setProperty(properties[3], `${Math.max(0, scrollY + metrics.offsetTop)}px`);
     if (keyboardVisible !== (inset > 0)) {
       keyboardVisible = inset > 0;
       onKeyboard(keyboardVisible);
@@ -78,7 +83,7 @@ export function mountWebViewport(win: Window, doc: Document, onKeyboard: (visibl
     }
   };
   const sources: [EventTarget, string, EventListener][] = [
-    [win, 'resize', schedule], [win, 'orientationchange', settle], [win, 'pageshow', settle],
+    [win, 'resize', schedule], [win, 'scroll', schedule], [win, 'orientationchange', settle], [win, 'pageshow', settle],
     [doc, 'visibilitychange', settle], [doc, 'focusin', settle], [doc, 'focusout', settle],
   ];
   if (viewport) sources.push([viewport, 'resize', schedule], [viewport, 'scroll', schedule]);

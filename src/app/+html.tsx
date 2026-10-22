@@ -30,6 +30,7 @@ export default function Root({ children }: PropsWithChildren) {
           :root {
             --app-viewport-height: 100vh;
             --app-viewport-offset-top: 0px;
+            --app-viewport-page-top: 0px;
             --keyboard-inset: 0px;
           }
           @supports (height: 100dvh) {
@@ -48,8 +49,11 @@ export default function Root({ children }: PropsWithChildren) {
             width: 100%;
             height: var(--app-viewport-height);
             min-height: 0;
-            margin: var(--app-viewport-offset-top) auto 0;
-            position: relative;
+            margin: 0 auto;
+            position: absolute;
+            top: var(--app-viewport-page-top);
+            left: 0;
+            right: 0;
             overflow: hidden;
             box-shadow: 0 0 60px rgba(0,0,0,0.5);
           }
