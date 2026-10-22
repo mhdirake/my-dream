@@ -15,6 +15,7 @@ const toPersian = (value: number | string) =>
 const TYPE_LABEL: Record<PaymentStatusDetail['purchase_type'], string> = {
   subscription: 'اشتراک',
   gold_badge: 'نشان طلایی',
+  gold_badge_gift: 'هدیه نشان طلایی',
   coin_bundle: 'بسته سکه',
   subscription_gift: 'هدیه اشتراک',
 };

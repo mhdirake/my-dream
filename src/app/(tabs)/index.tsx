@@ -13,12 +13,18 @@ import { useAuth } from '@/lib/auth/AuthContext';
 import { profileCache } from '@/lib/cache/profileCache';
 import { formatPersianDate, formatPersianTime } from '@/lib/date/persian';
 import { toast } from '@/lib/toast';
+import { dailyIsPending, dailyReason } from '@/lib/discovery/dailySuggestions';
+import { useDailySuggestions } from '@/lib/discovery/useDailySuggestions';
+import { CompatibilitySummary } from '@/components/discovery/CompatibilitySummary';
+import { DiscoveryFiltersSheet } from '@/components/discovery/DiscoveryFiltersSheet';
+import { discoveryFilterSession, filterCount } from '@/lib/discovery/filters';
+import { useSwipeProfiles } from '@/lib/discovery/useSwipeProfiles';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
 import {
   Bell, Clock, Gift, Heart, MessageCircle,
-  Search, ShieldCheck, Sparkles, User, X,
+  Search, ShieldCheck, SlidersHorizontal, Sparkles, User, X,
 } from 'lucide-react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -57,10 +63,6 @@ const MODES: SegmentedTabItem<Mode>[] = [
     icon: active => <Sparkles size={12} color={active ? Colors.accent : Colors.purple} strokeWidth={2} />,
   },
 ];
-
-function calcAge(d: string) {
-  return Math.floor((Date.now() - new Date(d).getTime()) / (1000 * 60 * 60 * 24 * 365.25));
-}
 
 function toPersianDigits(n: number) {
   return String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
@@ -122,7 +124,7 @@ function SwipeCard({
   const checkingRef = useRef(false);
   const [widgetsVisible, setWidgetsVisible] = useState(true);
   const revealWidgets = () => setWidgetsVisible(true);
-  const age = calcAge(profile.birth_date);
+  const age = profile.age;
   const photoUrl = profile.profile_photo?.urls.large;
 
   const finishSwipe = () => {
@@ -266,7 +268,7 @@ function SwipeCard({
             style={styles.cardNamePressable}
           >
             <Text style={styles.cardName}>
-              {profile.first_name}، {toPersianDigits(age)}
+              {profile.first_name}، {age == null ? '—' : toPersianDigits(age)}
             </Text>
             <ShieldCheck size={15} color={Colors.trust} strokeWidth={2} />
           </TouchableOpacity>
@@ -356,6 +358,9 @@ function SwipeView({
   loading,
   token,
   swipeMeta,
+  error,
+  filtered,
+  onFilters,
   onInteract,
   onExhausted,
   onProfileUpdate,
@@ -364,6 +369,9 @@ function SwipeView({
   loading: boolean;
   token: string;
   swipeMeta: SwipePoolMeta | null;
+  error: string | null;
+  filtered: boolean;
+  onFilters: () => void;
   onInteract: (userId: number, type: 'like' | 'pass' | 'swipe_like' | 'swipe_pass') => Promise<boolean>;
   onExhausted: () => void;
   onProfileUpdate: (userId: number, patch: Partial<DiscoverProfile>) => void;
@@ -433,6 +441,18 @@ function SwipeView({
     );
   }
 
+  if (error) {
+    return <View style={styles.fullCenter}>
+      <Text accessibilityLiveRegion="polite" style={styles.emptySubDark}>{error}</Text>
+      <TouchableOpacity accessibilityRole="button" onPress={onExhausted} style={styles.filterButton}>
+        <Text style={styles.filterButtonText}>تلاش مجدد</Text>
+      </TouchableOpacity>
+      <TouchableOpacity accessibilityRole="button" onPress={onFilters} style={styles.filterButton}>
+        <Text style={styles.filterButtonText}>اصلاح یا حذف فیلترها</Text>
+      </TouchableOpacity>
+    </View>;
+  }
+
   if (!current) {
     const limitReached = swipeMeta != null && !swipeMeta.available;
     const unlocksAtLabel = swipeMeta?.unlocks_at ? formatUnlockLabel(swipeMeta.unlocks_at) : null;
@@ -451,15 +471,18 @@ function SwipeView({
           <Text style={styles.emptyEmoji}>🌸</Text>
         )}
         <Text style={styles.emptyTxtDark}>
-          {limitReached ? 'سقف کشف امروزت تمام شد' : 'کشف جدیدی نیست'}
+          {limitReached ? 'سقف کشف امروزت تمام شد' : filtered ? 'فردی مطابق فیلترها پیدا نشد' : 'کشف جدیدی نیست'}
         </Text>
         <Text style={styles.emptySubDark}>
           {limitReached
             ? unlocksAtLabel
               ? `${unlocksAtLabel} دوباره باز می‌شود`
               : 'فردا دوباره سر بزن یا با ارتقای اشتراک بیشتر کشف کن'
-            : 'بعداً دوباره بیا'}
+            : filtered ? 'فیلترها را تغییر بده یا حذف کن؛ شرایط انتخابی خودکار گسترده نمی‌شوند.' : 'بعداً دوباره بیا'}
         </Text>
+        {!limitReached && <TouchableOpacity accessibilityRole="button" onPress={onFilters} style={styles.filterButton}>
+          <Text style={styles.filterButtonText}>اصلاح یا حذف فیلترها</Text>
+        </TouchableOpacity>}
       </LinearGradient>
     );
   }
@@ -545,9 +568,26 @@ function SwipeView({
 }
 
 // ── DailyView ────────────────────────────────────────────────────────────────
-function DailyView({ profiles, loading, meta }: { profiles: DiscoverProfile[]; loading: boolean; meta: DailySuggestionsMeta | null }) {
+function DailyView({ profiles, loading, meta, error, restricted, onRetry, onReject }: {
+  profiles: DailySuggestionProfile[];
+  loading: boolean;
+  meta: DailySuggestionsMeta | null;
+  error: string | null;
+  restricted: boolean;
+  onRetry: () => void;
+  onReject: (id: number) => Promise<boolean>;
+}) {
   const { bottom } = useSafeAreaInsets();
-  if (loading)
+  const [rejecting, setRejecting] = useState<number | null>(null);
+  const rejectingRef = useRef(false);
+  const pending = dailyIsPending(meta);
+  const reject = async (id: number) => {
+    if (rejectingRef.current) return;
+    rejectingRef.current = true;
+    setRejecting(id);
+    try { await onReject(id); } finally { rejectingRef.current = false; setRejecting(null); }
+  };
+  if (loading && profiles.length === 0 && !pending)
     return (
       <View style={styles.listCenter}>
         <ActivityIndicator color={Colors.accent} />
@@ -558,15 +598,44 @@ function DailyView({ profiles, loading, meta }: { profiles: DiscoverProfile[]; l
       contentContainerStyle={[styles.dailyContent, { paddingBottom: bottom + 100 }]}
       showsVerticalScrollIndicator={false}
     >
+      {restricted ? (
+        <View style={styles.listCenter}>
+          <ShieldCheck size={32} color={Colors.muted} />
+          <Text style={styles.emptyTxtDark}>در حال حاضر دسترسی به پیشنهادها برای این حساب محدود است.</Text>
+          <TouchableOpacity style={styles.dailyRetry} onPress={onRetry} disabled={loading} accessibilityRole="button">
+            <Text style={styles.dailyRetryTxt}>بررسی دوباره</Text>
+          </TouchableOpacity>
+        </View>
+      ) : error ? (
+        <View style={styles.dailyStatus} accessibilityLiveRegion="polite">
+          <Text style={styles.emptyTxtDark}>{error}</Text>
+          <TouchableOpacity style={styles.dailyRetry} onPress={onRetry} disabled={loading} accessibilityRole="button">
+            <Text style={styles.dailyRetryTxt}>تلاش مجدد</Text>
+          </TouchableOpacity>
+        </View>
+      ) : pending ? (
+        <View style={styles.dailyStatus} accessibilityLiveRegion="polite">
+          {loading && <ActivityIndicator color={Colors.accent} />}
+          <Text style={styles.emptyTxtDark}>پیشنهادهای امروز در حال آماده‌سازی است</Text>
+          <TouchableOpacity style={styles.dailyRetry} onPress={onRetry} disabled={loading} accessibilityRole="button">
+            <Text style={styles.dailyRetryTxt}>بررسی وضعیت</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
       {meta != null && profiles.length > 0 && (
         <Text style={styles.dailyMetaTxt}>
-          {toPersianDigits(meta.generated_count)} پیشنهاد از {toPersianDigits(meta.daily_limit)} پیشنهاد امروز
+          {toPersianDigits(profiles.length)} پیشنهاد از سقف {toPersianDigits(meta.limit ?? meta.daily_limit)} پیشنهاد امروز
         </Text>
       )}
-      {profiles.map(p => (
+      {!restricted && meta?.status === 'ready_partial' && profiles.length > 0 && (
+        <Text style={styles.dailyMetaTxt}>امروز افراد مناسب کمتری پیدا شدند؛ پیشنهادهای موجود آماده‌اند.</Text>
+      )}
+      {!restricted && profiles.map(p => (
+        <View key={p.id}>
         <TouchableOpacity
-          key={p.id}
           activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel={`مشاهده پروفایل ${p.first_name}`}
           onPress={() => {
             profileCache.set(p);
             router.push(`/user/${p.id}` as never);
@@ -585,17 +654,11 @@ function DailyView({ profiles, loading, meta }: { profiles: DiscoverProfile[]; l
                 ) : (
                   <User size={36} color="rgba(150,140,170,0.6)" strokeWidth={1.3} />
                 )}
-                {p.compatibility_score != null && (
-                  <View style={styles.dailyCompat}>
-                    <Sparkles size={9} color={Colors.purple} strokeWidth={2} />
-                    <Text style={styles.dailyCompatTxt}>{toPersianDigits(p.compatibility_score)}٪</Text>
-                  </View>
-                )}
               </View>
               <View style={styles.dailyInfo}>
                 <View style={styles.dailyNameRow}>
                   <Text style={styles.dailyName}>
-                    {p.first_name}، {calcAge(p.birth_date)}
+                    {p.first_name}، {p.age ?? '—'}
                   </Text>
                   {p.likes_count > 0 && (
                     <View style={styles.dailyLikePill}>
@@ -619,12 +682,25 @@ function DailyView({ profiles, loading, meta }: { profiles: DiscoverProfile[]; l
                 </View>
               </View>
             </View>
+            <CompatibilitySummary compatibility={p.compatibility} fallbackReason={dailyReason(p)} />
           </Card>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.dailyReject}
+          onPress={() => { void reject(p.id); }}
+          disabled={rejecting !== null}
+          accessibilityRole="button"
+          accessibilityLabel={`رد پیشنهاد ${p.first_name}`}
+        >
+          {rejecting === p.id ? <ActivityIndicator size="small" color={Colors.muted} /> : <X size={16} color={Colors.muted} />}
+          <Text style={styles.dailyRejectTxt}>رد پیشنهاد</Text>
+        </TouchableOpacity>
+        </View>
       ))}
-      {profiles.length === 0 && (
+      {!restricted && !pending && !error && profiles.length === 0 && (
         <View style={styles.listCenter}>
-          <Text style={styles.emptyTxtDark}>پیشنهادی موجود نیست</Text>
+          <Text style={styles.emptyTxtDark}>امروز فرد مناسبی برای پیشنهاد پیدا نشد.</Text>
+          <Text style={styles.dailyMetaTxt}>پیشنهادهای جدید روز بعد آماده می‌شوند.</Text>
         </View>
       )}
       <View style={{ height: 100 }} />
@@ -653,18 +729,27 @@ function FloatingHeader({
   safeMode,
   onToggleSafe,
   hasUnread,
+  onFilters,
+  activeFilters,
 }: {
   mode: Mode;
   onModeChange: (m: Mode) => void;
   safeMode: boolean;
   onToggleSafe: () => void;
   hasUnread: boolean;
+  onFilters: () => void;
+  activeFilters: number;
 }) {
   return (
     <View style={styles.floatingHeader}>
       <View style={styles.headerRow}>
         <Text style={styles.headerTitle}>کشف</Text>
         <View style={styles.headerActions}>
+          {mode === 'swipe' && <TouchableOpacity accessibilityRole="button" accessibilityLabel={`فیلترهای کشف${activeFilters ? `، ${toPersianDigits(activeFilters)} فیلتر فعال` : ''}`}
+            style={[styles.iconBtn, styles.filterIcon, activeFilters > 0 && styles.iconBtnSafe]} onPress={onFilters}>
+            <SlidersHorizontal size={19} color={activeFilters ? Colors.accent : Colors.ink} />
+            {activeFilters > 0 && <Text style={styles.filterButtonText}>{toPersianDigits(activeFilters)}</Text>}
+          </TouchableOpacity>}
           <TouchableOpacity
             style={[styles.iconBtn, safeMode && styles.iconBtnSafe]}
             onPress={onToggleSafe}
@@ -704,17 +789,17 @@ function FloatingHeader({
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function DiscoverScreen() {
   const [mode, setMode] = useState<Mode>('swipe');
-  const { session } = useAuth();
-  const [profiles, setProfiles] = useState<DiscoverProfile[]>([]);
-  const [swipeMeta, setSwipeMeta] = useState<SwipePoolMeta | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { session, user } = useAuth();
   const [safeMode, setSafeMode] = useState(false);
   const [hasUnread, setHasUnread] = useState(false);
-  const [daily, setDaily] = useState<DailySuggestionProfile[]>([]);
-  const [dailyMeta, setDailyMeta] = useState<DailySuggestionsMeta | null>(null);
-  const [dailyLoading, setDailyLoading] = useState(false);
-  const [dailyLoaded, setDailyLoaded] = useState(false);
-  const swipedProfileIdsRef = useRef<Set<number>>(new Set());
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const viewerId = session?.userId ?? user?.id;
+  const { profiles, meta: swipeMeta, loading, error: swipeError, selection, entitled, tier, filtersActive,
+    refresh: fetchProfiles, patchProfile: patchSwipeProfile, rememberSwipe } = useSwipeProfiles(session?.accessToken, viewerId, mode === 'swipe', safeMode);
+  const {
+    profiles: daily, meta: dailyMeta, loading: dailyLoading, error: dailyError, restricted: dailyRestricted,
+    refresh: fetchDaily, patchProfile: patchDailyProfile, removeProfile: removeDailyProfile,
+  } = useDailySuggestions(session?.accessToken, mode === 'daily', user?.id ?? session?.userId);
 
   const fetchUnread = useCallback(() => {
     if (!session?.accessToken) return;
@@ -727,62 +812,19 @@ export default function DiscoverScreen() {
 
   useFocusEffect(useCallback(() => { fetchUnread(); }, [fetchUnread]));
 
-  const fetchProfiles = useCallback(
-    (safe: boolean) => {
-      if (!session) return;
-      setLoading(true);
-      discoverApi
-        .getProfiles(session.accessToken, 15, safe)
-        .then(({ data, meta }) => {
-          const unique = Array.from(new Map(data.map(profile => [profile.id, profile])).values())
-            .filter(profile => !swipedProfileIdsRef.current.has(profile.id));
-          profileCache.setMany(unique);
-          setProfiles(unique);
-          setSwipeMeta(meta);
-        })
-        .catch(() => {})
-        .finally(() => setLoading(false));
-    },
-    [session],
-  );
-
-  useFocusEffect(useCallback(() => {
-    fetchProfiles(safeMode);
-  }, [fetchProfiles, safeMode]));
-
-  const handleExhausted = useCallback(() => {
-    fetchProfiles(safeMode);
-  }, [fetchProfiles, safeMode]);
+  const handleExhausted = fetchProfiles;
 
   const updateProfile = useCallback((userId: number, patch: Partial<DiscoverProfile>) => {
     profileCache.patch(userId, patch);
-    setProfiles(prev => prev.map(profile => profile.id === userId ? { ...profile, ...patch } : profile));
-    setDaily(prev => prev.map(profile => profile.id === userId ? { ...profile, ...patch } : profile));
-  }, []);
-
-  const fetchDaily = useCallback(() => {
-    if (!session?.accessToken) return;
-    setDailyLoading(true);
-    discoverApi.getDailySuggestions(session.accessToken)
-      .then(({ data, meta }) => {
-        profileCache.setMany(data);
-        setDaily(data);
-        setDailyMeta(meta);
-        setDailyLoaded(true);
-      })
-      .catch(() => {})
-      .finally(() => setDailyLoading(false));
-  }, [session?.accessToken]);
-
-  useEffect(() => {
-    if ((mode === 'daily' || mode === 'ai') && !dailyLoaded && !dailyLoading) fetchDaily();
-  }, [mode, dailyLoaded, dailyLoading, fetchDaily]);
+    patchSwipeProfile(userId, patch);
+    patchDailyProfile(userId, patch);
+  }, [patchDailyProfile, patchSwipeProfile]);
 
   const [matchInfo, setMatchInfo] = useState<{ user: MutualUser; message?: string | null } | null>(null);
 
   const handleInteract = async (
     userId: number,
-    type: 'like' | 'pass' | 'swipe_like' | 'swipe_pass',
+    type: 'like' | 'pass' | 'reject' | 'swipe_like' | 'swipe_pass',
   ): Promise<boolean> => {
     if (!session) return false;
     try {
@@ -802,8 +844,9 @@ export default function DiscoverScreen() {
         setMatchInfo({ user: res.data.mutual_user, message: res.data.mutual_message });
       }
       if (type === 'swipe_like' || type === 'swipe_pass') {
-        swipedProfileIdsRef.current.add(userId);
+        rememberSwipe(userId);
       }
+      if (type === 'reject') removeDailyProfile(userId);
       return true;
     } catch (e: any) {
       toast.error(e?.message ?? 'خطا در ثبت واکنش');
@@ -812,9 +855,7 @@ export default function DiscoverScreen() {
   };
 
   const toggleSafe = () => {
-    const next = !safeMode;
-    setSafeMode(next);
-    fetchProfiles(next);
+    setSafeMode(previous => !previous);
   };
 
   return (
@@ -825,6 +866,8 @@ export default function DiscoverScreen() {
         safeMode={safeMode}
         onToggleSafe={toggleSafe}
         hasUnread={hasUnread}
+        onFilters={() => setFiltersOpen(true)}
+        activeFilters={entitled ? filterCount(selection, tier) : 0}
       />
       <View style={styles.content}>
         {mode === 'swipe' && (
@@ -833,14 +876,27 @@ export default function DiscoverScreen() {
             loading={loading}
             token={session?.accessToken ?? ''}
           swipeMeta={swipeMeta}
+          error={swipeError}
+          filtered={filtersActive}
+          onFilters={() => setFiltersOpen(true)}
           onInteract={handleInteract}
           onExhausted={handleExhausted}
           onProfileUpdate={updateProfile}
         />
         )}
-        {mode === 'daily' && <DailyView profiles={daily} loading={dailyLoading} meta={dailyMeta} />}
+        {mode === 'daily' && <DailyView
+          profiles={daily} loading={dailyLoading} meta={dailyMeta}
+          error={dailyError} restricted={dailyRestricted} onRetry={fetchDaily}
+          onReject={id => handleInteract(id, 'reject')}
+        />}
         {mode === 'ai' && <AiView />}
       </View>
+
+      {filtersOpen && viewerId != null && <DiscoveryFiltersSheet key={`${viewerId}:${session?.accessToken}`}
+        token={session?.accessToken ?? ''} selection={selection} allowed={entitled} gold={entitled && tier === 'gold'}
+        onClose={() => setFiltersOpen(false)}
+        onApply={value => { discoveryFilterSession.apply(viewerId, value); setFiltersOpen(false); }}
+        onReset={() => { discoveryFilterSession.reset(viewerId); setFiltersOpen(false); }} />}
 
       <MatchCelebrationModal
         visible={!!matchInfo}
@@ -862,6 +918,9 @@ export default function DiscoverScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
   content: { flex: 1 },
+  filterIcon: { minWidth: 44, minHeight: 44, width: 'auto', paddingHorizontal: 10, flexDirection: 'row', gap: 4 },
+  filterButton: { minHeight: 44, padding: 12, marginTop: 8, borderRadius: 14, borderWidth: 1, borderColor: Colors.accent, justifyContent: 'center' },
+  filterButtonText: { fontFamily: Fonts.bold, color: Colors.accent, fontSize: 13, textAlign: 'center' },
 
   // ── Floating header ─────────────────────────────────────────────────────────
   floatingHeader: { backgroundColor: Colors.bg, paddingTop: Spacing.lg, gap: 2 },
@@ -1116,6 +1175,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 9, paddingVertical: 3, marginTop: 6, alignSelf: 'flex-start',
   },
   dailyGoalTxt: { fontSize: 10.5, color: Colors.accent, fontFamily: Fonts.bold },
+  dailyReason: { fontSize: 12, fontFamily: Fonts.regular, color: Colors.ink, lineHeight: 21, marginTop: 5 },
+  dailyStatus: { alignItems: 'center', gap: 10, paddingVertical: 18 },
+  dailyRetry: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 16 },
+  dailyRetryTxt: { fontFamily: Fonts.bold, color: Colors.accent, fontSize: 13 },
+  dailyReject: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 10 },
+  dailyRejectTxt: { fontFamily: Fonts.regular, color: Colors.muted, fontSize: 12 },
 
   // ── AI ─────────────────────────────────────────────────────────────────────
   aiTitle: { fontSize: 20, fontFamily: Fonts.bold, color: Colors.ink, marginTop: 16 },

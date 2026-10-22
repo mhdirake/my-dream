@@ -5,6 +5,7 @@ import { authApi, type MeResponse } from '../api/auth';
 import { clearSession, isExpired, loadSession, refreshRememberedSession, saveSession, type Session } from './storage';
 import { SessionController, refreshAuthenticatedIdentity } from './sessionController';
 import { scheduleSessionDeadline, sessionDeadline } from './sessionLifetime';
+import { discoveryFilterSession } from '../discovery/filters';
 
 export type AuthUser = MeResponse;
 type AuthCtx = {
@@ -25,6 +26,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  useEffect(() => { discoveryFilterSession.setOwner(session?.userId ?? null); }, [session?.userId]);
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [controller] = useState<SessionController>((): SessionController => new SessionController(
       async (s): Promise<Session> => {
